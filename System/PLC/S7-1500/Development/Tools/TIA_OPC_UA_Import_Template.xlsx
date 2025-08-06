@@ -1,0 +1,38 @@
+Name	Data type	Access level	PLC tag	Comment
+MOTOR_1_RPM_EXECUTION	Real	Read	"DB_HGU_Execution".MOTOR_1_RPM_EXECUTION	Motor 1 Current RPM
+MOTOR_1_CURRENT_EXECUTION	Real	Read	"DB_HGU_Execution".MOTOR_1_CURRENT_EXECUTION	Motor 1 Current (A)
+MOTOR_1_TARGET_EXECUTION	Real	ReadWrite	"DB_HGU_Execution".MOTOR_1_TARGET_EXECUTION	Motor 1 Target RPM
+MOTOR_1_FLOW_EXECUTION	Real	Read	"DB_HGU_Execution".MOTOR_1_FLOW_EXECUTION	Motor 1 Flow Rate (L/min)
+MOTOR_1_PRESSURE_EXECUTION	Real	Read	"DB_HGU_Execution".MOTOR_1_PRESSURE_EXECUTION	Motor 1 Pressure (bar)
+MOTOR_1_LEAK_EXECUTION	Real	Read	"DB_HGU_Execution".MOTOR_1_LEAK_EXECUTION	Motor 1 Leak Rate (L/min)
+MOTOR_1_TEMPERATURE_EXECUTION	Real	Read	"DB_HGU_Execution".MOTOR_1_TEMPERATURE_EXECUTION	Motor 1 Temperature (°C)
+MOTOR_1_ENABLE_EXECUTION	Bool	ReadWrite	"DB_HGU_Execution".MOTOR_1_ENABLE_EXECUTION	Motor 1 Enable/Disable
+MOTOR_1_STATUS_EXECUTION	USInt	Read	"DB_HGU_Execution".MOTOR_1_STATUS_EXECUTION	Motor 1 Status (0=Off 1=Ready 2=Run 3=Error)
+MOTOR_1_VALVE_EXECUTION	USInt	ReadWrite	"DB_HGU_Execution".MOTOR_1_VALVE_EXECUTION	Motor 1 Valve (0=Closed 1=Open)
+MOTOR_1_LINE_FILTER_EXECUTION	USInt	Read	"DB_HGU_Execution".MOTOR_1_LINE_FILTER_EXECUTION	Motor 1 Line Filter (0=Error 1=Warn 2=OK)
+MOTOR_1_SUCTION_FILTER_EXECUTION	USInt	Read	"DB_HGU_Execution".MOTOR_1_SUCTION_FILTER_EXECUTION	Motor 1 Suction Filter (0=Error 1=OK)
+MOTOR_2_RPM_EXECUTION	Real	Read	"DB_HGU_Execution".MOTOR_2_RPM_EXECUTION	Motor 2 Current RPM
+MOTOR_2_CURRENT_EXECUTION	Real	Read	"DB_HGU_Execution".MOTOR_2_CURRENT_EXECUTION	Motor 2 Current (A)
+MOTOR_2_TARGET_EXECUTION	Real	ReadWrite	"DB_HGU_Execution".MOTOR_2_TARGET_EXECUTION	Motor 2 Target RPM
+SYSTEM_STATUS_EXECUTION	USInt	Read	"DB_HGU_Execution".SYSTEM_STATUS_EXECUTION	System Status (0=Off 1=Ready 2=Run 3=Error 4=Maint)
+SYSTEM_TOTAL_FLOW_EXECUTION	Real	Read	"DB_HGU_Execution".SYSTEM_TOTAL_FLOW_EXECUTION	System Total Flow (L/min)
+SYSTEM_PRESSURE_EXECUTION	Real	Read	"DB_HGU_Execution".SYSTEM_PRESSURE_EXECUTION	Main System Pressure (bar)
+SYSTEM_TANK_LEVEL_EXECUTION	Real	Read	"DB_HGU_Execution".SYSTEM_TANK_LEVEL_EXECUTION	Tank Oil Level (%)
+SYSTEM_TANK_TEMPERATURE_EXECUTION	Real	Read	"DB_HGU_Execution".SYSTEM_TANK_TEMPERATURE_EXECUTION	Tank Oil Temperature (°C)
+SYSTEM_CONTROL_MODE_EXECUTION	USInt	ReadWrite	"DB_HGU_Execution".SYSTEM_CONTROL_MODE_EXECUTION	Control Mode (0=Local 1=Remote)
+SYSTEM_EMERGENCY_STOP_EXECUTION	Bool	ReadWrite	"DB_HGU_Execution".SYSTEM_EMERGENCY_STOP_EXECUTION	Emergency Stop Status
+SYSTEM_PUMP_ENABLE_EXECUTION	Bool	ReadWrite	"DB_HGU_Execution".SYSTEM_PUMP_ENABLE_EXECUTION	System Pump Enable
+COOLING_SYSTEM_STATUS_EXECUTION	USInt	Read	"DB_HGU_Execution".COOLING_SYSTEM_STATUS_EXECUTION	Cooling System Status (0=Off 1=Normal 2=Warn 3=Critical)
+COOLING_AQUA_SENSOR_EXECUTION	Real	Read	"DB_HGU_Execution".COOLING_AQUA_SENSOR_EXECUTION	Water Sensor Level (%)
+COOLING_OIL_LEVEL_PERCENT_EXECUTION	Real	Read	"DB_HGU_Execution".COOLING_OIL_LEVEL_PERCENT_EXECUTION	Oil Level in Tank (%)
+COOLING_OIL_TEMPERATURE_EXECUTION	Real	Read	"DB_HGU_Execution".COOLING_OIL_TEMPERATURE_EXECUTION	Oil Temperature (°C)
+ALARM_HIGH_PRESSURE	Bool	Read	"DB_HGU_Execution".ALARM_HIGH_PRESSURE	High Pressure Alarm
+ALARM_LOW_PRESSURE	Bool	Read	"DB_HGU_Execution".ALARM_LOW_PRESSURE	Low Pressure Alarm
+ALARM_HIGH_TEMPERATURE	Bool	Read	"DB_HGU_Execution".ALARM_HIGH_TEMPERATURE	High Temperature Alarm
+ALARM_LOW_TANK_LEVEL	Bool	Read	"DB_HGU_Execution".ALARM_LOW_TANK_LEVEL	Low Tank Level Alarm
+Pressure_Supply	Real	Read	"DB_HGU_Execution".Pressure_Supply	Main Supply Pressure (0-350 bar)
+Pump_Status	Bool	Read	"DB_HGU_Execution".Pump_Status	Pump Operation Status
+System_Ready	Bool	Read	"DB_HGU_Execution".System_Ready	System Ready Status
+Temperature_Oil_Tank	Real	Read	"DB_HGU_Execution".Temperature_Oil_Tank	Tank Oil Temperature (-10 to +80°C)
+Temperature_Motor	Real	Read	"DB_HGU_Execution".Temperature_Motor	Motor Temperature (°C)
+Pressure_Accumulator	Real	Read	"DB_HGU_Execution".Pressure_Accumulator	Accumulator Pressure (0-350 bar)

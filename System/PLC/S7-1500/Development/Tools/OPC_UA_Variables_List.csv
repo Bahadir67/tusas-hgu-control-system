@@ -1,0 +1,126 @@
+Variable_Name,Data_Type,Access_Level,Local_Data_Address,Description
+HGU_Interface/Motors/Motor_1/RPM,REAL,RD,DB_HGU_Execution.MOTOR_1_RPM_EXECUTION,Motor 1 Current RPM
+HGU_Interface/Motors/Motor_1/Current,REAL,RD,DB_HGU_Execution.MOTOR_1_CURRENT_EXECUTION,Motor 1 Current (A)
+HGU_Interface/Motors/Motor_1/Target,REAL,RW,DB_HGU_Execution.MOTOR_1_TARGET_EXECUTION,Motor 1 Target RPM
+HGU_Interface/Motors/Motor_1/Flow,REAL,RD,DB_HGU_Execution.MOTOR_1_FLOW_EXECUTION,Motor 1 Flow Rate (L/min)
+HGU_Interface/Motors/Motor_1/Pressure,REAL,RD,DB_HGU_Execution.MOTOR_1_PRESSURE_EXECUTION,Motor 1 Pressure (bar)
+HGU_Interface/Motors/Motor_1/Leak,REAL,RD,DB_HGU_Execution.MOTOR_1_LEAK_EXECUTION,Motor 1 Leak Rate (L/min)
+HGU_Interface/Motors/Motor_1/Temperature,REAL,RD,DB_HGU_Execution.MOTOR_1_TEMPERATURE_EXECUTION,Motor 1 Temperature (°C)
+HGU_Interface/Motors/Motor_1/Enable,BOOL,RW,DB_HGU_Execution.MOTOR_1_ENABLE_EXECUTION,Motor 1 Enable/Disable
+HGU_Interface/Motors/Motor_1/Status,USINT,RD,DB_HGU_Execution.MOTOR_1_STATUS_EXECUTION,Motor 1 Status (0=Off 1=Ready 2=Run 3=Error)
+HGU_Interface/Motors/Motor_1/Valve,USINT,RW,DB_HGU_Execution.MOTOR_1_VALVE_EXECUTION,Motor 1 Valve (0=Closed 1=Open)
+HGU_Interface/Motors/Motor_1/LineFilter,USINT,RD,DB_HGU_Execution.MOTOR_1_LINE_FILTER_EXECUTION,Motor 1 Line Filter (0=Error 1=Warn 2=OK)
+HGU_Interface/Motors/Motor_1/SuctionFilter,USINT,RD,DB_HGU_Execution.MOTOR_1_SUCTION_FILTER_EXECUTION,Motor 1 Suction Filter (0=Error 1=OK)
+HGU_Interface/Motors/Motor_2/RPM,REAL,RD,DB_HGU_Execution.MOTOR_2_RPM_EXECUTION,Motor 2 Current RPM
+HGU_Interface/Motors/Motor_2/Current,REAL,RD,DB_HGU_Execution.MOTOR_2_CURRENT_EXECUTION,Motor 2 Current (A)
+HGU_Interface/Motors/Motor_2/Target,REAL,RW,DB_HGU_Execution.MOTOR_2_TARGET_EXECUTION,Motor 2 Target RPM
+HGU_Interface/Motors/Motor_2/Flow,REAL,RD,DB_HGU_Execution.MOTOR_2_FLOW_EXECUTION,Motor 2 Flow Rate (L/min)
+HGU_Interface/Motors/Motor_2/Pressure,REAL,RD,DB_HGU_Execution.MOTOR_2_PRESSURE_EXECUTION,Motor 2 Pressure (bar)
+HGU_Interface/Motors/Motor_2/Leak,REAL,RD,DB_HGU_Execution.MOTOR_2_LEAK_EXECUTION,Motor 2 Leak Rate (L/min)
+HGU_Interface/Motors/Motor_2/Temperature,REAL,RD,DB_HGU_Execution.MOTOR_2_TEMPERATURE_EXECUTION,Motor 2 Temperature (°C)
+HGU_Interface/Motors/Motor_2/Enable,BOOL,RW,DB_HGU_Execution.MOTOR_2_ENABLE_EXECUTION,Motor 2 Enable/Disable
+HGU_Interface/Motors/Motor_2/Status,USINT,RD,DB_HGU_Execution.MOTOR_2_STATUS_EXECUTION,Motor 2 Status (0=Off 1=Ready 2=Run 3=Error)
+HGU_Interface/Motors/Motor_2/Valve,USINT,RW,DB_HGU_Execution.MOTOR_2_VALVE_EXECUTION,Motor 2 Valve (0=Closed 1=Open)
+HGU_Interface/Motors/Motor_2/LineFilter,USINT,RD,DB_HGU_Execution.MOTOR_2_LINE_FILTER_EXECUTION,Motor 2 Line Filter (0=Error 1=Warn 2=OK)
+HGU_Interface/Motors/Motor_2/SuctionFilter,USINT,RD,DB_HGU_Execution.MOTOR_2_SUCTION_FILTER_EXECUTION,Motor 2 Suction Filter (0=Error 1=OK)
+HGU_Interface/Motors/Motor_3/RPM,REAL,RD,DB_HGU_Execution.MOTOR_3_RPM_EXECUTION,Motor 3 Current RPM
+HGU_Interface/Motors/Motor_3/Current,REAL,RD,DB_HGU_Execution.MOTOR_3_CURRENT_EXECUTION,Motor 3 Current (A)
+HGU_Interface/Motors/Motor_3/Target,REAL,RW,DB_HGU_Execution.MOTOR_3_TARGET_EXECUTION,Motor 3 Target RPM
+HGU_Interface/Motors/Motor_3/Flow,REAL,RD,DB_HGU_Execution.MOTOR_3_FLOW_EXECUTION,Motor 3 Flow Rate (L/min)
+HGU_Interface/Motors/Motor_3/Pressure,REAL,RD,DB_HGU_Execution.MOTOR_3_PRESSURE_EXECUTION,Motor 3 Pressure (bar)
+HGU_Interface/Motors/Motor_3/Leak,REAL,RD,DB_HGU_Execution.MOTOR_3_LEAK_EXECUTION,Motor 3 Leak Rate (L/min)
+HGU_Interface/Motors/Motor_3/Temperature,REAL,RD,DB_HGU_Execution.MOTOR_3_TEMPERATURE_EXECUTION,Motor 3 Temperature (°C)
+HGU_Interface/Motors/Motor_3/Enable,BOOL,RW,DB_HGU_Execution.MOTOR_3_ENABLE_EXECUTION,Motor 3 Enable/Disable
+HGU_Interface/Motors/Motor_3/Status,USINT,RD,DB_HGU_Execution.MOTOR_3_STATUS_EXECUTION,Motor 3 Status (0=Off 1=Ready 2=Run 3=Error)
+HGU_Interface/Motors/Motor_3/Valve,USINT,RW,DB_HGU_Execution.MOTOR_3_VALVE_EXECUTION,Motor 3 Valve (0=Closed 1=Open)
+HGU_Interface/Motors/Motor_3/LineFilter,USINT,RD,DB_HGU_Execution.MOTOR_3_LINE_FILTER_EXECUTION,Motor 3 Line Filter (0=Error 1=Warn 2=OK)
+HGU_Interface/Motors/Motor_3/SuctionFilter,USINT,RD,DB_HGU_Execution.MOTOR_3_SUCTION_FILTER_EXECUTION,Motor 3 Suction Filter (0=Error 1=OK)
+HGU_Interface/Motors/Motor_4/RPM,REAL,RD,DB_HGU_Execution.MOTOR_4_RPM_EXECUTION,Motor 4 Current RPM
+HGU_Interface/Motors/Motor_4/Current,REAL,RD,DB_HGU_Execution.MOTOR_4_CURRENT_EXECUTION,Motor 4 Current (A)
+HGU_Interface/Motors/Motor_4/Target,REAL,RW,DB_HGU_Execution.MOTOR_4_TARGET_EXECUTION,Motor 4 Target RPM
+HGU_Interface/Motors/Motor_4/Flow,REAL,RD,DB_HGU_Execution.MOTOR_4_FLOW_EXECUTION,Motor 4 Flow Rate (L/min)
+HGU_Interface/Motors/Motor_4/Pressure,REAL,RD,DB_HGU_Execution.MOTOR_4_PRESSURE_EXECUTION,Motor 4 Pressure (bar)
+HGU_Interface/Motors/Motor_4/Leak,REAL,RD,DB_HGU_Execution.MOTOR_4_LEAK_EXECUTION,Motor 4 Leak Rate (L/min)
+HGU_Interface/Motors/Motor_4/Temperature,REAL,RD,DB_HGU_Execution.MOTOR_4_TEMPERATURE_EXECUTION,Motor 4 Temperature (°C)
+HGU_Interface/Motors/Motor_4/Enable,BOOL,RW,DB_HGU_Execution.MOTOR_4_ENABLE_EXECUTION,Motor 4 Enable/Disable
+HGU_Interface/Motors/Motor_4/Status,USINT,RD,DB_HGU_Execution.MOTOR_4_STATUS_EXECUTION,Motor 4 Status (0=Off 1=Ready 2=Run 3=Error)
+HGU_Interface/Motors/Motor_4/Valve,USINT,RW,DB_HGU_Execution.MOTOR_4_VALVE_EXECUTION,Motor 4 Valve (0=Closed 1=Open)
+HGU_Interface/Motors/Motor_4/LineFilter,USINT,RD,DB_HGU_Execution.MOTOR_4_LINE_FILTER_EXECUTION,Motor 4 Line Filter (0=Error 1=Warn 2=OK)
+HGU_Interface/Motors/Motor_4/SuctionFilter,USINT,RD,DB_HGU_Execution.MOTOR_4_SUCTION_FILTER_EXECUTION,Motor 4 Suction Filter (0=Error 1=OK)
+HGU_Interface/Motors/Motor_5/RPM,REAL,RD,DB_HGU_Execution.MOTOR_5_RPM_EXECUTION,Motor 5 Current RPM
+HGU_Interface/Motors/Motor_5/Current,REAL,RD,DB_HGU_Execution.MOTOR_5_CURRENT_EXECUTION,Motor 5 Current (A)
+HGU_Interface/Motors/Motor_5/Target,REAL,RW,DB_HGU_Execution.MOTOR_5_TARGET_EXECUTION,Motor 5 Target RPM
+HGU_Interface/Motors/Motor_5/Flow,REAL,RD,DB_HGU_Execution.MOTOR_5_FLOW_EXECUTION,Motor 5 Flow Rate (L/min)
+HGU_Interface/Motors/Motor_5/Pressure,REAL,RD,DB_HGU_Execution.MOTOR_5_PRESSURE_EXECUTION,Motor 5 Pressure (bar)
+HGU_Interface/Motors/Motor_5/Leak,REAL,RD,DB_HGU_Execution.MOTOR_5_LEAK_EXECUTION,Motor 5 Leak Rate (L/min)
+HGU_Interface/Motors/Motor_5/Temperature,REAL,RD,DB_HGU_Execution.MOTOR_5_TEMPERATURE_EXECUTION,Motor 5 Temperature (°C)
+HGU_Interface/Motors/Motor_5/Enable,BOOL,RW,DB_HGU_Execution.MOTOR_5_ENABLE_EXECUTION,Motor 5 Enable/Disable
+HGU_Interface/Motors/Motor_5/Status,USINT,RD,DB_HGU_Execution.MOTOR_5_STATUS_EXECUTION,Motor 5 Status (0=Off 1=Ready 2=Run 3=Error)
+HGU_Interface/Motors/Motor_5/Valve,USINT,RW,DB_HGU_Execution.MOTOR_5_VALVE_EXECUTION,Motor 5 Valve (0=Closed 1=Open)
+HGU_Interface/Motors/Motor_5/LineFilter,USINT,RD,DB_HGU_Execution.MOTOR_5_LINE_FILTER_EXECUTION,Motor 5 Line Filter (0=Error 1=Warn 2=OK)
+HGU_Interface/Motors/Motor_5/SuctionFilter,USINT,RD,DB_HGU_Execution.MOTOR_5_SUCTION_FILTER_EXECUTION,Motor 5 Suction Filter (0=Error 1=OK)
+HGU_Interface/Motors/Motor_6/RPM,REAL,RD,DB_HGU_Execution.MOTOR_6_RPM_EXECUTION,Motor 6 Current RPM
+HGU_Interface/Motors/Motor_6/Current,REAL,RD,DB_HGU_Execution.MOTOR_6_CURRENT_EXECUTION,Motor 6 Current (A)
+HGU_Interface/Motors/Motor_6/Target,REAL,RW,DB_HGU_Execution.MOTOR_6_TARGET_EXECUTION,Motor 6 Target RPM
+HGU_Interface/Motors/Motor_6/Flow,REAL,RD,DB_HGU_Execution.MOTOR_6_FLOW_EXECUTION,Motor 6 Flow Rate (L/min)
+HGU_Interface/Motors/Motor_6/Pressure,REAL,RD,DB_HGU_Execution.MOTOR_6_PRESSURE_EXECUTION,Motor 6 Pressure (bar)
+HGU_Interface/Motors/Motor_6/Leak,REAL,RD,DB_HGU_Execution.MOTOR_6_LEAK_EXECUTION,Motor 6 Leak Rate (L/min)
+HGU_Interface/Motors/Motor_6/Temperature,REAL,RD,DB_HGU_Execution.MOTOR_6_TEMPERATURE_EXECUTION,Motor 6 Temperature (°C)
+HGU_Interface/Motors/Motor_6/Enable,BOOL,RW,DB_HGU_Execution.MOTOR_6_ENABLE_EXECUTION,Motor 6 Enable/Disable
+HGU_Interface/Motors/Motor_6/Status,USINT,RD,DB_HGU_Execution.MOTOR_6_STATUS_EXECUTION,Motor 6 Status (0=Off 1=Ready 2=Run 3=Error)
+HGU_Interface/Motors/Motor_6/Valve,USINT,RW,DB_HGU_Execution.MOTOR_6_VALVE_EXECUTION,Motor 6 Valve (0=Closed 1=Open)
+HGU_Interface/Motors/Motor_6/LineFilter,USINT,RD,DB_HGU_Execution.MOTOR_6_LINE_FILTER_EXECUTION,Motor 6 Line Filter (0=Error 1=Warn 2=OK)
+HGU_Interface/Motors/Motor_6/SuctionFilter,USINT,RD,DB_HGU_Execution.MOTOR_6_SUCTION_FILTER_EXECUTION,Motor 6 Suction Filter (0=Error 1=OK)
+HGU_Interface/Motors/Motor_7/RPM,REAL,RD,DB_HGU_Execution.MOTOR_7_RPM_EXECUTION,Motor 7 Current RPM (Fixed 1500)
+HGU_Interface/Motors/Motor_7/Current,REAL,RD,DB_HGU_Execution.MOTOR_7_CURRENT_EXECUTION,Motor 7 Current (A)
+HGU_Interface/Motors/Motor_7/Target,REAL,RD,DB_HGU_Execution.MOTOR_7_TARGET_EXECUTION,Motor 7 Target RPM (Fixed 1500)
+HGU_Interface/Motors/Motor_7/Flow,REAL,RD,DB_HGU_Execution.MOTOR_7_FLOW_EXECUTION,Motor 7 Flow Rate (Fixed 34 L/min)
+HGU_Interface/Motors/Motor_7/Pressure,REAL,RD,DB_HGU_Execution.MOTOR_7_PRESSURE_EXECUTION,Motor 7 Pressure (bar)
+HGU_Interface/Motors/Motor_7/Leak,REAL,RD,DB_HGU_Execution.MOTOR_7_LEAK_EXECUTION,Motor 7 Leak Rate (L/min)
+HGU_Interface/Motors/Motor_7/Temperature,REAL,RD,DB_HGU_Execution.MOTOR_7_TEMPERATURE_EXECUTION,Motor 7 Temperature (°C)
+HGU_Interface/Motors/Motor_7/Enable,BOOL,RW,DB_HGU_Execution.MOTOR_7_ENABLE_EXECUTION,Motor 7 Enable/Disable
+HGU_Interface/Motors/Motor_7/Status,USINT,RD,DB_HGU_Execution.MOTOR_7_STATUS_EXECUTION,Motor 7 Status (0=Off 1=Ready 2=Run 3=Error)
+HGU_Interface/Motors/Motor_7/Valve,USINT,RW,DB_HGU_Execution.MOTOR_7_VALVE_EXECUTION,Motor 7 Valve (0=Closed 1=Open)
+HGU_Interface/Motors/Motor_7/LineFilter,USINT,RD,DB_HGU_Execution.MOTOR_7_LINE_FILTER_EXECUTION,Motor 7 Line Filter (0=Error 1=Warn 2=OK)
+HGU_Interface/Motors/Motor_7/SuctionFilter,USINT,RD,DB_HGU_Execution.MOTOR_7_SUCTION_FILTER_EXECUTION,Motor 7 Suction Filter (0=Error 1=OK)
+HGU_Interface/Motors/Motor_7/PressureSetpoint,REAL,RW,DB_HGU_Execution.MOTOR_7_PRESSURE_SETPOINT,Motor 7 Pressure Setpoint (Adjustable)
+HGU_Interface/System/Status,USINT,RD,DB_HGU_Execution.SYSTEM_STATUS_EXECUTION,System Status (0=Off 1=Ready 2=Run 3=Error 4=Maint)
+HGU_Interface/System/TotalFlow,REAL,RD,DB_HGU_Execution.SYSTEM_TOTAL_FLOW_EXECUTION,System Total Flow (L/min)
+HGU_Interface/System/Pressure,REAL,RD,DB_HGU_Execution.SYSTEM_PRESSURE_EXECUTION,Main System Pressure (bar)
+HGU_Interface/System/TankLevel,REAL,RD,DB_HGU_Execution.SYSTEM_TANK_LEVEL_EXECUTION,Tank Oil Level (%)
+HGU_Interface/System/TankTemperature,REAL,RD,DB_HGU_Execution.SYSTEM_TANK_TEMPERATURE_EXECUTION,Tank Oil Temperature (°C)
+HGU_Interface/System/ControlMode,USINT,RW,DB_HGU_Execution.SYSTEM_CONTROL_MODE_EXECUTION,Control Mode (0=Local 1=Remote)
+HGU_Interface/System/EmergencyStop,BOOL,RW,DB_HGU_Execution.SYSTEM_EMERGENCY_STOP_EXECUTION,Emergency Stop Status
+HGU_Interface/System/PumpEnable,BOOL,RW,DB_HGU_Execution.SYSTEM_PUMP_ENABLE_EXECUTION,System Pump Enable
+HGU_Interface/System/ActiveMotors,USINT,RD,DB_HGU_Execution.TOTAL_ACTIVE_MOTORS,Count of Running Motors
+HGU_Interface/System/TotalPower,REAL,RD,DB_HGU_Execution.TOTAL_POWER_CONSUMPTION,Total Power Consumption (kW)
+HGU_Interface/System/AverageTemperature,REAL,RD,DB_HGU_Execution.AVERAGE_SYSTEM_TEMPERATURE,Average Temperature (°C)
+HGU_Interface/System/SystemEfficiency,REAL,RD,DB_HGU_Execution.SYSTEM_EFFICIENCY,System Efficiency (%)
+HGU_Interface/Cooling/SystemStatus,USINT,RD,DB_HGU_Execution.COOLING_SYSTEM_STATUS_EXECUTION,Cooling System Status (0=Off 1=Normal 2=Warn 3=Critical)
+HGU_Interface/Cooling/AquaSensor,REAL,RD,DB_HGU_Execution.COOLING_AQUA_SENSOR_EXECUTION,Water Sensor Level (%)
+HGU_Interface/Cooling/OilLevelLiters,REAL,RD,DB_HGU_Execution.COOLING_OIL_LEVEL_LITERS_EXECUTION,Oil Level in Tank (Liters)
+HGU_Interface/Cooling/OilLevelPercent,REAL,RD,DB_HGU_Execution.COOLING_OIL_LEVEL_PERCENT_EXECUTION,Oil Level in Tank (%)
+HGU_Interface/Cooling/OilTemperature,REAL,RD,DB_HGU_Execution.COOLING_OIL_TEMPERATURE_EXECUTION,Oil Temperature (°C)
+HGU_Interface/Cooling/WaterTemperature,REAL,RD,DB_HGU_Execution.COOLING_WATER_TEMPERATURE_EXECUTION,Water/Coolant Temperature (°C)
+HGU_Interface/Alarms/HighPressure,BOOL,RD,DB_HGU_Execution.ALARM_HIGH_PRESSURE,High Pressure Alarm
+HGU_Interface/Alarms/LowPressure,BOOL,RD,DB_HGU_Execution.ALARM_LOW_PRESSURE,Low Pressure Alarm
+HGU_Interface/Alarms/HighTemperature,BOOL,RD,DB_HGU_Execution.ALARM_HIGH_TEMPERATURE,High Temperature Alarm
+HGU_Interface/Alarms/LowTankLevel,BOOL,RD,DB_HGU_Execution.ALARM_LOW_TANK_LEVEL,Low Tank Level Alarm
+HGU_Interface/Alarms/FilterBlocked,BOOL,RD,DB_HGU_Execution.ALARM_FILTER_BLOCKED,Filter Blocked Alarm
+HGU_Interface/Alarms/MotorOverload,BOOL,RD,DB_HGU_Execution.ALARM_MOTOR_OVERLOAD,Motor Overload Alarm
+HGU_Interface/Alarms/MotorOverloadMask,BYTE,RD,DB_HGU_Execution.MOTOR_ALARM_OVERLOAD_MASK,Motor Overload Bitmask (bit0=M1 bit1=M2...)
+HGU_Interface/Alarms/MotorOverheatMask,BYTE,RD,DB_HGU_Execution.MOTOR_ALARM_OVERHEAT_MASK,Motor Overheat Bitmask
+HGU_Interface/Alarms/MotorLeakMask,BYTE,RD,DB_HGU_Execution.MOTOR_ALARM_LEAK_MASK,Motor Leak Bitmask
+HGU_Interface/Sensors/PressureSupply,REAL,RD,DB_HGU_Execution.Pressure_Supply,Main Supply Pressure (0-350 bar)
+HGU_Interface/Sensors/OnOffTest,BOOL,RD,DB_HGU_Execution.On_Off_Test,Test Signal
+HGU_Interface/Sensors/PumpStatus,BOOL,RD,DB_HGU_Execution.Pump_Status,Pump Operation Status
+HGU_Interface/Sensors/SystemReady,BOOL,RD,DB_HGU_Execution.System_Ready,System Ready Status
+HGU_Interface/Sensors/TemperatureOilTank,REAL,RD,DB_HGU_Execution.Temperature_Oil_Tank,Tank Oil Temperature (-10 to +80°C)
+HGU_Interface/Sensors/TemperatureMotor,REAL,RD,DB_HGU_Execution.Temperature_Motor,Motor Temperature (°C)
+HGU_Interface/Sensors/PressureAccumulator,REAL,RD,DB_HGU_Execution.Pressure_Accumulator,Accumulator Pressure (0-350 bar)
+HGU_Interface/Maintenance/MaintenanceTimer,TIME,RD,DB_HGU_Execution.MAINTENANCE_TIMER,Maintenance Timer
+HGU_Interface/Maintenance/LastMaintenanceDate,DATE,RD,DB_HGU_Execution.LAST_MAINTENANCE_DATE,Last Maintenance Date
+HGU_Interface/Maintenance/NextMaintenanceDue,DATE,RD,DB_HGU_Execution.NEXT_MAINTENANCE_DUE,Next Maintenance Due Date
+HGU_Interface/Maintenance/TotalPowerConsumption,REAL,RD,DB_HGU_Execution.TOTAL_POWER_CONSUMPTION,Total Power Consumption (kW)
+HGU_Interface/Maintenance/AverageEfficiency,REAL,RD,DB_HGU_Execution.AVERAGE_EFFICIENCY,Average Efficiency (%)
+HGU_Interface/Maintenance/SystemLoadFactor,REAL,RD,DB_HGU_Execution.SYSTEM_LOAD_FACTOR,System Load Factor (%)

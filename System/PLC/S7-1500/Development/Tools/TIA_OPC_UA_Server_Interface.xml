@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OPCUAServerInterface xmlns="http://www.siemens.com/automation/Openness/OPC/Interface">
+  <ServerInterface Name="HGU_Interface">
+    <!-- Motor 1 Variables -->
+    <Variable Name="MOTOR_1_RPM_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_1_RPM_EXECUTION" />
+    <Variable Name="MOTOR_1_CURRENT_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_1_CURRENT_EXECUTION" />
+    <Variable Name="MOTOR_1_TARGET_EXECUTION" DataType="Real" AccessLevel="ReadWrite" Address="DB_HGU_Execution.MOTOR_1_TARGET_EXECUTION" />
+    <Variable Name="MOTOR_1_FLOW_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_1_FLOW_EXECUTION" />
+    <Variable Name="MOTOR_1_PRESSURE_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_1_PRESSURE_EXECUTION" />
+    <Variable Name="MOTOR_1_LEAK_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_1_LEAK_EXECUTION" />
+    <Variable Name="MOTOR_1_TEMPERATURE_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_1_TEMPERATURE_EXECUTION" />
+    <Variable Name="MOTOR_1_ENABLE_EXECUTION" DataType="Bool" AccessLevel="ReadWrite" Address="DB_HGU_Execution.MOTOR_1_ENABLE_EXECUTION" />
+    <Variable Name="MOTOR_1_STATUS_EXECUTION" DataType="USInt" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_1_STATUS_EXECUTION" />
+    <Variable Name="MOTOR_1_VALVE_EXECUTION" DataType="USInt" AccessLevel="ReadWrite" Address="DB_HGU_Execution.MOTOR_1_VALVE_EXECUTION" />
+    <Variable Name="MOTOR_1_LINE_FILTER_EXECUTION" DataType="USInt" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_1_LINE_FILTER_EXECUTION" />
+    <Variable Name="MOTOR_1_SUCTION_FILTER_EXECUTION" DataType="USInt" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_1_SUCTION_FILTER_EXECUTION" />
+    
+    <!-- Motor 2 Variables -->
+    <Variable Name="MOTOR_2_RPM_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_2_RPM_EXECUTION" />
+    <Variable Name="MOTOR_2_CURRENT_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_2_CURRENT_EXECUTION" />
+    <Variable Name="MOTOR_2_TARGET_EXECUTION" DataType="Real" AccessLevel="ReadWrite" Address="DB_HGU_Execution.MOTOR_2_TARGET_EXECUTION" />
+    <Variable Name="MOTOR_2_FLOW_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_2_FLOW_EXECUTION" />
+    <Variable Name="MOTOR_2_PRESSURE_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_2_PRESSURE_EXECUTION" />
+    <Variable Name="MOTOR_2_LEAK_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_2_LEAK_EXECUTION" />
+    <Variable Name="MOTOR_2_TEMPERATURE_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_2_TEMPERATURE_EXECUTION" />
+    <Variable Name="MOTOR_2_ENABLE_EXECUTION" DataType="Bool" AccessLevel="ReadWrite" Address="DB_HGU_Execution.MOTOR_2_ENABLE_EXECUTION" />
+    <Variable Name="MOTOR_2_STATUS_EXECUTION" DataType="USInt" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_2_STATUS_EXECUTION" />
+    <Variable Name="MOTOR_2_VALVE_EXECUTION" DataType="USInt" AccessLevel="ReadWrite" Address="DB_HGU_Execution.MOTOR_2_VALVE_EXECUTION" />
+    <Variable Name="MOTOR_2_LINE_FILTER_EXECUTION" DataType="USInt" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_2_LINE_FILTER_EXECUTION" />
+    <Variable Name="MOTOR_2_SUCTION_FILTER_EXECUTION" DataType="USInt" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_2_SUCTION_FILTER_EXECUTION" />
+    
+    <!-- Motor 3 Variables -->
+    <Variable Name="MOTOR_3_RPM_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_3_RPM_EXECUTION" />
+    <Variable Name="MOTOR_3_CURRENT_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_3_CURRENT_EXECUTION" />
+    <Variable Name="MOTOR_3_TARGET_EXECUTION" DataType="Real" AccessLevel="ReadWrite" Address="DB_HGU_Execution.MOTOR_3_TARGET_EXECUTION" />
+    <Variable Name="MOTOR_3_FLOW_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_3_FLOW_EXECUTION" />
+    <Variable Name="MOTOR_3_PRESSURE_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_3_PRESSURE_EXECUTION" />
+    <Variable Name="MOTOR_3_LEAK_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_3_LEAK_EXECUTION" />
+    <Variable Name="MOTOR_3_TEMPERATURE_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_3_TEMPERATURE_EXECUTION" />
+    <Variable Name="MOTOR_3_ENABLE_EXECUTION" DataType="Bool" AccessLevel="ReadWrite" Address="DB_HGU_Execution.MOTOR_3_ENABLE_EXECUTION" />
+    <Variable Name="MOTOR_3_STATUS_EXECUTION" DataType="USInt" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_3_STATUS_EXECUTION" />
+    <Variable Name="MOTOR_3_VALVE_EXECUTION" DataType="USInt" AccessLevel="ReadWrite" Address="DB_HGU_Execution.MOTOR_3_VALVE_EXECUTION" />
+    <Variable Name="MOTOR_3_LINE_FILTER_EXECUTION" DataType="USInt" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_3_LINE_FILTER_EXECUTION" />
+    <Variable Name="MOTOR_3_SUCTION_FILTER_EXECUTION" DataType="USInt" AccessLevel="ReadOnly" Address="DB_HGU_Execution.MOTOR_3_SUCTION_FILTER_EXECUTION" />
+    
+    <!-- System Variables -->
+    <Variable Name="SYSTEM_STATUS_EXECUTION" DataType="USInt" AccessLevel="ReadOnly" Address="DB_HGU_Execution.SYSTEM_STATUS_EXECUTION" />
+    <Variable Name="SYSTEM_TOTAL_FLOW_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.SYSTEM_TOTAL_FLOW_EXECUTION" />
+    <Variable Name="SYSTEM_PRESSURE_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.SYSTEM_PRESSURE_EXECUTION" />
+    <Variable Name="SYSTEM_TANK_LEVEL_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.SYSTEM_TANK_LEVEL_EXECUTION" />
+    <Variable Name="SYSTEM_TANK_TEMPERATURE_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.SYSTEM_TANK_TEMPERATURE_EXECUTION" />
+    <Variable Name="SYSTEM_CONTROL_MODE_EXECUTION" DataType="USInt" AccessLevel="ReadWrite" Address="DB_HGU_Execution.SYSTEM_CONTROL_MODE_EXECUTION" />
+    <Variable Name="SYSTEM_EMERGENCY_STOP_EXECUTION" DataType="Bool" AccessLevel="ReadWrite" Address="DB_HGU_Execution.SYSTEM_EMERGENCY_STOP_EXECUTION" />
+    <Variable Name="SYSTEM_PUMP_ENABLE_EXECUTION" DataType="Bool" AccessLevel="ReadWrite" Address="DB_HGU_Execution.SYSTEM_PUMP_ENABLE_EXECUTION" />
+    
+    <!-- Cooling Variables -->
+    <Variable Name="COOLING_SYSTEM_STATUS_EXECUTION" DataType="USInt" AccessLevel="ReadOnly" Address="DB_HGU_Execution.COOLING_SYSTEM_STATUS_EXECUTION" />
+    <Variable Name="COOLING_AQUA_SENSOR_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.COOLING_AQUA_SENSOR_EXECUTION" />
+    <Variable Name="COOLING_OIL_LEVEL_PERCENT_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.COOLING_OIL_LEVEL_PERCENT_EXECUTION" />
+    <Variable Name="COOLING_OIL_TEMPERATURE_EXECUTION" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.COOLING_OIL_TEMPERATURE_EXECUTION" />
+    
+    <!-- Alarm Variables -->
+    <Variable Name="ALARM_HIGH_PRESSURE" DataType="Bool" AccessLevel="ReadOnly" Address="DB_HGU_Execution.ALARM_HIGH_PRESSURE" />
+    <Variable Name="ALARM_LOW_PRESSURE" DataType="Bool" AccessLevel="ReadOnly" Address="DB_HGU_Execution.ALARM_LOW_PRESSURE" />
+    <Variable Name="ALARM_HIGH_TEMPERATURE" DataType="Bool" AccessLevel="ReadOnly" Address="DB_HGU_Execution.ALARM_HIGH_TEMPERATURE" />
+    <Variable Name="ALARM_LOW_TANK_LEVEL" DataType="Bool" AccessLevel="ReadOnly" Address="DB_HGU_Execution.ALARM_LOW_TANK_LEVEL" />
+    
+    <!-- Basic Sensors from A1.xml -->
+    <Variable Name="Pressure_Supply" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.Pressure_Supply" />
+    <Variable Name="Pump_Status" DataType="Bool" AccessLevel="ReadOnly" Address="DB_HGU_Execution.Pump_Status" />
+    <Variable Name="System_Ready" DataType="Bool" AccessLevel="ReadOnly" Address="DB_HGU_Execution.System_Ready" />
+    <Variable Name="Temperature_Oil_Tank" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.Temperature_Oil_Tank" />
+    <Variable Name="Temperature_Motor" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.Temperature_Motor" />
+    <Variable Name="Pressure_Accumulator" DataType="Real" AccessLevel="ReadOnly" Address="DB_HGU_Execution.Pressure_Accumulator" />
+  </ServerInterface>
+</OPCUAServerInterface>

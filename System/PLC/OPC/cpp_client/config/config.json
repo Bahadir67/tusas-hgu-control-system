@@ -1,0 +1,124 @@
+{
+  "application": {
+    "name": "TUSAS HGU OPC UA Client",
+    "version": "1.0.0",
+    "description": "High-performance OPC UA client for hydraulic power unit automation"
+  },
+  
+  "opcua": {
+    "endpoint": "opc.tcp://192.168.0.1:4840",
+    "namespace": 2,
+    "root_node": "HGU_Main.SensorData",
+    "security_mode": "None",
+    "security_policy": "None",
+    "username": "",
+    "password": "",
+    "certificate_path": "",
+    "private_key_path": "",
+    "connection_timeout_ms": 30000,
+    "session_timeout_ms": 300000,
+    "subscription_interval_ms": 1000,
+    "max_keepalive_count": 10,
+    "max_lifetime_count": 300,
+    "max_notifications_per_publish": 100,
+    "priority": 0,
+    "publishing_enabled": true,
+    "auto_reconnect": true,
+    "reconnect_delay_ms": 5000,
+    "max_reconnect_attempts": 10
+  },
+  
+  "influxdb": {
+    "url": "http://localhost:8086",
+    "token": "87zzaBVQnKrHP2j8NNtXWZe_5CuvhcEzUONmltOz9ljJrgSMbvmAXQw6YuLPN_vz5dv6gEUiGLdxeLTdFqz_nA==",
+    "organization": "tusas",
+    "bucket": "tusas_hgu",
+    "measurement": "hgu_sensors",
+    "batch_size": 100,
+    "flush_interval_ms": 1000,
+    "max_retry_count": 3,
+    "retry_delay_ms": 1000,
+    "connection_timeout_ms": 30000,
+    "request_timeout_ms": 10000,
+    "compression": true,
+    "precision": "ms"
+  },
+  
+  "performance": {
+    "worker_threads": 4,
+    "data_buffer_size": 1000,
+    "subscription_buffer_size": 500,
+    "enable_metrics": true,
+    "metrics_interval_ms": 60000,
+    "memory_limit_mb": 100,
+    "cpu_limit_percent": 90
+  },
+  
+  "logging": {
+    "level": "INFO",
+    "file_path": "logs/tusas_hgu_opcua.log",
+    "max_file_size_mb": 10,
+    "max_backup_files": 5,
+    "log_to_console": true,
+    "log_to_file": true,
+    "enable_opcua_logging": false,
+    "enable_performance_logging": true
+  },
+  
+  "system": {
+    "location": "WORKSHOP",
+    "equipment_id": "HGU_MAIN",
+    "system_name": "TUSAS_HGU_AUTOMATION",
+    "enable_heartbeat": true,
+    "heartbeat_interval_ms": 30000,
+    "enable_watchdog": true,
+    "watchdog_timeout_ms": 120000
+  },
+  
+  "sensors": {
+    "enable_validation": true,
+    "default_quality": "good",
+    "invalid_value_action": "discard",
+    "outlier_detection": true,
+    "outlier_threshold_percent": 20.0,
+    "enable_scaling": false,
+    "timestamp_source": "client"
+  },
+  
+  "network": {
+    "enable_network_monitoring": true,
+    "ping_interval_ms": 10000,
+    "ping_timeout_ms": 5000,
+    "network_retry_count": 3,
+    "dns_lookup_timeout_ms": 5000
+  },
+  
+  "security": {
+    "enable_certificate_validation": false,
+    "trust_server_certificate": true,
+    "certificate_store_path": "certificates",
+    "enable_encryption": false,
+    "min_security_level": "None"
+  },
+  
+  "alerts": {
+    "enable_email_alerts": false,
+    "email_server": "",
+    "email_port": 587,
+    "email_username": "",
+    "email_password": "",
+    "email_recipients": [],
+    "alert_cooldown_ms": 300000,
+    "critical_alert_threshold": 5,
+    "warning_alert_threshold": 10
+  },
+  
+  "maintenance": {
+    "enable_auto_backup": true,
+    "backup_interval_hours": 24,
+    "backup_retention_days": 7,
+    "enable_self_diagnostics": true,
+    "diagnostics_interval_ms": 300000,
+    "enable_performance_optimization": true
+  }
+}

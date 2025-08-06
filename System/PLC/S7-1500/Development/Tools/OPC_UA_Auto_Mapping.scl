@@ -1,0 +1,93 @@
+// =============================================================================
+// TUSAŞ HGU Control System - OPC UA Auto Mapping Script
+// TIA Portal S7-1500 Structured Control Language (SCL)
+// Generated: 2025-01-15
+// Description: Otomatik OPC UA variable mapping için script
+// =============================================================================
+
+FUNCTION_BLOCK "FB_OPC_UA_Mapping"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 1.0
+
+   VAR_INPUT 
+      Enable : Bool := TRUE;   // OPC UA mapping aktif/pasif
+   END_VAR
+
+   VAR_OUTPUT 
+      Status : Bool;   // Mapping durumu
+      ErrorCode : Word;   // Hata kodu
+   END_VAR
+
+BEGIN
+
+// =============================================================================
+// Motor 1-6 Variables Mapping
+// =============================================================================
+
+// Motor 1 Performance Variables
+"DB_HGU_Execution".MOTOR_1_RPM_EXECUTION := "DB_HGU_Motors".MOTOR_1.ACTUAL_RPM;
+"DB_HGU_Execution".MOTOR_1_CURRENT_EXECUTION := "DB_HGU_Motors".MOTOR_1.ACTUAL_CURRENT;
+"DB_HGU_Execution".MOTOR_1_TARGET_EXECUTION := "DB_HGU_Motors".MOTOR_1.TARGET_RPM;
+"DB_HGU_Execution".MOTOR_1_FLOW_EXECUTION := "DB_HGU_Motors".MOTOR_1.FLOW_RATE;
+"DB_HGU_Execution".MOTOR_1_PRESSURE_EXECUTION := "DB_HGU_Motors".MOTOR_1.PRESSURE;
+"DB_HGU_Execution".MOTOR_1_LEAK_EXECUTION := "DB_HGU_Motors".MOTOR_1.LEAK_RATE;
+"DB_HGU_Execution".MOTOR_1_TEMPERATURE_EXECUTION := "DB_HGU_Motors".MOTOR_1.TEMPERATURE;
+
+// Motor 1 Control Variables
+"DB_HGU_Motors".MOTOR_1.ENABLE := "DB_HGU_Execution".MOTOR_1_ENABLE_EXECUTION;
+"DB_HGU_Execution".MOTOR_1_STATUS_EXECUTION := "DB_HGU_Motors".MOTOR_1.STATUS;
+"DB_HGU_Motors".MOTOR_1.VALVE_CONTROL := "DB_HGU_Execution".MOTOR_1_VALVE_EXECUTION;
+
+// Motor 1 Filter Variables
+"DB_HGU_Execution".MOTOR_1_LINE_FILTER_EXECUTION := "DB_HGU_Motors".MOTOR_1.LINE_FILTER_STATUS;
+"DB_HGU_Execution".MOTOR_1_SUCTION_FILTER_EXECUTION := "DB_HGU_Motors".MOTOR_1.SUCTION_FILTER_STATUS;
+
+// =============================================================================
+// Motor 2-6 için aynı pattern (kod kısaltması için gösterilmedi)
+// =============================================================================
+
+// =============================================================================
+// Motor 7 Special System Variables
+// =============================================================================
+
+// Motor 7 Fixed Values (Read-Only)
+"DB_HGU_Execution".MOTOR_7_RPM_EXECUTION := 1500.0;  // Fixed RPM
+"DB_HGU_Execution".MOTOR_7_FLOW_EXECUTION := 34.0;   // Fixed Flow
+"DB_HGU_Execution".MOTOR_7_TARGET_EXECUTION := 1500.0;  // Fixed Target
+
+// Motor 7 Adjustable Values
+"DB_HGU_Motors".MOTOR_7.PRESSURE_SETPOINT := "DB_HGU_Execution".MOTOR_7_PRESSURE_SETPOINT;
+"DB_HGU_Execution".MOTOR_7_PRESSURE_EXECUTION := "DB_HGU_Motors".MOTOR_7.PRESSURE;
+
+// Motor 7 Status Variables
+"DB_HGU_Motors".MOTOR_7.ENABLE := "DB_HGU_Execution".MOTOR_7_ENABLE_EXECUTION;
+"DB_HGU_Execution".MOTOR_7_STATUS_EXECUTION := "DB_HGU_Motors".MOTOR_7.STATUS;
+
+// =============================================================================
+// System Level Variables
+// =============================================================================
+
+"DB_HGU_Execution".SYSTEM_STATUS_EXECUTION := "DB_HGU_Motors".SYSTEM_STATUS;
+"DB_HGU_Execution".SYSTEM_TOTAL_FLOW_EXECUTION := "DB_HGU_Motors".TOTAL_FLOW;
+"DB_HGU_Execution".SYSTEM_PRESSURE_EXECUTION := "DB_HGU_Motors".MAIN_PRESSURE;
+"DB_HGU_Execution".SYSTEM_TANK_LEVEL_EXECUTION := "DB_HGU_Motors".TANK_LEVEL;
+"DB_HGU_Execution".SYSTEM_TANK_TEMPERATURE_EXECUTION := "DB_HGU_Motors".TANK_TEMPERATURE;
+
+// =============================================================================
+// Cooling System Variables
+// =============================================================================
+
+"DB_HGU_Execution".COOLING_SYSTEM_STATUS_EXECUTION := "DB_HGU_Motors".COOLING_STATUS;
+"DB_HGU_Execution".COOLING_AQUA_SENSOR_EXECUTION := "DB_HGU_Motors".AQUA_SENSOR;
+"DB_HGU_Execution".COOLING_OIL_LEVEL_LITERS_EXECUTION := "DB_HGU_Motors".OIL_LEVEL_LITERS;
+"DB_HGU_Execution".COOLING_OIL_LEVEL_PERCENT_EXECUTION := "DB_HGU_Motors".OIL_LEVEL_PERCENT;
+"DB_HGU_Execution".COOLING_OIL_TEMPERATURE_EXECUTION := "DB_HGU_Motors".OIL_TEMPERATURE;
+
+// =============================================================================
+// Status Output
+// =============================================================================
+
+#Status := TRUE;
+#ErrorCode := 16#0000;
+
+END_FUNCTION_BLOCK

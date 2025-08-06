@@ -1,0 +1,149 @@
+DATA_BLOCK "DB_HGU_Motors"
+TITLE = 'HGU Motor Control Data Block'
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 1.0
+// =============================================================================
+// TUSAŞ HGU Control System - Motor Control Data Block
+// TIA Portal S7-1500 Structured Control Language (SCL)
+// Generated: 2025-01-14
+// Description: Data block for 6x G120C PN motor drives with Telegram 1 interface
+// =============================================================================
+   VAR 
+      MOTOR_1 : "UDT_G120C_Telegram1";   // Motor 1 - G120C PN Drive Interface
+      MOTOR_2 : "UDT_G120C_Telegram1";   // Motor 2 - G120C PN Drive Interface
+      MOTOR_3 : "UDT_G120C_Telegram1";   // Motor 3 - G120C PN Drive Interface
+      MOTOR_4 : "UDT_G120C_Telegram1";   // Motor 4 - G120C PN Drive Interface
+      MOTOR_5 : "UDT_G120C_Telegram1";   // Motor 5 - G120C PN Drive Interface
+      MOTOR_6 : "UDT_G120C_Telegram1";   // Motor 6 - G120C PN Drive Interface 
+      // =============================================================================
+      // MOTOR OPERATIONAL DATA (Additional sensors and calculated values)
+      // =============================================================================
+      // Motor 1 Operational Data
+      MOTOR_1_CURRENT_ANALOG : Real;   // Motor 1 Current from analog input (A)
+      MOTOR_1_POWER_CALC : Real;   // Motor 1 Calculated power (kW)
+      MOTOR_1_EFFICIENCY : Real;   // Motor 1 Efficiency (%)
+      MOTOR_1_RUNTIME_HOURS : Real;   // Motor 1 Runtime hours
+      MOTOR_1_START_COUNT : DInt;   // Motor 1 Start counter 
+      // Motor 2 Operational Data
+      MOTOR_2_CURRENT_ANALOG : Real;   // Motor 2 Current from analog input (A)
+      MOTOR_2_POWER_CALC : Real;   // Motor 2 Calculated power (kW)
+      MOTOR_2_EFFICIENCY : Real;   // Motor 2 Efficiency (%)
+      MOTOR_2_RUNTIME_HOURS : Real;   // Motor 2 Runtime hours
+      MOTOR_2_START_COUNT : DInt;   // Motor 2 Start counter 
+      // Motor 3 Operational Data
+      MOTOR_3_CURRENT_ANALOG : Real;   // Motor 3 Current from analog input (A)
+      MOTOR_3_POWER_CALC : Real;   // Motor 3 Calculated power (kW)
+      MOTOR_3_EFFICIENCY : Real;   // Motor 3 Efficiency (%)
+      MOTOR_3_RUNTIME_HOURS : Real;   // Motor 3 Runtime hours
+      MOTOR_3_START_COUNT : DInt;   // Motor 3 Start counter 
+      // Motor 4 Operational Data
+      MOTOR_4_CURRENT_ANALOG : Real;   // Motor 4 Current from analog input (A)
+      MOTOR_4_POWER_CALC : Real;   // Motor 4 Calculated power (kW)
+      MOTOR_4_EFFICIENCY : Real;   // Motor 4 Efficiency (%)
+      MOTOR_4_RUNTIME_HOURS : Real;   // Motor 4 Runtime hours
+      MOTOR_4_START_COUNT : DInt;   // Motor 4 Start counter 
+      // Motor 5 Operational Data
+      MOTOR_5_CURRENT_ANALOG : Real;   // Motor 5 Current from analog input (A)
+      MOTOR_5_POWER_CALC : Real;   // Motor 5 Calculated power (kW)
+      MOTOR_5_EFFICIENCY : Real;   // Motor 5 Efficiency (%)
+      MOTOR_5_RUNTIME_HOURS : Real;   // Motor 5 Runtime hours
+      MOTOR_5_START_COUNT : DInt;   // Motor 5 Start counter 
+      // Motor 6 Operational Data
+      MOTOR_6_CURRENT_ANALOG : Real;   // Motor 6 Current from analog input (A)
+      MOTOR_6_POWER_CALC : Real;   // Motor 6 Calculated power (kW)
+      MOTOR_6_EFFICIENCY : Real;   // Motor 6 Efficiency (%)
+      MOTOR_6_RUNTIME_HOURS : Real;   // Motor 6 Runtime hours
+      MOTOR_6_START_COUNT : DInt;   // Motor 6 Start counter 
+      // =============================================================================
+      // SYSTEM LEVEL MOTOR MONITORING
+      // =============================================================================
+      TOTAL_POWER_CONSUMPTION : Real;   // Total power consumption of all motors (kW)
+      AVERAGE_EFFICIENCY : Real;   // Average efficiency of all running motors (%)
+      SYSTEM_LOAD_FACTOR : Real;   // System load factor (%) 
+      // =============================================================================
+      // FAULT AND ALARM MANAGEMENT
+      // =============================================================================
+      MOTOR_FAULT_MASK : Byte;   // Motor fault mask (bit 0=Motor1, bit 1=Motor2, etc.)
+      MOTOR_ALARM_MASK : Byte;   // Motor alarm mask (bit 0=Motor1, bit 1=Motor2, etc.)
+      MOTOR_RUNNING_MASK : Byte;   // Motor running mask (bit 0=Motor1, bit 1=Motor2, etc.)
+      MOTOR_READY_MASK : Byte;   // Motor ready mask (bit 0=Motor1, bit 1=Motor2, etc.) 
+      // =============================================================================
+      // COMMUNICATION STATUS
+      // =============================================================================
+      PROFINET_MOTOR_1_OK : Bool;   // Motor 1 PROFINET communication OK
+      PROFINET_MOTOR_2_OK : Bool;   // Motor 2 PROFINET communication OK
+      PROFINET_MOTOR_3_OK : Bool;   // Motor 3 PROFINET communication OK
+      PROFINET_MOTOR_4_OK : Bool;   // Motor 4 PROFINET communication OK
+      PROFINET_MOTOR_5_OK : Bool;   // Motor 5 PROFINET communication OK
+      PROFINET_MOTOR_6_OK : Bool;   // Motor 6 PROFINET communication OK 
+      // =============================================================================
+      // MAINTENANCE AND DIAGNOSTICS
+      // =============================================================================
+      MAINTENANCE_TIMER : Time;   // Maintenance timer
+      LAST_MAINTENANCE_DATE : Date;   // Last maintenance date
+      NEXT_MAINTENANCE_DUE : Date;   // Next maintenance due date 
+      // Individual motor maintenance counters
+      MOTOR_1_MAINTENANCE_HOURS : Real;   // Motor 1 maintenance hours counter
+      MOTOR_2_MAINTENANCE_HOURS : Real;   // Motor 2 maintenance hours counter
+      MOTOR_3_MAINTENANCE_HOURS : Real;   // Motor 3 maintenance hours counter
+      MOTOR_4_MAINTENANCE_HOURS : Real;   // Motor 4 maintenance hours counter
+      MOTOR_5_MAINTENANCE_HOURS : Real;   // Motor 5 maintenance hours counter
+      MOTOR_6_MAINTENANCE_HOURS : Real;   // Motor 6 maintenance hours counter
+   END_VAR
+
+
+BEGIN
+   MOTOR_1_CURRENT_ANALOG := 0.0;
+   MOTOR_1_POWER_CALC := 0.0;
+   MOTOR_1_EFFICIENCY := 0.0;
+   MOTOR_1_RUNTIME_HOURS := 0.0;
+   MOTOR_1_START_COUNT := 0;
+   MOTOR_2_CURRENT_ANALOG := 0.0;
+   MOTOR_2_POWER_CALC := 0.0;
+   MOTOR_2_EFFICIENCY := 0.0;
+   MOTOR_2_RUNTIME_HOURS := 0.0;
+   MOTOR_2_START_COUNT := 0;
+   MOTOR_3_CURRENT_ANALOG := 0.0;
+   MOTOR_3_POWER_CALC := 0.0;
+   MOTOR_3_EFFICIENCY := 0.0;
+   MOTOR_3_RUNTIME_HOURS := 0.0;
+   MOTOR_3_START_COUNT := 0;
+   MOTOR_4_CURRENT_ANALOG := 0.0;
+   MOTOR_4_POWER_CALC := 0.0;
+   MOTOR_4_EFFICIENCY := 0.0;
+   MOTOR_4_RUNTIME_HOURS := 0.0;
+   MOTOR_4_START_COUNT := 0;
+   MOTOR_5_CURRENT_ANALOG := 0.0;
+   MOTOR_5_POWER_CALC := 0.0;
+   MOTOR_5_EFFICIENCY := 0.0;
+   MOTOR_5_RUNTIME_HOURS := 0.0;
+   MOTOR_5_START_COUNT := 0;
+   MOTOR_6_CURRENT_ANALOG := 0.0;
+   MOTOR_6_POWER_CALC := 0.0;
+   MOTOR_6_EFFICIENCY := 0.0;
+   MOTOR_6_RUNTIME_HOURS := 0.0;
+   MOTOR_6_START_COUNT := 0;
+   TOTAL_POWER_CONSUMPTION := 0.0;
+   AVERAGE_EFFICIENCY := 0.0;
+   SYSTEM_LOAD_FACTOR := 0.0;
+   MOTOR_FAULT_MASK := 16#00;
+   MOTOR_ALARM_MASK := 16#00;
+   MOTOR_RUNNING_MASK := 16#00;
+   MOTOR_READY_MASK := 16#00;
+   PROFINET_MOTOR_1_OK := FALSE;
+   PROFINET_MOTOR_2_OK := FALSE;
+   PROFINET_MOTOR_3_OK := FALSE;
+   PROFINET_MOTOR_4_OK := FALSE;
+   PROFINET_MOTOR_5_OK := FALSE;
+   PROFINET_MOTOR_6_OK := FALSE;
+   MAINTENANCE_TIMER := T#0MS;
+   LAST_MAINTENANCE_DATE := D#2025-01-01;
+   NEXT_MAINTENANCE_DUE := D#2025-07-01;
+   MOTOR_1_MAINTENANCE_HOURS := 0.0;
+   MOTOR_2_MAINTENANCE_HOURS := 0.0;
+   MOTOR_3_MAINTENANCE_HOURS := 0.0;
+   MOTOR_4_MAINTENANCE_HOURS := 0.0;
+   MOTOR_5_MAINTENANCE_HOURS := 0.0;
+   MOTOR_6_MAINTENANCE_HOURS := 0.0;
+
+END_DATA_BLOCK

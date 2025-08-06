@@ -1,0 +1,87 @@
+# TUSAS HGU Control System .gitignore
+
+# C# / .NET
+bin/
+obj/
+*.user
+*.userosscache
+*.suo
+*.log
+
+# Visual Studio
+.vs/
+*.vsidx
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+
+# MSTest test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# NuGet
+*.nupkg
+# The packages folder can be ignored because of Package Restore
+**/[Pp]ackages/*
+# except build/, which is used as an MSBuild target.
+!**/[Pp]ackages/build/
+# Uncomment if necessary however generally it will be regenerated when needed
+#!**/[Pp]ackages/repositories.config
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Environment files with sensitive data
+.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+
+# Logs
+logs/
+*.log.*
+api_logs.txt
+api_output.txt
+output.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude and Serena folders (keep .serena for project config)
+.claude/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+nul
+
+# Debug test files (if any get created)
+debug_*.cs
+test_*.cs
+debug_*.csproj
+test_*.csproj
+investigate_*.cs
+
+# Runtime generated files
+*.cache
+*.dll
+*.exe
+*.pdb
+*.deps.json
+*.runtimeconfig.json

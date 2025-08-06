@@ -1,0 +1,6 @@
+@TUSAS.HGU.API_HostAddress = http://localhost:5144
+
+GET {{TUSAS.HGU.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

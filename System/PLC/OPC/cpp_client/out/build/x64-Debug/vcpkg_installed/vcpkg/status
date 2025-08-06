@@ -1,0 +1,107 @@
+Package: vcpkg-cmake
+Version: 2023-05-04
+Architecture: x64-windows
+Multi-Arch: same
+Abi: dd6cbc20ee7c5ed92d290518e3f2b63d63fdb30019b79eb61b01d49b8bca42d3
+Status: install ok installed
+
+Package: zlib
+Version: 1.3
+Depends: vcpkg-cmake
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 808659ba79777d8be7ac31e038728b83e9fb50f2d2383bac0e6c4c2385652903
+Description: A compression library
+Status: install ok installed
+
+Package: vcpkg-cmake-config
+Version: 2022-02-06
+Port-Version: 1
+Architecture: x64-windows
+Multi-Arch: same
+Abi: a2a05ba33064ed59e7a9cd55fbe40d06a1a50bf6167976a1d8f85f007705aed8
+Status: install ok installed
+
+Package: curl
+Version: 8.4.0
+Depends: vcpkg-cmake, vcpkg-cmake-config, zlib
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 64d94011043caf02f8c99c08148bbe71c3c68474f172f937a86856ce98f68224
+Description: A library for transferring data with URLs
+Default-Features: non-http, ssl
+Status: install ok installed
+
+Package: curl
+Feature: non-http
+Architecture: x64-windows
+Multi-Arch: same
+Description: Enables protocols beyond HTTP/HTTPS/HTTP2
+Status: install ok installed
+
+Package: curl
+Feature: schannel
+Architecture: x64-windows
+Multi-Arch: same
+Description: SSL support (Secure Channel)
+Status: install ok installed
+
+Package: curl
+Feature: ssl
+Architecture: x64-windows
+Multi-Arch: same
+Description: Default SSL backend
+Status: install ok installed
+
+Package: curl
+Feature: sspi
+Architecture: x64-windows
+Multi-Arch: same
+Description: SSPI support
+Status: install ok installed
+
+Package: nlohmann-json
+Version: 3.11.2
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 366d3b2ebad2a08548c7849f0688d8bee9f2349325613206f7ee55f4323823b3
+Description: JSON for Modern C++
+Status: install ok installed
+
+Package: vcpkg-cmake-get-vars
+Version: 2023-03-02
+Depends: vcpkg-cmake
+Architecture: x64-windows
+Multi-Arch: same
+Abi: ee5e72e1f0ca04cf434bd99a49cbdbe8281f12565f5d30a96e5ff2476b1d914d
+Status: install ok installed
+
+Package: openssl
+Version: 3.1.4
+Port-Version: 1
+Depends: vcpkg-cmake, vcpkg-cmake-config, vcpkg-cmake-get-vars
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 1858708f943c2c59ae44fe3939a7e070afc4950a57b23519dd84bb2a7dd57ff0
+Description: OpenSSL is an open source project that provides a robust, commercial-grade, and full-featured toolkit for the Transport Layer Security (TLS) and Secure Sockets Layer (SSL) protocols. It is also a general-purpose cryptography library.
+Status: install ok installed
+
+Package: open62541
+Version: 1.3.8
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: d1652084d8dc212d82334c8ad0b6e73f105e4e19488fbfa19762e63600716155
+Description: open62541 is an open source C (C99) implementation of OPC UA licensed under the Mozilla Public License v2.0.
+Default-Features: openssl
+Status: install ok installed
+
+Package: open62541
+Feature: openssl
+Depends: openssl
+Architecture: x64-windows
+Multi-Arch: same
+Description: Enable encryption support (uses OpenSSL)
+Status: install ok installed
+

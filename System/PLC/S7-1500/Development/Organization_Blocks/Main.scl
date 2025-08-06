@@ -1,0 +1,27 @@
+ORGANIZATION_BLOCK "Main"
+TITLE = "Main Program Sweep (Cycle)"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 1.0
+
+BEGIN
+	// =============================================================================
+	// MAIN MOTOR CONTROL SYSTEM
+	// =============================================================================
+	
+	// Call main motor control function block
+	"FB_HGU_Motor_Control_Simple_DB"(
+	    Enable := TRUE,
+	    Reset := "SystemReset",
+	    EmergencyStop := "EmergencyStop",
+	    SystemEnable := TRUE
+	);
+	
+	// System outputs
+	"SystemReady" := "FB_HGU_Motor_Control_Simple_DB".Ready;
+	"SystemError" := "FB_HGU_Motor_Control_Simple_DB".Error;
+	
+	// System heartbeat
+	"SystemHeartbeat" := NOT "SystemHeartbeat";
+	
+
+END_ORGANIZATION_BLOCK

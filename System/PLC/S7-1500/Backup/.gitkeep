@@ -1,0 +1,6 @@
+# PLC Yedek Dosyaları
+# Bu klasör S7-1500 PLC yedeklerini içerir
+# - TIA Portal project backups
+# - Program blocks backup
+# - Hardware configuration backup
+# - Symbol table backup

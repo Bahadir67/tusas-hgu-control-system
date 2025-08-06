@@ -1,0 +1,5 @@
+# TIA Portal Proje Dosyaları
+# HGU_Main.ap16 - Ana proje dosyası
+# Blocks/ - Function Blocklar (FB_HydraulicPump, FB_PressureControl, vb.)
+# HMI/ - HMI panel ekranları 
+# Configuration/ - Donanım konfigürasyonu

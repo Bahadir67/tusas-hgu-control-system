@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TUSAS HGU OPC Test UI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .endpoint {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .endpoint h3 {
+            margin-top: 0;
+            color: #0066cc;
+        }
+        button {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0052a3;
+        }
+        .response {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            background-color: #fee;
+            border-color: #fcc;
+            color: #c00;
+        }
+        .success {
+            background-color: #efe;
+            border-color: #cfc;
+            color: #060;
+        }
+        input[type="text"], input[type="number"] {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 10px;
+        }
+        .connected {
+            background-color: #4CAF50;
+        }
+        .disconnected {
+            background-color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TUSAS HGU OPC Test Interface</h1>
+        
+        <!-- Status Check -->
+        <div class="endpoint">
+            <h3>1. OPC Status <span id="statusIndicator" class="status-indicator disconnected"></span></h3>
+            <button onclick="checkStatus()">Check Status</button>
+            <button onclick="autoRefreshStatus()">Auto Refresh (5s)</button>
+            <button onclick="stopAutoRefresh()">Stop Refresh</button>
+            <div id="statusResponse" class="response"></div>
+        </div>
+
+        <!-- Get Latest Sensor Data -->
+        <div class="endpoint">
+            <h3>2. Latest Sensor Data</h3>
+            <button onclick="getLatestData()">Get Latest Data</button>
+            <div id="latestResponse" class="response"></div>
+        </div>
+
+        <!-- Get Metadata -->
+        <div class="endpoint">
+            <h3>3. Variable Metadata</h3>
+            <button onclick="getMetadata()">Get All Metadata</button>
+            <div id="metadataResponse" class="response"></div>
+        </div>
+
+        <!-- Read Single Variable -->
+        <div class="endpoint">
+            <h3>4. Read Single Variable</h3>
+            <input type="text" id="readVariable" placeholder="Variable name" value="MOTOR_4_TEMPERATURE_EXECUTION">
+            <button onclick="readVariable()">Read</button>
+            <div id="readResponse" class="response"></div>
+        </div>
+
+        <!-- Write Variable -->
+        <div class="endpoint">
+            <h3>5. Write Variable</h3>
+            <input type="text" id="writeVariable" placeholder="Variable name" value="MOTOR_4_TEMPERATURE_EXECUTION">
+            <input type="number" id="writeValue" placeholder="Value" value="25.5" step="0.1">
+            <button onclick="writeVariable()">Write</button>
+            <div id="writeResponse" class="response"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5144/api/opc';
+        let autoRefreshInterval = null;
+
+        async function makeRequest(url, method = 'GET', body = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+
+                const response = await fetch(url, options);
+                const text = await response.text();
+                
+                try {
+                    return { 
+                        ok: response.ok, 
+                        status: response.status,
+                        data: JSON.parse(text) 
+                    };
+                } catch {
+                    return { 
+                        ok: response.ok, 
+                        status: response.status,
+                        data: text 
+                    };
+                }
+            } catch (error) {
+                return { 
+                    ok: false, 
+                    error: error.message 
+                };
+            }
+        }
+
+        async function checkStatus() {
+            const response = await makeRequest(`${API_BASE}/status`);
+            const responseDiv = document.getElementById('statusResponse');
+            const indicator = document.getElementById('statusIndicator');
+            
+            if (response.ok) {
+                responseDiv.className = 'response success';
+                responseDiv.textContent = JSON.stringify(response.data, null, 2);
+                
+                if (response.data.isConnected) {
+                    indicator.className = 'status-indicator connected';
+                } else {
+                    indicator.className = 'status-indicator disconnected';
+                }
+            } else {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `Error: ${response.error || response.status}`;
+                indicator.className = 'status-indicator disconnected';
+            }
+        }
+
+        function autoRefreshStatus() {
+            checkStatus();
+            stopAutoRefresh();
+            autoRefreshInterval = setInterval(checkStatus, 5000);
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        async function getLatestData() {
+            const response = await makeRequest(`${API_BASE}/sensors/latest`);
+            const responseDiv = document.getElementById('latestResponse');
+            
+            if (response.ok) {
+                responseDiv.className = 'response success';
+                responseDiv.textContent = JSON.stringify(response.data, null, 2);
+            } else {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `Error: ${response.error || response.status}`;
+            }
+        }
+
+        async function getMetadata() {
+            const response = await makeRequest(`${API_BASE}/metadata`);
+            const responseDiv = document.getElementById('metadataResponse');
+            
+            if (response.ok) {
+                responseDiv.className = 'response success';
+                responseDiv.textContent = JSON.stringify(response.data, null, 2);
+            } else {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `Error: ${response.error || response.status}`;
+            }
+        }
+
+        async function readVariable() {
+            const variableName = document.getElementById('readVariable').value;
+            const response = await makeRequest(`${API_BASE}/read/${encodeURIComponent(variableName)}`);
+            const responseDiv = document.getElementById('readResponse');
+            
+            if (response.ok) {
+                responseDiv.className = 'response success';
+                responseDiv.textContent = JSON.stringify(response.data, null, 2);
+            } else {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `Error: ${response.error || response.status}\n${JSON.stringify(response.data, null, 2)}`;
+            }
+        }
+
+        async function writeVariable() {
+            const variableName = document.getElementById('writeVariable').value;
+            const value = parseFloat(document.getElementById('writeValue').value);
+            
+            const response = await makeRequest(`${API_BASE}/write`, 'POST', {
+                displayName: variableName,
+                value: value
+            });
+            
+            const responseDiv = document.getElementById('writeResponse');
+            
+            if (response.ok) {
+                responseDiv.className = 'response success';
+                responseDiv.textContent = JSON.stringify(response.data, null, 2);
+            } else {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = `Error: ${response.error || response.status}\n${JSON.stringify(response.data, null, 2)}`;
+            }
+        }
+
+        // Initial status check
+        window.onload = () => {
+            checkStatus();
+        };
+    </script>
+</body>
+</html>

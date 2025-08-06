@@ -1,0 +1,386 @@
+FUNCTION_BLOCK "FB_HGU_Motor_Control_Simple"
+TITLE = 'HGU Motor Control Simple - G120C PN Drives'
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 1.0
+// =============================================================================
+// TUSAŞ HGU Control System - Motor Control with I/O Sync
+// TIA Portal S7-1500 Structured Control Language (SCL)
+// Generated: 2025-01-14
+// Description: Motor control block for 6x G120C PN drives with I/O synchronization
+// I/O Addresses: Motor1=I256/Q256, Motor2=I260/Q260, ..., Motor6=I276/Q276
+// =============================================================================
+   VAR_INPUT 
+      Enable : Bool;   // Enable motor control function
+      Reset : Bool;   // Reset all motor faults
+      EmergencyStop : Bool;   // Emergency stop signal
+      SystemEnable : Bool;   // System enable signal
+   END_VAR
+
+   VAR_OUTPUT 
+      Ready : Bool;   // Motor control ready
+      Error : Bool;   // Motor control error
+      ActiveMotors : Int;   // Number of active motors
+      TotalFlow : Real;   // Total system flow
+   END_VAR
+
+   VAR 
+      MotorLeds1 { S7_SetPoint := 'False'} : "FB_HGU_LED_Control";
+      MotorLeds2 { S7_SetPoint := 'False'} : "FB_HGU_LED_Control";
+      MotorLeds3 { S7_SetPoint := 'False'} : "FB_HGU_LED_Control";
+      MotorLeds4 { S7_SetPoint := 'False'} : "FB_HGU_LED_Control";
+      MotorLeds5 { S7_SetPoint := 'False'} : "FB_HGU_LED_Control";
+      MotorLeds6 { S7_SetPoint := 'False'} : "FB_HGU_LED_Control";
+   END_VAR
+
+   VAR_TEMP 
+      i : Int;   // Loop counter
+      temp_rpm : Int;   // Temporary RPM value
+      motor_count : Int;   // Motor counter
+      total_flow_temp : Real;   // Temporary total flow
+      system_blink : Bool;   // System blink clock
+      motor_led_blink : USINT;   // System blink for LED control (USINT)
+   END_VAR
+
+
+BEGIN
+	
+	// Reset outputs
+	#Ready := FALSE;
+	#Error := FALSE;
+	#ActiveMotors := 0;
+	#TotalFlow := 0.0;
+	
+	// Check enable condition
+	IF NOT #Enable THEN
+	    RETURN;
+	END_IF;
+	
+	// Update system emergency stop
+	"DB_HGU_Execution".SYSTEM_EMERGENCY_STOP_EXECUTION := #EmergencyStop;
+	"DB_HGU_Execution".SYSTEM_PUMP_ENABLE_EXECUTION := #SystemEnable;
+	
+	// Initialize counters
+	#motor_count := 0;
+	#total_flow_temp := 0.0;
+	#system_blink := TRUE;  // Could be connected to system clock (convert to USINT)
+	
+	// Convert boolean to USINT for LED control
+	#motor_led_blink := BOOL_TO_USINT(#system_blink);
+	
+	// =============================================================================
+	// I/O → DATA BLOCK SYNC (Reading from drives via Tags)
+	// =============================================================================
+	"DB_HGU_Motors".MOTOR_1.ZSW1 := "Motor1_StatusWord";
+	"DB_HGU_Motors".MOTOR_1.NIST_A := "Motor1_ActualSpeed";
+	"DB_HGU_Motors".MOTOR_2.ZSW1 := "Motor2_StatusWord";
+	"DB_HGU_Motors".MOTOR_2.NIST_A := "Motor2_ActualSpeed";
+	"DB_HGU_Motors".MOTOR_3.ZSW1 := "Motor3_StatusWord";
+	"DB_HGU_Motors".MOTOR_3.NIST_A := "Motor3_ActualSpeed";
+	"DB_HGU_Motors".MOTOR_4.ZSW1 := "Motor4_StatusWord";
+	"DB_HGU_Motors".MOTOR_4.NIST_A := "Motor4_ActualSpeed";
+	"DB_HGU_Motors".MOTOR_5.ZSW1 := "Motor5_StatusWord";
+	"DB_HGU_Motors".MOTOR_5.NIST_A := "Motor5_ActualSpeed";
+	"DB_HGU_Motors".MOTOR_6.ZSW1 := "Motor6_StatusWord";
+	"DB_HGU_Motors".MOTOR_6.NIST_A := "Motor6_ActualSpeed";
+	
+	// =============================================================================
+	// MOTOR 1 CONTROL
+	// =============================================================================
+	"DB_HGU_Motors".MOTOR_1.STW1 := 0;
+	IF "DB_HGU_Execution".MOTOR_1_ENABLE_EXECUTION AND NOT #EmergencyStop THEN
+	    "DB_HGU_Motors".MOTOR_1.STW1.%X0 := TRUE;   // ON/OFF1
+	    "DB_HGU_Motors".MOTOR_1.STW1.%X1 := TRUE;   // OFF2
+	    "DB_HGU_Motors".MOTOR_1.STW1.%X2 := TRUE;   // OFF3
+	    "DB_HGU_Motors".MOTOR_1.STW1.%X3 := TRUE;   // Enable operation
+	    "DB_HGU_Motors".MOTOR_1.STW1.%X4 := TRUE;   // Ramp enable
+	    "DB_HGU_Motors".MOTOR_1.STW1.%X5 := TRUE;   // Ramp continue
+	    "DB_HGU_Motors".MOTOR_1.STW1.%X6 := TRUE;   // Setpoint enable
+	    "DB_HGU_Motors".MOTOR_1.STW1.%X10 := TRUE;  // Control by PLC
+	    "DB_HGU_Motors".MOTOR_1.STW1.%X11 := FALSE; // Forward direction
+	END_IF;
+	"DB_HGU_Motors".MOTOR_1.STW1.%X7 := #Reset;     // Fault acknowledge
+	
+	// Setpoint scaling
+	#temp_rpm := REAL_TO_INT("DB_HGU_Execution".MOTOR_1_TARGET_EXECUTION * 16384.0 / 3000.0);
+	"DB_HGU_Motors".MOTOR_1.NSOLL_A := LIMIT(MN := -16384, IN := #temp_rpm, MX := 16383);
+	
+	// Actual value processing
+	"DB_HGU_Execution".MOTOR_1_RPM_EXECUTION := INT_TO_REAL("DB_HGU_Motors".MOTOR_1.NIST_A) * 3000.0 / 16384.0;
+	
+	// Status processing
+	IF "DB_HGU_Motors".MOTOR_1.ZSW1.%X3 OR "DB_HGU_Motors".MOTOR_1.ZSW1.%X7 THEN
+	    "DB_HGU_Execution".MOTOR_1_STATUS_EXECUTION := 3;  // Error/Alarm
+	ELSIF "DB_HGU_Motors".MOTOR_1.ZSW1.%X2 AND ABS("DB_HGU_Execution".MOTOR_1_RPM_EXECUTION) > 50.0 THEN
+	    "DB_HGU_Execution".MOTOR_1_STATUS_EXECUTION := 2;  // Running
+	    #motor_count := #motor_count + 1;
+	    #total_flow_temp := #total_flow_temp + "DB_HGU_Execution".MOTOR_1_FLOW_EXECUTION;
+	ELSIF "DB_HGU_Motors".MOTOR_1.ZSW1.%X1 THEN
+	    "DB_HGU_Execution".MOTOR_1_STATUS_EXECUTION := 1;  // Ready
+	ELSE
+	    "DB_HGU_Execution".MOTOR_1_STATUS_EXECUTION := 0;  // Offline
+	END_IF;
+	
+	// LED Control for Motor 1
+	#MotorLeds1(
+	    motor_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_1_STATUS_EXECUTION),
+	    line_filter_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_1_LINE_FILTER_EXECUTION),
+	    suction_filter_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_1_SUCTION_FILTER_EXECUTION),
+	    valve_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_1_VALVE_EXECUTION),
+	    blink_clock := #motor_led_blink
+	);
+	
+	// =============================================================================
+	// MOTOR 2 CONTROL
+	// =============================================================================
+	"DB_HGU_Motors".MOTOR_2.STW1 := 0;
+	IF "DB_HGU_Execution".MOTOR_2_ENABLE_EXECUTION AND NOT #EmergencyStop THEN
+	    "DB_HGU_Motors".MOTOR_2.STW1.%X0 := TRUE;   // ON/OFF1
+	    "DB_HGU_Motors".MOTOR_2.STW1.%X1 := TRUE;   // OFF2
+	    "DB_HGU_Motors".MOTOR_2.STW1.%X2 := TRUE;   // OFF3
+	    "DB_HGU_Motors".MOTOR_2.STW1.%X3 := TRUE;   // Enable operation
+	    "DB_HGU_Motors".MOTOR_2.STW1.%X4 := TRUE;   // Ramp enable
+	    "DB_HGU_Motors".MOTOR_2.STW1.%X5 := TRUE;   // Ramp continue
+	    "DB_HGU_Motors".MOTOR_2.STW1.%X6 := TRUE;   // Setpoint enable
+	    "DB_HGU_Motors".MOTOR_2.STW1.%X10 := TRUE;  // Control by PLC
+	    "DB_HGU_Motors".MOTOR_2.STW1.%X11 := FALSE; // Forward direction
+	END_IF;
+	"DB_HGU_Motors".MOTOR_2.STW1.%X7 := #Reset;     // Fault acknowledge
+	
+	// Setpoint scaling
+	#temp_rpm := REAL_TO_INT("DB_HGU_Execution".MOTOR_2_TARGET_EXECUTION * 16384.0 / 3000.0);
+	"DB_HGU_Motors".MOTOR_2.NSOLL_A := LIMIT(MN := -16384, IN := #temp_rpm, MX := 16383);
+	
+	// Actual value processing
+	"DB_HGU_Execution".MOTOR_2_RPM_EXECUTION := INT_TO_REAL("DB_HGU_Motors".MOTOR_2.NIST_A) * 3000.0 / 16384.0;
+	
+	// Status processing
+	IF "DB_HGU_Motors".MOTOR_2.ZSW1.%X3 OR "DB_HGU_Motors".MOTOR_2.ZSW1.%X7 THEN
+	    "DB_HGU_Execution".MOTOR_2_STATUS_EXECUTION := 3;  // Error/Alarm
+	ELSIF "DB_HGU_Motors".MOTOR_2.ZSW1.%X2 AND ABS("DB_HGU_Execution".MOTOR_2_RPM_EXECUTION) > 50.0 THEN
+	    "DB_HGU_Execution".MOTOR_2_STATUS_EXECUTION := 2;  // Running
+	    #motor_count := #motor_count + 1;
+	    #total_flow_temp := #total_flow_temp + "DB_HGU_Execution".MOTOR_2_FLOW_EXECUTION;
+	ELSIF "DB_HGU_Motors".MOTOR_2.ZSW1.%X1 THEN
+	    "DB_HGU_Execution".MOTOR_2_STATUS_EXECUTION := 1;  // Ready
+	ELSE
+	    "DB_HGU_Execution".MOTOR_2_STATUS_EXECUTION := 0;  // Offline
+	END_IF;
+	
+	// LED Control for Motor 2
+	#MotorLeds2(
+	    motor_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_2_STATUS_EXECUTION),
+	    line_filter_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_2_LINE_FILTER_EXECUTION),
+	    suction_filter_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_2_SUCTION_FILTER_EXECUTION),
+	    valve_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_2_VALVE_EXECUTION),
+	    blink_clock := #motor_led_blink
+	);
+	
+	// =============================================================================
+	// MOTOR 3 CONTROL
+	// =============================================================================
+	"DB_HGU_Motors".MOTOR_3.STW1 := 0;
+	IF "DB_HGU_Execution".MOTOR_3_ENABLE_EXECUTION AND NOT #EmergencyStop THEN
+	    "DB_HGU_Motors".MOTOR_3.STW1.%X0 := TRUE;   // ON/OFF1
+	    "DB_HGU_Motors".MOTOR_3.STW1.%X1 := TRUE;   // OFF2
+	    "DB_HGU_Motors".MOTOR_3.STW1.%X2 := TRUE;   // OFF3
+	    "DB_HGU_Motors".MOTOR_3.STW1.%X3 := TRUE;   // Enable operation
+	    "DB_HGU_Motors".MOTOR_3.STW1.%X4 := TRUE;   // Ramp enable
+	    "DB_HGU_Motors".MOTOR_3.STW1.%X5 := TRUE;   // Ramp continue
+	    "DB_HGU_Motors".MOTOR_3.STW1.%X6 := TRUE;   // Setpoint enable
+	    "DB_HGU_Motors".MOTOR_3.STW1.%X10 := TRUE;  // Control by PLC
+	    "DB_HGU_Motors".MOTOR_3.STW1.%X11 := FALSE; // Forward direction
+	END_IF;
+	"DB_HGU_Motors".MOTOR_3.STW1.%X7 := #Reset;     // Fault acknowledge
+	
+	// Setpoint scaling
+	#temp_rpm := REAL_TO_INT("DB_HGU_Execution".MOTOR_3_TARGET_EXECUTION * 16384.0 / 3000.0);
+	"DB_HGU_Motors".MOTOR_3.NSOLL_A := LIMIT(MN := -16384, IN := #temp_rpm, MX := 16383);
+	
+	// Actual value processing
+	"DB_HGU_Execution".MOTOR_3_RPM_EXECUTION := INT_TO_REAL("DB_HGU_Motors".MOTOR_3.NIST_A) * 3000.0 / 16384.0;
+	
+	// Status processing
+	IF "DB_HGU_Motors".MOTOR_3.ZSW1.%X3 OR "DB_HGU_Motors".MOTOR_3.ZSW1.%X7 THEN
+	    "DB_HGU_Execution".MOTOR_3_STATUS_EXECUTION := 3;  // Error/Alarm
+	ELSIF "DB_HGU_Motors".MOTOR_3.ZSW1.%X2 AND ABS("DB_HGU_Execution".MOTOR_3_RPM_EXECUTION) > 50.0 THEN
+	    "DB_HGU_Execution".MOTOR_3_STATUS_EXECUTION := 2;  // Running
+	    #motor_count := #motor_count + 1;
+	    #total_flow_temp := #total_flow_temp + "DB_HGU_Execution".MOTOR_3_FLOW_EXECUTION;
+	ELSIF "DB_HGU_Motors".MOTOR_3.ZSW1.%X1 THEN
+	    "DB_HGU_Execution".MOTOR_3_STATUS_EXECUTION := 1;  // Ready
+	ELSE
+	    "DB_HGU_Execution".MOTOR_3_STATUS_EXECUTION := 0;  // Offline
+	END_IF;
+	
+	// LED Control for Motor 3
+	#MotorLeds3(
+	    motor_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_3_STATUS_EXECUTION),
+	    line_filter_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_3_LINE_FILTER_EXECUTION),
+	    suction_filter_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_3_SUCTION_FILTER_EXECUTION),
+	    valve_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_3_VALVE_EXECUTION),
+	    blink_clock := #motor_led_blink
+	);
+	
+	// =============================================================================
+	// MOTOR 4 CONTROL
+	// =============================================================================
+	"DB_HGU_Motors".MOTOR_4.STW1 := 0;
+	IF "DB_HGU_Execution".MOTOR_4_ENABLE_EXECUTION AND NOT #EmergencyStop THEN
+	    "DB_HGU_Motors".MOTOR_4.STW1.%X0 := TRUE;   // ON/OFF1
+	    "DB_HGU_Motors".MOTOR_4.STW1.%X1 := TRUE;   // OFF2
+	    "DB_HGU_Motors".MOTOR_4.STW1.%X2 := TRUE;   // OFF3
+	    "DB_HGU_Motors".MOTOR_4.STW1.%X3 := TRUE;   // Enable operation
+	    "DB_HGU_Motors".MOTOR_4.STW1.%X4 := TRUE;   // Ramp enable
+	    "DB_HGU_Motors".MOTOR_4.STW1.%X5 := TRUE;   // Ramp continue
+	    "DB_HGU_Motors".MOTOR_4.STW1.%X6 := TRUE;   // Setpoint enable
+	    "DB_HGU_Motors".MOTOR_4.STW1.%X10 := TRUE;  // Control by PLC
+	    "DB_HGU_Motors".MOTOR_4.STW1.%X11 := FALSE; // Forward direction
+	END_IF;
+	"DB_HGU_Motors".MOTOR_4.STW1.%X7 := #Reset;     // Fault acknowledge
+	
+	// Setpoint scaling
+	#temp_rpm := REAL_TO_INT("DB_HGU_Execution".MOTOR_4_TARGET_EXECUTION * 16384.0 / 3000.0);
+	"DB_HGU_Motors".MOTOR_4.NSOLL_A := LIMIT(MN := -16384, IN := #temp_rpm, MX := 16383);
+	
+	// Actual value processing
+	"DB_HGU_Execution".MOTOR_4_RPM_EXECUTION := INT_TO_REAL("DB_HGU_Motors".MOTOR_4.NIST_A) * 3000.0 / 16384.0;
+	
+	// Status processing
+	IF "DB_HGU_Motors".MOTOR_4.ZSW1.%X3 OR "DB_HGU_Motors".MOTOR_4.ZSW1.%X7 THEN
+	    "DB_HGU_Execution".MOTOR_4_STATUS_EXECUTION := 3;  // Error/Alarm
+	ELSIF "DB_HGU_Motors".MOTOR_4.ZSW1.%X2 AND ABS("DB_HGU_Execution".MOTOR_4_RPM_EXECUTION) > 50.0 THEN
+	    "DB_HGU_Execution".MOTOR_4_STATUS_EXECUTION := 2;  // Running
+	    #motor_count := #motor_count + 1;
+	    #total_flow_temp := #total_flow_temp + "DB_HGU_Execution".MOTOR_4_FLOW_EXECUTION;
+	ELSIF "DB_HGU_Motors".MOTOR_4.ZSW1.%X1 THEN
+	    "DB_HGU_Execution".MOTOR_4_STATUS_EXECUTION := 1;  // Ready
+	ELSE
+	    "DB_HGU_Execution".MOTOR_4_STATUS_EXECUTION := 0;  // Offline
+	END_IF;
+	
+	// LED Control for Motor 4
+	#MotorLeds4(
+	    motor_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_4_STATUS_EXECUTION),
+	    line_filter_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_4_LINE_FILTER_EXECUTION),
+	    suction_filter_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_4_SUCTION_FILTER_EXECUTION),
+	    valve_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_4_VALVE_EXECUTION),
+	    blink_clock := #motor_led_blink
+	);
+	
+	// =============================================================================
+	// MOTOR 5 CONTROL
+	// =============================================================================
+	"DB_HGU_Motors".MOTOR_5.STW1 := 0;
+	IF "DB_HGU_Execution".MOTOR_5_ENABLE_EXECUTION AND NOT #EmergencyStop THEN
+	    "DB_HGU_Motors".MOTOR_5.STW1.%X0 := TRUE;   // ON/OFF1
+	    "DB_HGU_Motors".MOTOR_5.STW1.%X1 := TRUE;   // OFF2
+	    "DB_HGU_Motors".MOTOR_5.STW1.%X2 := TRUE;   // OFF3
+	    "DB_HGU_Motors".MOTOR_5.STW1.%X3 := TRUE;   // Enable operation
+	    "DB_HGU_Motors".MOTOR_5.STW1.%X4 := TRUE;   // Ramp enable
+	    "DB_HGU_Motors".MOTOR_5.STW1.%X5 := TRUE;   // Ramp continue
+	    "DB_HGU_Motors".MOTOR_5.STW1.%X6 := TRUE;   // Setpoint enable
+	    "DB_HGU_Motors".MOTOR_5.STW1.%X10 := TRUE;  // Control by PLC
+	    "DB_HGU_Motors".MOTOR_5.STW1.%X11 := FALSE; // Forward direction
+	END_IF;
+	"DB_HGU_Motors".MOTOR_5.STW1.%X7 := #Reset;     // Fault acknowledge
+	
+	// Setpoint scaling
+	#temp_rpm := REAL_TO_INT("DB_HGU_Execution".MOTOR_5_TARGET_EXECUTION * 16384.0 / 3000.0);
+	"DB_HGU_Motors".MOTOR_5.NSOLL_A := LIMIT(MN := -16384, IN := #temp_rpm, MX := 16383);
+	
+	// Actual value processing
+	"DB_HGU_Execution".MOTOR_5_RPM_EXECUTION := INT_TO_REAL("DB_HGU_Motors".MOTOR_5.NIST_A) * 3000.0 / 16384.0;
+	
+	// Status processing
+	IF "DB_HGU_Motors".MOTOR_5.ZSW1.%X3 OR "DB_HGU_Motors".MOTOR_5.ZSW1.%X7 THEN
+	    "DB_HGU_Execution".MOTOR_5_STATUS_EXECUTION := 3;  // Error/Alarm
+	ELSIF "DB_HGU_Motors".MOTOR_5.ZSW1.%X2 AND ABS("DB_HGU_Execution".MOTOR_5_RPM_EXECUTION) > 50.0 THEN
+	    "DB_HGU_Execution".MOTOR_5_STATUS_EXECUTION := 2;  // Running
+	    #motor_count := #motor_count + 1;
+	    #total_flow_temp := #total_flow_temp + "DB_HGU_Execution".MOTOR_5_FLOW_EXECUTION;
+	ELSIF "DB_HGU_Motors".MOTOR_5.ZSW1.%X1 THEN
+	    "DB_HGU_Execution".MOTOR_5_STATUS_EXECUTION := 1;  // Ready
+	ELSE
+	    "DB_HGU_Execution".MOTOR_5_STATUS_EXECUTION := 0;  // Offline
+	END_IF;
+	
+	// LED Control for Motor 5
+	#MotorLeds5(
+	    motor_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_5_STATUS_EXECUTION),
+	    line_filter_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_5_LINE_FILTER_EXECUTION),
+	    suction_filter_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_5_SUCTION_FILTER_EXECUTION),
+	    valve_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_5_VALVE_EXECUTION),
+	    blink_clock := #motor_led_blink
+	);
+	
+	// =============================================================================
+	// MOTOR 6 CONTROL
+	// =============================================================================
+	"DB_HGU_Motors".MOTOR_6.STW1 := 0;
+	IF "DB_HGU_Execution".MOTOR_6_ENABLE_EXECUTION AND NOT #EmergencyStop THEN
+	    "DB_HGU_Motors".MOTOR_6.STW1.%X0 := TRUE;   // ON/OFF1
+	    "DB_HGU_Motors".MOTOR_6.STW1.%X1 := TRUE;   // OFF2
+	    "DB_HGU_Motors".MOTOR_6.STW1.%X2 := TRUE;   // OFF3
+	    "DB_HGU_Motors".MOTOR_6.STW1.%X3 := TRUE;   // Enable operation
+	    "DB_HGU_Motors".MOTOR_6.STW1.%X4 := TRUE;   // Ramp enable
+	    "DB_HGU_Motors".MOTOR_6.STW1.%X5 := TRUE;   // Ramp continue
+	    "DB_HGU_Motors".MOTOR_6.STW1.%X6 := TRUE;   // Setpoint enable
+	    "DB_HGU_Motors".MOTOR_6.STW1.%X10 := TRUE;  // Control by PLC
+	    "DB_HGU_Motors".MOTOR_6.STW1.%X11 := FALSE; // Forward direction
+	END_IF;
+	"DB_HGU_Motors".MOTOR_6.STW1.%X7 := #Reset;     // Fault acknowledge
+	
+	// Setpoint scaling
+	#temp_rpm := REAL_TO_INT("DB_HGU_Execution".MOTOR_6_TARGET_EXECUTION * 16384.0 / 3000.0);
+	"DB_HGU_Motors".MOTOR_6.NSOLL_A := LIMIT(MN := -16384, IN := #temp_rpm, MX := 16383);
+	
+	// Actual value processing
+	"DB_HGU_Execution".MOTOR_6_RPM_EXECUTION := INT_TO_REAL("DB_HGU_Motors".MOTOR_6.NIST_A) * 3000.0 / 16384.0;
+	
+	// Status processing
+	IF "DB_HGU_Motors".MOTOR_6.ZSW1.%X3 OR "DB_HGU_Motors".MOTOR_6.ZSW1.%X7 THEN
+	    "DB_HGU_Execution".MOTOR_6_STATUS_EXECUTION := 3;  // Error/Alarm
+	ELSIF "DB_HGU_Motors".MOTOR_6.ZSW1.%X2 AND ABS("DB_HGU_Execution".MOTOR_6_RPM_EXECUTION) > 50.0 THEN
+	    "DB_HGU_Execution".MOTOR_6_STATUS_EXECUTION := 2;  // Running
+	    #motor_count := #motor_count + 1;
+	    #total_flow_temp := #total_flow_temp + "DB_HGU_Execution".MOTOR_6_FLOW_EXECUTION;
+	ELSIF "DB_HGU_Motors".MOTOR_6.ZSW1.%X1 THEN
+	    "DB_HGU_Execution".MOTOR_6_STATUS_EXECUTION := 1;  // Ready
+	ELSE
+	    "DB_HGU_Execution".MOTOR_6_STATUS_EXECUTION := 0;  // Offline
+	END_IF;
+	
+	// LED Control for Motor 6
+	#MotorLeds6(
+	    motor_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_6_STATUS_EXECUTION),
+	    line_filter_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_6_LINE_FILTER_EXECUTION),
+	    suction_filter_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_6_SUCTION_FILTER_EXECUTION),
+	    valve_status := INT_TO_USINT("DB_HGU_Execution".MOTOR_6_VALVE_EXECUTION),
+	    blink_clock := #motor_led_blink
+	);
+	
+	// =============================================================================
+	// DATA BLOCK → I/O SYNC (Writing to drives via Tags)
+	// =============================================================================
+	"Motor1_ControlWord" := "DB_HGU_Motors".MOTOR_1.STW1;
+	"Motor1_SpeedSetpoint" := "DB_HGU_Motors".MOTOR_1.NSOLL_A;
+	"Motor2_ControlWord" := "DB_HGU_Motors".MOTOR_2.STW1;
+	"Motor2_SpeedSetpoint" := "DB_HGU_Motors".MOTOR_2.NSOLL_A;
+	"Motor3_ControlWord" := "DB_HGU_Motors".MOTOR_3.STW1;
+	"Motor3_SpeedSetpoint" := "DB_HGU_Motors".MOTOR_3.NSOLL_A;
+	"Motor4_ControlWord" := "DB_HGU_Motors".MOTOR_4.STW1;
+	"Motor4_SpeedSetpoint" := "DB_HGU_Motors".MOTOR_4.NSOLL_A;
+	"Motor5_ControlWord" := "DB_HGU_Motors".MOTOR_5.STW1;
+	"Motor5_SpeedSetpoint" := "DB_HGU_Motors".MOTOR_5.NSOLL_A;
+	"Motor6_ControlWord" := "DB_HGU_Motors".MOTOR_6.STW1;
+	"Motor6_SpeedSetpoint" := "DB_HGU_Motors".MOTOR_6.NSOLL_A;
+	
+	// =============================================================================
+	// SYSTEM OUTPUTS
+	// =============================================================================
+	#ActiveMotors := #motor_count;
+	#TotalFlow := #total_flow_temp;
+	#Ready := #SystemEnable AND NOT #EmergencyStop;
+	#Error := FALSE;  // Set based on motor error conditions
+	
+END_FUNCTION_BLOCK
