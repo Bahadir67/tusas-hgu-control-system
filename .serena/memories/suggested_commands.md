@@ -1,84 +1,50 @@
-# Suggested Commands for TUSAŞ HGU Project
+# Essential Commands for TUSAŞ HGU Control System
 
-## Development Commands
+## Build Commands
+```bash
+# Standard build (use Windows PowerShell)
+dotnet.exe build
 
-### Build and Run
-```powershell
-# Build entire solution
-cd tusas-hgu-modern\backend
-dotnet build
+# Release build
+dotnet build --configuration Release
 
-# Run API server
-cd tusas-hgu-modern\backend\TUSAS.HGU.API
-dotnet run
-
-# Run with specific port
-dotnet run --urls="http://localhost:5144"
+# Self-contained deployment for production
+dotnet publish --self-contained true --runtime win-x64 --output ./dist
 ```
 
-### Testing and Validation
-```powershell
-# Test OPC connection
-Invoke-RestMethod -Uri "http://localhost:5144/api/opc/status" -Method GET | ConvertTo-Json
+## Testing Commands
+```bash
+# Manual InfluxDB connectivity test
+manual_test.bat
 
-# Test variable read
-Invoke-RestMethod -Uri "http://localhost:5144/api/opc/read/MOTOR_1_TARGET_EXECUTION" -Method GET
-
-# Test variable write
-Invoke-RestMethod -Uri "http://localhost:5144/api/opc/write" -Method POST -ContentType "application/json" -Body '{"displayName":"MOTOR_1_TARGET_EXECUTION","value":30.5}'
-
-# Get metadata
-curl http://localhost:5144/api/opc/metadata
-
-# Get latest sensor data
-curl http://localhost:5144/api/opc/sensors/latest
+# PowerShell InfluxDB test
+test_influx.ps1
 ```
 
-### InfluxDB Queries
-```powershell
-# Query recent sensor data
-curl -H "Authorization: Token vDyMTLnK9Ze12qzvugZmMmt7-z6ygg6btQl1wPjOCX9B51vmK5NxV2Ys-2dByV8KMo6ntgmuAI0VEClZow295w==" -H "Content-Type: application/vnd.flux" -X POST http://localhost:8086/api/v2/query?org=34c60c1a89df9a26 -d 'from(bucket: "tusas_hgu") |> range(start: -1m) |> filter(fn: (r) => r._measurement == "hgu_sensors") |> limit(n: 10)'
-```
+## Development Environment Setup
+- Requires **InfluxDB Server** at localhost:8086
+- Requires **PLC/PLCSIM** - Siemens S7-1500 at 192.168.100.10:4840
+- Requires **Visual Studio 2022** with .NET 6.0 Windows SDK
+- Requires **WebView2 Runtime** for Grafana integration
 
-## File Operations
-```powershell
-# List project files
-Get-ChildItem -Recurse -Name
-
-# Find files
-Get-ChildItem -Recurse -Filter "*.cs"
-
-# Search in files
-Select-String -Pattern "OPC" -Path *.cs -Recurse
-```
+## PowerShell Management Scripts (../Tools/Scripts/)
+- `Setup-PLCSIM-Environment.ps1` - PLCSIM configuration
+- `Install-InfluxDB-NSSM.ps1` - InfluxDB service setup
+- `Debug-InfluxDB.ps1` - Database troubleshooting
+- `Clean-All-InfluxDB-Services.ps1` - Service cleanup
 
 ## Git Commands
-```powershell
-# Initialize repository
-git init
-
-# Add files
-git add .
-
-# Commit changes
-git commit -m "feat: Add new feature"
-
-# Check status
+```bash
 git status
-
-# View log
-git log --oneline
+git add .
+git commit -m "message"
+git push
 ```
 
-## Windows System Commands
-```powershell
-# Process management
-Get-Process -Name "TUSAS.HGU.API"
-Stop-Process -Name "TUSAS.HGU.API" -Force
-
-# Network check
-Test-NetConnection 192.168.100.10 -Port 4840
-
-# Service check
-Get-Service | Where-Object {$_.Name -like "*influx*"}
+## System Commands (Linux environment)
+```bash
+ls -la          # List files with details
+cd directory    # Change directory
+grep pattern    # Search in files
+find . -name    # Find files by name
 ```

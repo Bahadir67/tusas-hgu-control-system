@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "sequential-thinking": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "env": {}
+    },
+    "context7": {
+      "type": "stdio", 
+      "command": "npx",
+      "args": [
+        "@upstash/context7-mcp"
+      ],
+      "env": {}
+    },
+    "serena": {
+      "type": "stdio",
+      "command": "serena",
+      "args": [
+        "start-mcp-server",
+        "--enable-web-dashboard",
+        "true",
+        "--enable-gui-log-window",
+        "true", 
+        "--log-level",
+        "DEBUG",
+        "--project",
+        "C:\\projects\\tusas_hgu_otomasyon"
+      ],
+      "env": {}
+    }
+  }
+}

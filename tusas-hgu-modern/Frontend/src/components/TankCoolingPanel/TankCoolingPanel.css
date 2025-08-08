@@ -1,0 +1,641 @@
+/* Tank & Cooling Panel - Touch-First Design */
+
+.tank-cooling-panel {
+  position: relative;
+  background: linear-gradient(135deg, 
+    rgba(22, 32, 38, 0.95), 
+    rgba(13, 18, 22, 0.85));
+  backdrop-filter: blur(10px) saturate(180%);
+  -webkit-backdrop-filter: blur(10px) saturate(180%);
+  border: 1px solid rgba(96, 160, 255, 0.2);
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.tank-cooling-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 50% 0%, 
+    rgba(6, 182, 212, 0.05) 0%, 
+    transparent 70%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Hover Effects */
+.tank-cooling-panel:hover {
+  transform: translateY(-3px) scale(1.02);
+  border-color: rgba(6, 182, 212, 0.4);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    0 0 24px rgba(6, 182, 212, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.tank-cooling-panel:hover::before {
+  opacity: 1;
+}
+
+.tank-cooling-panel:active {
+  transform: translateY(-1px) scale(1.01);
+}
+
+/* Focus State */
+.tank-cooling-panel:focus {
+  outline: 2px solid #06b6d4;
+  outline-offset: 2px;
+  border-color: #06b6d4;
+}
+
+/* Status-based Styling */
+.tank-cooling-panel.status-normal {
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.tank-cooling-panel.status-normal:hover {
+  border-color: rgba(34, 197, 94, 0.5);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    0 0 24px rgba(34, 197, 94, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.tank-cooling-panel.status-warning {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.tank-cooling-panel.status-warning:hover {
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    0 0 24px rgba(245, 158, 11, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.tank-cooling-panel.status-error {
+  border-color: rgba(239, 68, 68, 0.3);
+  animation: errorPulse 2s ease-in-out infinite;
+}
+
+.tank-cooling-panel.status-error:hover {
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    0 0 24px rgba(239, 68, 68, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+@keyframes errorPulse {
+  0%, 100% { 
+    box-shadow: 
+      0 4px 16px rgba(0, 0, 0, 0.3),
+      0 2px 8px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 0 15px rgba(239, 68, 68, 0.3);
+  }
+  50% { 
+    box-shadow: 
+      0 4px 16px rgba(0, 0, 0, 0.3),
+      0 2px 8px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 0 25px rgba(239, 68, 68, 0.5);
+  }
+}
+
+/* Status LED Strip */
+.status-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #22c55e;
+  border-radius: 12px 12px 0 0;
+  animation: statusPulse 2s ease-in-out infinite;
+  box-shadow: 0 0 8px currentColor;
+}
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+/* Panel Header */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-icon {
+  font-size: 18px;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.panel-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: 'Consolas', monospace;
+  text-shadow: 0 0 6px rgba(6, 182, 212, 0.3);
+  letter-spacing: 0.8px;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.6);
+  border-radius: 6px;
+  padding: 4px 8px;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 6px currentColor;
+  animation: statusDotPulse 2s ease-in-out infinite;
+}
+
+@keyframes statusDotPulse {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+  50% { 
+    opacity: 0.7; 
+    transform: scale(1.2); 
+  }
+}
+
+.status-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Section Headers */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.section-icon {
+  font-size: 16px;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+.section-title {
+  font-size: 12px;
+  color: rgba(168, 178, 192, 0.9);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Tank Section */
+.tank-section {
+  background: linear-gradient(135deg,
+    rgba(13, 18, 22, 0.8),
+    rgba(26, 34, 44, 0.6));
+  border: 1px solid rgba(96, 160, 255, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.tank-display {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.tank-visual {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.tank-container {
+  position: relative;
+  width: 40px;
+  height: 80px;
+  background: linear-gradient(135deg,
+    rgba(10, 14, 19, 0.9),
+    rgba(20, 28, 36, 0.8));
+  border: 2px solid rgba(96, 160, 255, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.tank-level {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #22c55e;
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0 0 2px 2px;
+  box-shadow: 
+    0 0 8px currentColor,
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.tank-level.level-critical {
+  animation: levelCritical 1s ease-in-out infinite alternate;
+}
+
+.tank-level.level-low {
+  animation: levelWarning 2s ease-in-out infinite alternate;
+}
+
+@keyframes levelCritical {
+  0% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+@keyframes levelWarning {
+  0% { opacity: 1; }
+  100% { opacity: 0.8; }
+}
+
+.tank-level-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 
+    0 0 4px rgba(0, 0, 0, 0.8),
+    0 1px 2px rgba(0, 0, 0, 0.5);
+  font-family: 'Consolas', monospace;
+}
+
+.tank-scale {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 80px;
+  font-size: 8px;
+  color: rgba(168, 178, 192, 0.6);
+  font-family: 'Consolas', monospace;
+}
+
+.scale-mark {
+  height: 1px;
+  display: flex;
+  align-items: center;
+}
+
+.tank-metrics {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tank-metric {
+  background: rgba(10, 14, 19, 0.6);
+  border: 1px solid rgba(96, 160, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tank-metric .metric-label {
+  font-size: 10px;
+  color: rgba(168, 178, 192, 0.7);
+  font-weight: 500;
+}
+
+.tank-metric .metric-value {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Consolas', monospace;
+  text-shadow: 0 0 4px currentColor;
+}
+
+/* Cooling Section */
+.cooling-section {
+  background: linear-gradient(135deg,
+    rgba(13, 18, 22, 0.8),
+    rgba(26, 34, 44, 0.6));
+  border: 1px solid rgba(96, 160, 255, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.cooling-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cooling-metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.cooling-metric {
+  background: rgba(10, 14, 19, 0.6);
+  border: 1px solid rgba(96, 160, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cooling-metric .metric-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cooling-metric .metric-icon {
+  font-size: 12px;
+}
+
+.cooling-metric .metric-label {
+  font-size: 9px;
+  color: rgba(168, 178, 192, 0.7);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.cooling-metric .metric-display {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.cooling-metric .metric-value {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Consolas', monospace;
+  text-shadow: 0 0 4px currentColor;
+}
+
+.cooling-metric .metric-unit {
+  font-size: 9px;
+  color: rgba(168, 178, 192, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.cooling-status-row {
+  display: flex;
+  justify-content: center;
+}
+
+.pump-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(10, 14, 19, 0.6);
+  border: 1px solid rgba(96, 160, 255, 0.1);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.pump-icon {
+  font-size: 12px;
+  animation: pumpPulse 2s ease-in-out infinite;
+}
+
+@keyframes pumpPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.pump-text {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Temperature Range Indicator */
+.temp-range-indicator {
+  background: rgba(13, 18, 22, 0.6);
+  border: 1px solid rgba(96, 160, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.range-header {
+  font-size: 10px;
+  color: rgba(168, 178, 192, 0.8);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.range-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.range-bar {
+  flex: 1;
+  position: relative;
+  height: 12px;
+  background: linear-gradient(90deg,
+    #06b6d4 0%,
+    #22c55e 30%,
+    #f59e0b 70%,
+    #ef4444 100%);
+  border: 1px solid rgba(96, 160, 255, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.range-current-marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 4px;
+  background: #ffffff;
+  border: 2px solid currentColor;
+  border-radius: 2px;
+  box-shadow: 
+    0 0 8px currentColor,
+    0 2px 4px rgba(0, 0, 0, 0.5);
+  animation: markerPulse 2s ease-in-out infinite;
+}
+
+@keyframes markerPulse {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+  50% { 
+    opacity: 0.8; 
+    transform: scale(1.1); 
+  }
+}
+
+.range-min,
+.range-max {
+  font-size: 9px;
+  color: rgba(168, 178, 192, 0.7);
+  font-family: 'Consolas', monospace;
+  font-weight: 600;
+}
+
+/* Expand Hint */
+.expand-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 10px;
+  color: rgba(168, 178, 192, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: auto;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.tank-cooling-panel:hover .expand-hint {
+  opacity: 1;
+}
+
+.expand-icon {
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-4px);
+  }
+  60% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Touch Support */
+@media (pointer: coarse) {
+  .tank-cooling-panel {
+    min-height: 320px;
+    padding: 20px;
+    gap: 16px;
+  }
+  
+  .panel-text {
+    font-size: 16px;
+  }
+  
+  .tank-container {
+    width: 48px;
+    height: 96px;
+  }
+  
+  .tank-scale {
+    height: 96px;
+  }
+  
+  .cooling-metric .metric-value {
+    font-size: 16px;
+  }
+  
+  .tank-metric .metric-value {
+    font-size: 16px;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .tank-cooling-panel {
+    background: #000000;
+    border: 2px solid #ffffff;
+  }
+  
+  .tank-section,
+  .cooling-section {
+    background: #1a1a1a;
+    border: 1px solid #ffffff;
+  }
+  
+  .tank-level {
+    color: #ffffff;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .tank-cooling-panel,
+  .status-strip,
+  .status-indicator,
+  .expand-icon,
+  .tank-level,
+  .range-current-marker,
+  .pump-icon {
+    animation: none;
+    transition: none;
+  }
+  
+  .tank-cooling-panel:hover {
+    transform: none;
+  }
+}

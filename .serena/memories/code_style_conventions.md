@@ -1,56 +1,36 @@
 # Code Style and Conventions
 
 ## C# Coding Standards
+- **PascalCase** for public methods, properties, classes
+- **camelCase** for private fields with underscore prefix (_fieldName)
+- **UPPER_CASE** for constants and enum values
+- Nullable reference types enabled (`Nullable>enable</Nullable>`)
 
-### Naming Conventions
-- **Classes**: PascalCase (`WorkstationOpcUaClient`, `InfluxDbService`)
-- **Methods**: PascalCase (`ConnectAsync`, `WriteVariableAsync`)
-- **Properties**: PascalCase (`IsConnected`, `DisplayName`)
-- **Fields**: camelCase with underscore prefix (`_logger`, `_opcClient`)
-- **Parameters**: camelCase (`displayName`, `nodeId`)
-- **Constants**: UPPER_CASE (`MOTOR_1_TARGET_EXECUTION`)
+## Architecture Patterns
+- **MVVM Pattern** must be maintained at all times
+- **Dependency Injection** for all services
+- **Interface-based** service contracts (e.g., IPanelService)
+- **Async/await** for OPC UA and database operations
 
-### File Organization
-- **Namespace**: Matches folder structure (`TUSAS.HGU.Core.Services.OPC`)
-- **One class per file**: File name matches class name
-- **Using statements**: At top of file, ordered alphabetically
-- **Regions**: Use sparingly, prefer smaller classes
+## Naming Conventions
+- OPC UA variables follow pattern: `COMPONENT_PARAMETER_TYPE`
+  - Examples: `MOTOR_1_FLOW_SETPOINT`, `SYSTEM_PRESSURE_EXECUTION`
+- UI elements: `ComponentName_PropertyType` (e.g., `Panel1_TargetFlowTextBox`)
+- Services: `ComponentService` (e.g., `Panel1Service`, `WorkstationOpcUaClient`)
 
-### Method Structure
-```csharp
-/// <summary>
-/// XML documentation for public methods
-/// </summary>
-/// <param name="parameter">Parameter description</param>
-/// <returns>Return value description</returns>
-public async Task<bool> MethodNameAsync(string parameter)
-{
-    // Implementation
-}
-```
-
-### Error Handling
-- Use try-catch blocks with specific exception types
-- Log errors with context information
-- Don't suppress exceptions silently
-- Use `using` statements for disposable resources
-
-### Async/Await Patterns
-- All async methods end with `Async` suffix
-- Use `ConfigureAwait(false)` in library code
-- Prefer `Task<T>` over `Task` when returning values
-
-## Project Structure
-- **API Layer**: Controllers, Program.cs, configuration
-- **Core Layer**: Services, models, business logic
-- **Separation of Concerns**: Each service has single responsibility
-
-## Configuration
-- Use `appsettings.json` for configuration
-- Environment-specific settings in `appsettings.{Environment}.json`
-- Strongly-typed configuration classes
-
-## Logging
-- Use structured logging with `ILogger<T>`
+## Logging Standards
+- Use structured logging with Microsoft.Extensions.Logging
 - Log levels: Debug, Information, Warning, Error
 - Include contextual information in log messages
+- Use emojis for visual clarity in logs (✅ success, ❌ error, 🔍 debug)
+
+## Error Handling
+- Wrap async operations in try-catch blocks
+- Log errors with full exception details
+- Return meaningful error states (bool success patterns)
+- Graceful degradation for industrial reliability
+
+## Documentation
+- XML documentation for public APIs
+- Turkish comments for business logic explanations
+- English for technical/code comments

@@ -81,7 +81,24 @@
       "mcp__serena__write_memory",
       "Bash(git commit:*)",
       "Bash(git add:*)",
-      "mcp__serena__restart_language_server"
+      "mcp__serena__restart_language_server",
+      "mcp__serena__list_memories",
+      "Bash(cargo --version)",
+      "Bash(./rustup-init.exe -y --default-toolchain stable)",
+      "Bash(source:*)",
+      "Bash(rustc --version)",
+      "Bash(export PATH=\"$PATH:/c/Users/Bahadira-NB3/.cargo/bin\")",
+      "Bash(cargo install:*)",
+      "mcp__serena__get_current_config",
+      "mcp__serena__delete_memory",
+      "Bash(npm run build:*)",
+      "Bash(move index.tsx index.tsx.broken)",
+      "Bash(npm run dev:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(npx tsc:*)",
+      "Bash(copy index.tsx.broken index.tsx)",
+      "Bash(node:*)",
+      "Bash(npx vite:*)"
     ],
     "deny": []
   }

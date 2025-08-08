@@ -1,0 +1,2126 @@
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useOpcStore } from '../../store/opcStore';
+import './AlarmsPage.css';
+
+// IEC 62443 compliant alarm severity levels
+type AlarmSeverity = 'CRITICAL' | 'HIGH' | 'WARNING' | 'INFO';
+
+// ISA-101 compliant alarm states
+type AlarmState = 'ACTIVE' | 'ACKNOWLEDGED' | 'RESOLVED' | 'SHELVED' | 'SUPPRESSED';
+
+// Advanced alarm filtering
+type AlarmFilter = 'ALL' | 'ACKNOWLEDGED' | 'UNACKNOWLEDGED' | 'SHELVED' | 'SUPPRESSED';
+
+interface AlarmEntry {
+  id: string;
+  timestamp: Date;
+  severity: AlarmSeverity;
+  source: string; // Motor ID or System
+  description: string;
+  state: AlarmState;
+  value?: string;
+  limit?: string;
+  acknowledgedBy?: string;
+  acknowledgedAt?: Date;
+  shelvedBy?: string;
+  shelvedAt?: Date;
+  shelveExpiry?: Date;
+  priority: number; // 1-10 priority scale
+  category: 'PROCESS' | 'SAFETY' | 'EQUIPMENT' | 'COMMUNICATION' | 'SECURITY';
+  autoAck?: boolean; // Auto-acknowledgeable alarms
+  requiresOperatorAction?: boolean;
+  alarmGroup?: string;
+  consequence?: string;
+  correctiveAction?: string;
+  occurenceCount?: number;
+}
+
+// Professional SCADA alarm configuration
+interface AlarmConfiguration {
+  soundEnabled: boolean;
+  flashingEnabled: boolean;
+  autoScrollEnabled: boolean;
+  acknowledgmentTimeout: number; // seconds
+  shelveTimeout: number; // minutes
+  maxHistoryEntries: number;
+  criticalAlarmSound: boolean;
+  highAlarmSound: boolean;
+}
+
+// ANSI/ISA-18.2 compliant alarm management colors
+const SEVERITY_COLORS = {
+  CRITICAL: '#FF0000', // Red - Immediate action required
+  HIGH: '#FF6600',     // Orange-Red - Urgent action required  
+  WARNING: '#FFAA00',  // Amber - Attention required
+  INFO: '#00CCFF'      // Cyan - Information only
+} as const;
+
+// IEC 60447 touch target specifications
+const TOUCH_TARGET_MIN = 48; // pixels
+
+const AlarmsPage: React.FC = () => {
+  const { motors, system, isConnected, lastUpdate } = useOpcStore();
+  
+  // Professional SCADA state management
+  const [alarmHistory, setAlarmHistory] = useState<AlarmEntry[]>([]);
+  const [selectedAlarms, setSelectedAlarms] = useState<Set<string>>(new Set());
+  const [currentOperator, setCurrentOperator] = useState('OPERATOR_01');
+  
+  // Advanced filtering state
+  const [severityFilter, setSeverityFilter] = useState<'ALL' | AlarmSeverity>('ALL');
+  const [stateFilter, setStateFilter] = useState<AlarmFilter>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<'ALL' | AlarmEntry['category']>('ALL');
+  const [sourceFilter, setSourceFilter] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFromFilter, setDateFromFilter] = useState('');
+  const [dateToFilter, setDateToFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState<'ALL' | 'HIGH' | 'MEDIUM' | 'LOW'>('ALL');
+  
+  // Modal states
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showAckModal, setShowAckModal] = useState(false);
+  const [showShelveModal, setShowShelveModal] = useState(false);
+  const [showBatchAckModal, setShowBatchAckModal] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showTrendModal, setShowTrendModal] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [selectedAlarm, setSelectedAlarm] = useState<AlarmEntry | null>(null);
+  
+  // Acknowledgment state
+  const [ackComment, setAckComment] = useState('');
+  const [shelveComment, setShelveComment] = useState('');
+  const [shelveDuration, setShelveDuration] = useState(60); // minutes
+  const [suppressReason, setSuppressReason] = useState('');
+  
+  // Sort and display options
+  const [sortBy, setSortBy] = useState<'timestamp' | 'severity' | 'priority' | 'source'>('timestamp');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'compact' | 'list'>('grid');
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(1000);
+  
+  // Professional alarm configuration
+  const [alarmConfig, setAlarmConfig] = useState<AlarmConfiguration>({
+    soundEnabled: true,
+    flashingEnabled: true,
+    autoScrollEnabled: true,
+    acknowledgmentTimeout: 300, // 5 minutes
+    shelveTimeout: 480, // 8 hours
+    maxHistoryEntries: 10000,
+    criticalAlarmSound: true,
+    highAlarmSound: false
+  });
+  
+  // Collapsible filter panel state
+  const [isFilterPanelExpanded, setIsFilterPanelExpanded] = useState(false);
+  
+  // Sound management and audio alerts
+  const [lastCriticalCount, setLastCriticalCount] = useState(0);
+  const [lastHighCount, setLastHighCount] = useState(0);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [isSoundSilenced, setIsSoundSilenced] = useState(false);
+  const [silenceEndTime, setSilenceEndTime] = useState<Date | null>(null);
+
+  // Export functionality state
+  const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx' | 'pdf'>('csv');
+  const [exportDateRange, setExportDateRange] = useState<'today' | 'week' | 'month' | 'custom'>('today');
+  const [exportCustomStart, setExportCustomStart] = useState('');
+  const [exportCustomEnd, setExportCustomEnd] = useState('');
+
+  // Trend analysis state
+  const [trendPeriod, setTrendPeriod] = useState<'hour' | 'day' | 'week' | 'month'>('day');
+  const [trendData, setTrendData] = useState<any[]>([]);
+
+  // Initialize audio context for alarm sounds
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.AudioContext) {
+      setAudioContext(new AudioContext());
+    }
+    
+    // Load saved configuration
+    const savedConfig = localStorage.getItem('alarmConfig');
+    if (savedConfig) {
+      setAlarmConfig(JSON.parse(savedConfig));
+    }
+    
+    // Load saved operator
+    const savedOperator = localStorage.getItem('currentOperator');
+    if (savedOperator) {
+      setCurrentOperator(savedOperator);
+    }
+  }, []);
+
+  // Enhanced professional alarm sound generation
+  const playAlarmSound = useCallback((type: 'critical' | 'high' | 'acknowledge' | 'error') => {
+    if (!audioContext || !alarmConfig.soundEnabled || isSoundSilenced) return;
+
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    const filterNode = audioContext.createBiquadFilter();
+    
+    oscillator.connect(filterNode);
+    filterNode.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // ISA-18.2 compliant alarm tones
+    switch (type) {
+      case 'critical':
+        // Three-tone critical alarm pattern
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(400, audioContext.currentTime + 0.15);
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.3);
+        gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
+        filterNode.type = 'lowpass';
+        filterNode.frequency.setValueAtTime(2000, audioContext.currentTime);
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.45);
+        break;
+      case 'high':
+        // Two-tone high priority alarm
+        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(300, audioContext.currentTime + 0.2);
+        gainNode.gain.setValueAtTime(0.25, audioContext.currentTime);
+        filterNode.type = 'lowpass';
+        filterNode.frequency.setValueAtTime(1500, audioContext.currentTime);
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.4);
+        break;
+      case 'acknowledge':
+        // Single positive confirmation tone
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.2);
+        break;
+      case 'error':
+        // Error/failure tone
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        filterNode.type = 'lowpass';
+        filterNode.frequency.setValueAtTime(500, audioContext.currentTime);
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.5);
+        break;
+    }
+  }, [audioContext, alarmConfig.soundEnabled, isSoundSilenced]);
+
+  // Auto-silence management
+  useEffect(() => {
+    if (silenceEndTime) {
+      const timer = setInterval(() => {
+        if (new Date() >= silenceEndTime) {
+          setIsSoundSilenced(false);
+          setSilenceEndTime(null);
+          clearInterval(timer);
+        }
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [silenceEndTime]);
+
+  // Generate real-time alarms with enhanced ISA-18.2 compliance
+  const generateRealTimeAlarms = useCallback((): AlarmEntry[] => {
+    const alarms: AlarmEntry[] = [];
+    const timestamp = new Date();
+
+    // Enhanced motor-specific alarms with ISA-18.2 classifications
+    Object.entries(motors).forEach(([motorId, motor]) => {
+      const motorNum = parseInt(motorId);
+      const motorName = `Motor ${motorNum}`;
+
+      // Critical safety alarms - Priority 1 (Emergency)
+      if (motor.status === 3) {
+        alarms.push({
+          id: `MOTOR_${motorNum}_EMERGENCY_STOP_${timestamp.getTime()}`,
+          timestamp,
+          severity: 'CRITICAL',
+          source: motorName,
+          description: '🚨 EMERGENCY STOP - Motor Critical Failure',
+          state: 'ACTIVE',
+          value: `Status: FAULT [${motor.status}]`,
+          priority: 10,
+          category: 'SAFETY',
+          requiresOperatorAction: true,
+          alarmGroup: 'EMERGENCY_SAFETY',
+          consequence: 'Immediate system shutdown, potential equipment damage',
+          correctiveAction: '1. STOP all operations 2. Investigate fault 3. Contact maintenance',
+          occurenceCount: 1
+        });
+      }
+
+      // High priority electrical safety alarms - Priority 2
+      if (motor.current > 150 && motor.enabled) {
+        alarms.push({
+          id: `MOTOR_${motorNum}_OVERCURRENT_${timestamp.getTime()}`,
+          timestamp,
+          severity: 'CRITICAL',
+          source: motorName,
+          description: '⚡ OVERCURRENT PROTECTION - Motor Overload',
+          state: 'ACTIVE',
+          value: `${motor.current.toFixed(1)}A`,
+          limit: '150A',
+          priority: 9,
+          category: 'EQUIPMENT',
+          requiresOperatorAction: true,
+          alarmGroup: 'ELECTRICAL_PROTECTION',
+          consequence: 'Motor thermal damage, fire risk, equipment failure',
+          correctiveAction: '1. Reduce load immediately 2. Check motor condition 3. Verify cooling',
+          occurenceCount: 1
+        });
+      }
+
+      // Critical thermal protection - Priority 1
+      if (motor.temperature > 85) {
+        alarms.push({
+          id: `MOTOR_${motorNum}_THERMAL_CRITICAL_${timestamp.getTime()}`,
+          timestamp,
+          severity: 'CRITICAL',
+          source: motorName,
+          description: '🔥 THERMAL PROTECTION - Critical Temperature',
+          state: 'ACTIVE',
+          value: `${motor.temperature.toFixed(1)}°C`,
+          limit: '85°C',
+          priority: 10,
+          category: 'SAFETY',
+          requiresOperatorAction: true,
+          alarmGroup: 'THERMAL_SAFETY',
+          consequence: 'Motor damage, fire hazard, system failure',
+          correctiveAction: '1. STOP motor immediately 2. Check cooling system 3. Investigate',
+          occurenceCount: 1
+        });
+      } else if (motor.temperature > 80) {
+        alarms.push({
+          id: `MOTOR_${motorNum}_TEMP_HIGH_${timestamp.getTime()}`,
+          timestamp,
+          severity: 'HIGH',
+          source: motorName,
+          description: '🌡️ HIGH TEMPERATURE - Thermal Warning',
+          state: 'ACTIVE',
+          value: `${motor.temperature.toFixed(1)}°C`,
+          limit: '85°C',
+          priority: 8,
+          category: 'EQUIPMENT',
+          requiresOperatorAction: true,
+          alarmGroup: 'THERMAL_PROTECTION',
+          consequence: 'Potential motor damage if continues',
+          correctiveAction: 'Monitor closely, prepare to stop if increases',
+          occurenceCount: 1
+        });
+      }
+
+      // Pressure safety alarms - Priority 1
+      if (motor.pressure > 200) {
+        alarms.push({
+          id: `MOTOR_${motorNum}_PRESSURE_CRITICAL_${timestamp.getTime()}`,
+          timestamp,
+          severity: 'CRITICAL',
+          source: motorName,
+          description: '💥 OVERPRESSURE - Safety Relief Required',
+          state: 'ACTIVE',
+          value: `${motor.pressure.toFixed(1)} bar`,
+          limit: '200 bar',
+          priority: 10,
+          category: 'SAFETY',
+          requiresOperatorAction: true,
+          alarmGroup: 'PRESSURE_SAFETY',
+          consequence: 'Equipment rupture, safety hazard, personnel danger',
+          correctiveAction: '1. Activate emergency relief 2. Evacuate area 3. Emergency shutdown',
+          occurenceCount: 1
+        });
+      } else if (motor.pressure > 180) {
+        alarms.push({
+          id: `MOTOR_${motorNum}_PRESSURE_HIGH_${timestamp.getTime()}`,
+          timestamp,
+          severity: 'HIGH',
+          source: motorName,
+          description: '⬆️ HIGH PRESSURE - Approaching Limit',
+          state: 'ACTIVE',
+          value: `${motor.pressure.toFixed(1)} bar`,
+          limit: '200 bar',
+          priority: 8,
+          category: 'EQUIPMENT',
+          requiresOperatorAction: true,
+          alarmGroup: 'PRESSURE_MONITORING',
+          consequence: 'Risk of overpressure condition',
+          correctiveAction: 'Reduce pressure, check relief valve operation',
+          occurenceCount: 1
+        });
+      }
+
+      // Equipment maintenance alarms
+      if (motor.lineFilter === 0 || motor.suctionFilter === 0) {
+        const failedFilters = [];
+        if (motor.lineFilter === 0) failedFilters.push('Line Filter');
+        if (motor.suctionFilter === 0) failedFilters.push('Suction Filter');
+        
+        alarms.push({
+          id: `MOTOR_${motorNum}_FILTER_FAULT_${timestamp.getTime()}`,
+          timestamp,
+          severity: 'HIGH',
+          source: motorName,
+          description: `🔧 FILTER SYSTEM FAULT - ${failedFilters.join(', ')}`,
+          state: 'ACTIVE',
+          value: `Failed: ${failedFilters.join(', ')}`,
+          priority: 7,
+          category: 'EQUIPMENT',
+          requiresOperatorAction: true,
+          alarmGroup: 'FILTRATION_SYSTEM',
+          consequence: 'Reduced performance, accelerated wear, contamination',
+          correctiveAction: 'Replace failed filters, check system integrity',
+          occurenceCount: 1
+        });
+      }
+
+      // Performance monitoring alarms
+      if (motor.vibration && motor.vibration > 10) {
+        alarms.push({
+          id: `MOTOR_${motorNum}_VIBRATION_HIGH_${timestamp.getTime()}`,
+          timestamp,
+          severity: motor.vibration > 15 ? 'HIGH' : 'WARNING',
+          source: motorName,
+          description: '📳 HIGH VIBRATION - Mechanical Issue',
+          state: 'ACTIVE',
+          value: `${motor.vibration.toFixed(1)} mm/s`,
+          limit: '10 mm/s',
+          priority: motor.vibration > 15 ? 7 : 5,
+          category: 'EQUIPMENT',
+          requiresOperatorAction: motor.vibration > 15,
+          alarmGroup: 'MECHANICAL_MONITORING',
+          consequence: 'Bearing damage, mechanical failure, reduced life',
+          correctiveAction: 'Check alignment, bearing condition, mounting',
+          occurenceCount: 1
+        });
+      }
+
+      // Process monitoring warnings
+      if (motor.temperature > 65 && motor.temperature <= 80) {
+        alarms.push({
+          id: `MOTOR_${motorNum}_TEMP_RISING_${timestamp.getTime()}`,
+          timestamp,
+          severity: 'WARNING',
+          source: motorName,
+          description: '📈 TEMPERATURE RISING - Monitor Required',
+          state: 'ACTIVE',
+          value: `${motor.temperature.toFixed(1)}°C`,
+          limit: '80°C',
+          priority: 5,
+          category: 'PROCESS',
+          alarmGroup: 'THERMAL_MONITORING',
+          consequence: 'Approaching high temperature limit',
+          correctiveAction: 'Monitor trend, check cooling',
+          occurenceCount: 1
+        });
+      }
+
+      // Electrical monitoring
+      if (motor.current > 120 && motor.current <= 150 && motor.enabled) {
+        alarms.push({
+          id: `MOTOR_${motorNum}_CURRENT_HIGH_${timestamp.getTime()}`,
+          timestamp,
+          severity: 'WARNING',
+          source: motorName,
+          description: '🔌 HIGH CURRENT - Load Monitor',
+          state: 'ACTIVE',
+          value: `${motor.current.toFixed(1)}A`,
+          limit: '150A',
+          priority: 4,
+          category: 'PROCESS',
+          alarmGroup: 'ELECTRICAL_MONITORING',
+          consequence: 'Increased wear, efficiency loss',
+          correctiveAction: 'Check load conditions, verify operation',
+          occurenceCount: 1
+        });
+      }
+
+      // Information level monitoring
+      if (motor.enabled && motor.status === 1) {
+        if (Math.abs(motor.rpm - motor.targetRpm) > 100 && motor.targetRpm > 0) {
+          alarms.push({
+            id: `MOTOR_${motorNum}_RPM_DEVIATION_${timestamp.getTime()}`,
+            timestamp,
+            severity: 'INFO',
+            source: motorName,
+            description: '🔄 RPM DEVIATION - Performance Monitor',
+            state: 'ACTIVE',
+            value: `Actual: ${motor.rpm} rpm, Target: ${motor.targetRpm} rpm`,
+            priority: 2,
+            category: 'PROCESS',
+            autoAck: true,
+            alarmGroup: 'PERFORMANCE_MONITORING',
+            consequence: 'Performance variation',
+            correctiveAction: 'Monitor trend, check control system',
+            occurenceCount: 1
+          });
+        }
+      }
+
+      // Power quality monitoring
+      if (motor.powerFactor && motor.powerFactor < 0.85 && motor.enabled) {
+        alarms.push({
+          id: `MOTOR_${motorNum}_POWER_FACTOR_LOW_${timestamp.getTime()}`,
+          timestamp,
+          severity: 'WARNING',
+          source: motorName,
+          description: '⚡ LOW POWER FACTOR - Efficiency Issue',
+          state: 'ACTIVE',
+          value: `PF: ${motor.powerFactor.toFixed(2)}`,
+          limit: 'PF: 0.85',
+          priority: 4,
+          category: 'PROCESS',
+          alarmGroup: 'POWER_QUALITY',
+          consequence: 'Increased energy costs, utility penalties',
+          correctiveAction: 'Check motor loading, consider power factor correction',
+          occurenceCount: 1
+        });
+      }
+    });
+
+    // Enhanced system-level alarms with safety classifications
+    if (system.tankLevel < 5) {
+      alarms.push({
+        id: `SYSTEM_TANK_EMERGENCY_${timestamp.getTime()}`,
+        timestamp,
+        severity: 'CRITICAL',
+        source: 'Hydraulic System',
+        description: '🚨 EMERGENCY - Tank Level Critical Low',
+        state: 'ACTIVE',
+        value: `${system.tankLevel.toFixed(1)}%`,
+        limit: '5%',
+        priority: 10,
+        category: 'SAFETY',
+        requiresOperatorAction: true,
+        alarmGroup: 'FLUID_SAFETY',
+        consequence: 'System shutdown, pump cavitation, equipment damage',
+        correctiveAction: '1. STOP all operations 2. Refill tank IMMEDIATELY 3. Investigate leak',
+        occurenceCount: 1
+      });
+    } else if (system.tankLevel < 15) {
+      alarms.push({
+        id: `SYSTEM_TANK_CRITICAL_${timestamp.getTime()}`,
+        timestamp,
+        severity: system.tankLevel < 10 ? 'CRITICAL' : 'HIGH',
+        source: 'Hydraulic System',
+        description: `⬇️ ${system.tankLevel < 10 ? 'CRITICAL' : 'LOW'} TANK LEVEL - Refill Required`,
+        state: 'ACTIVE',
+        value: `${system.tankLevel.toFixed(1)}%`,
+        limit: '15%',
+        priority: system.tankLevel < 10 ? 9 : 7,
+        category: system.tankLevel < 10 ? 'SAFETY' : 'PROCESS',
+        requiresOperatorAction: true,
+        alarmGroup: 'FLUID_MANAGEMENT',
+        consequence: system.tankLevel < 10 ? 'Imminent shutdown risk' : 'System disruption risk',
+        correctiveAction: system.tankLevel < 10 ? 'Refill immediately' : 'Schedule refill operation',
+        occurenceCount: 1
+      });
+    }
+
+    // Enhanced oil condition monitoring
+    if (system.oilTemperature > 85) {
+      alarms.push({
+        id: `SYSTEM_OIL_TEMP_CRITICAL_${timestamp.getTime()}`,
+        timestamp,
+        severity: 'CRITICAL',
+        source: 'Cooling System',
+        description: '🔥 OIL TEMPERATURE CRITICAL - Thermal Damage Risk',
+        state: 'ACTIVE',
+        value: `${system.oilTemperature.toFixed(1)}°C`,
+        limit: '85°C',
+        priority: 9,
+        category: 'EQUIPMENT',
+        requiresOperatorAction: true,
+        alarmGroup: 'THERMAL_MANAGEMENT',
+        consequence: 'Oil breakdown, component damage, fire risk',
+        correctiveAction: '1. Check cooling system 2. Reduce load 3. Monitor oil condition',
+        occurenceCount: 1
+      });
+    } else if (system.oilTemperature > 75) {
+      alarms.push({
+        id: `SYSTEM_OIL_TEMP_HIGH_${timestamp.getTime()}`,
+        timestamp,
+        severity: 'HIGH',
+        source: 'Cooling System',
+        description: '🌡️ OIL TEMPERATURE HIGH - Cooling Check Required',
+        state: 'ACTIVE',
+        value: `${system.oilTemperature.toFixed(1)}°C`,
+        limit: '85°C',
+        priority: 6,
+        category: 'EQUIPMENT',
+        alarmGroup: 'THERMAL_MANAGEMENT',
+        consequence: 'Approaching critical temperature',
+        correctiveAction: 'Check cooling system operation',
+        occurenceCount: 1
+      });
+    }
+
+    // Water contamination detection
+    if (system.aquaSensor > 0.8) {
+      alarms.push({
+        id: `SYSTEM_WATER_CRITICAL_${timestamp.getTime()}`,
+        timestamp,
+        severity: 'CRITICAL',
+        source: 'Fluid Quality',
+        description: '💧 CRITICAL WATER CONTAMINATION - Oil Replacement Required',
+        state: 'ACTIVE',
+        value: `${(system.aquaSensor * 100).toFixed(1)}% H2O`,
+        limit: '0.8%',
+        priority: 8,
+        category: 'EQUIPMENT',
+        requiresOperatorAction: true,
+        alarmGroup: 'FLUID_QUALITY',
+        consequence: 'Accelerated corrosion, component damage',
+        correctiveAction: '1. Stop operations 2. Replace oil 3. Find contamination source',
+        occurenceCount: 1
+      });
+    } else if (system.aquaSensor > 0.5) {
+      alarms.push({
+        id: `SYSTEM_WATER_HIGH_${timestamp.getTime()}`,
+        timestamp,
+        severity: 'HIGH',
+        source: 'Fluid Quality',
+        description: '💧 HIGH WATER CONTENT - Oil Quality Issue',
+        state: 'ACTIVE',
+        value: `${(system.aquaSensor * 100).toFixed(1)}% H2O`,
+        limit: '0.5%',
+        priority: 6,
+        category: 'EQUIPMENT',
+        alarmGroup: 'FLUID_QUALITY',
+        consequence: 'Corrosion risk, performance degradation',
+        correctiveAction: 'Test oil, plan replacement',
+        occurenceCount: 1
+      });
+    }
+
+    // Communication and system health alarms
+    if (!isConnected) {
+      alarms.push({
+        id: `COMM_OPC_DISCONNECTED_${timestamp.getTime()}`,
+        timestamp,
+        severity: 'HIGH',
+        source: 'Communication',
+        description: '📡 OPC SERVER DISCONNECTED - Control System Failure',
+        state: 'ACTIVE',
+        priority: 8,
+        category: 'COMMUNICATION',
+        requiresOperatorAction: true,
+        alarmGroup: 'SYSTEM_COMMUNICATION',
+        consequence: 'Loss of monitoring and control, safety risk',
+        correctiveAction: '1. Check network connection 2. Restart OPC server 3. Switch to manual',
+        occurenceCount: 1
+      });
+    }
+
+    if (lastUpdate && (Date.now() - lastUpdate.getTime()) > 5000) {
+      const staleDuration = Math.floor((Date.now() - lastUpdate.getTime()) / 1000);
+      alarms.push({
+        id: `COMM_DATA_STALE_${timestamp.getTime()}`,
+        timestamp,
+        severity: staleDuration > 30 ? 'HIGH' : 'WARNING',
+        source: 'Data Acquisition',
+        description: '🕒 DATA UPDATE TIMEOUT - Monitoring Quality Degraded',
+        state: 'ACTIVE',
+        value: `Stale: ${staleDuration}s`,
+        priority: staleDuration > 30 ? 7 : 5,
+        category: 'COMMUNICATION',
+        alarmGroup: 'DATA_QUALITY',
+        consequence: 'Unreliable monitoring data',
+        correctiveAction: 'Check data acquisition system',
+        occurenceCount: 1
+      });
+    }
+
+    // System performance monitoring
+    const totalPower = Object.values(motors).reduce((sum, motor) => 
+      sum + (motor.enabled ? motor.current * 400 * Math.sqrt(3) * (motor.powerFactor || 0.9) / 1000 : 0), 0
+    );
+    
+    if (totalPower > 400) {
+      alarms.push({
+        id: `SYSTEM_POWER_HIGH_${timestamp.getTime()}`,
+        timestamp,
+        severity: totalPower > 450 ? 'HIGH' : 'WARNING',
+        source: 'Power System',
+        description: `⚡ ${totalPower > 450 ? 'HIGH' : 'ELEVATED'} SYSTEM POWER - Load Monitor`,
+        state: 'ACTIVE',
+        value: `${totalPower.toFixed(0)} kW`,
+        limit: '400 kW',
+        priority: totalPower > 450 ? 6 : 4,
+        category: 'PROCESS',
+        alarmGroup: 'POWER_MANAGEMENT',
+        consequence: totalPower > 450 ? 'Approaching maximum capacity' : 'Increased energy consumption',
+        correctiveAction: 'Monitor load distribution, optimize operation',
+        occurenceCount: 1
+      });
+    }
+
+    return alarms.sort((a, b) => {
+      // Sort by priority first, then by timestamp
+      if (a.priority !== b.priority) return b.priority - a.priority;
+      return b.timestamp.getTime() - a.timestamp.getTime();
+    });
+  }, [motors, system, isConnected, lastUpdate]);
+
+  const currentAlarms = useMemo(() => generateRealTimeAlarms(), [generateRealTimeAlarms]);
+
+  // Enhanced alarm sound management with ISA-18.2 compliance
+  useEffect(() => {
+    const criticalAlarms = currentAlarms.filter(a => 
+      a.severity === 'CRITICAL' && a.state === 'ACTIVE'
+    );
+    const highAlarms = currentAlarms.filter(a => 
+      a.severity === 'HIGH' && a.state === 'ACTIVE'
+    );
+    
+    // Critical alarms always generate sound (except when silenced)
+    if (criticalAlarms.length > lastCriticalCount && alarmConfig.criticalAlarmSound) {
+      playAlarmSound('critical');
+    }
+    
+    // High priority alarms generate sound if enabled
+    if (highAlarms.length > lastHighCount && alarmConfig.highAlarmSound) {
+      playAlarmSound('high');
+    }
+    
+    setLastCriticalCount(criticalAlarms.length);
+    setLastHighCount(highAlarms.length);
+  }, [currentAlarms, lastCriticalCount, lastHighCount, alarmConfig, playAlarmSound]);
+
+  // Enhanced professional alarm filtering with advanced options
+  const filteredAlarms = useMemo(() => {
+    return currentAlarms.filter(alarm => {
+      // Basic filters
+      const matchesSeverity = severityFilter === 'ALL' || alarm.severity === severityFilter;
+      const matchesSource = sourceFilter === 'ALL' || alarm.source.includes(sourceFilter);
+      const matchesCategory = categoryFilter === 'ALL' || alarm.category === categoryFilter;
+      const matchesSearch = searchQuery === '' || 
+        alarm.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        alarm.source.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        alarm.alarmGroup?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        alarm.correctiveAction?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      // State-based filtering
+      let matchesState = false;
+      switch (stateFilter) {
+        case 'ALL':
+          matchesState = true;
+          break;
+        case 'ACKNOWLEDGED':
+          matchesState = alarm.state === 'ACKNOWLEDGED';
+          break;
+        case 'UNACKNOWLEDGED':
+          matchesState = alarm.state === 'ACTIVE';
+          break;
+        case 'SHELVED':
+          matchesState = alarm.state === 'SHELVED';
+          break;
+        case 'SUPPRESSED':
+          matchesState = alarm.state === 'SUPPRESSED';
+          break;
+        default:
+          matchesState = alarm.state === stateFilter;
+      }
+
+      // Priority filtering
+      let matchesPriority = true;
+      if (priorityFilter !== 'ALL') {
+        switch (priorityFilter) {
+          case 'HIGH':
+            matchesPriority = alarm.priority >= 7;
+            break;
+          case 'MEDIUM':
+            matchesPriority = alarm.priority >= 4 && alarm.priority < 7;
+            break;
+          case 'LOW':
+            matchesPriority = alarm.priority < 4;
+            break;
+        }
+      }
+
+      // Date filtering
+      let matchesDate = true;
+      if (dateFromFilter) {
+        const fromDate = new Date(dateFromFilter);
+        matchesDate = matchesDate && alarm.timestamp >= fromDate;
+      }
+      if (dateToFilter) {
+        const toDate = new Date(dateToFilter);
+        toDate.setHours(23, 59, 59, 999); // End of day
+        matchesDate = matchesDate && alarm.timestamp <= toDate;
+      }
+
+      return matchesSeverity && matchesState && matchesCategory && matchesSource && 
+             matchesSearch && matchesPriority && matchesDate;
+    });
+  }, [currentAlarms, severityFilter, stateFilter, categoryFilter, sourceFilter, 
+      searchQuery, priorityFilter, dateFromFilter, dateToFilter]);
+
+  // Professional sorting implementation
+  const sortedAlarms = useMemo(() => {
+    const sorted = [...filteredAlarms].sort((a, b) => {
+      let compareValue = 0;
+      
+      switch (sortBy) {
+        case 'timestamp':
+          compareValue = a.timestamp.getTime() - b.timestamp.getTime();
+          break;
+        case 'severity':
+          const severityOrder = { 'CRITICAL': 4, 'HIGH': 3, 'WARNING': 2, 'INFO': 1 };
+          compareValue = severityOrder[a.severity] - severityOrder[b.severity];
+          break;
+        case 'priority':
+          compareValue = a.priority - b.priority;
+          break;
+        case 'source':
+          compareValue = a.source.localeCompare(b.source);
+          break;
+        default:
+          compareValue = 0;
+      }
+      
+      return sortDirection === 'asc' ? compareValue : -compareValue;
+    });
+    
+    return sorted;
+  }, [filteredAlarms, sortBy, sortDirection]);
+
+  // Pagination
+  const paginatedAlarms = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sortedAlarms.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedAlarms, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(sortedAlarms.length / itemsPerPage);
+
+  // Enhanced alarm statistics with trend analysis
+  const alarmStats = useMemo(() => {
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const stats = {
+      // Current active alarms
+      totalActive: currentAlarms.filter(a => a.state === 'ACTIVE').length,
+      critical: currentAlarms.filter(a => a.severity === 'CRITICAL' && a.state === 'ACTIVE').length,
+      high: currentAlarms.filter(a => a.severity === 'HIGH' && a.state === 'ACTIVE').length,
+      warning: currentAlarms.filter(a => a.severity === 'WARNING' && a.state === 'ACTIVE').length,
+      info: currentAlarms.filter(a => a.severity === 'INFO' && a.state === 'ACTIVE').length,
+      
+      // State statistics
+      acknowledged: alarmHistory.filter(a => a.state === 'ACKNOWLEDGED').length,
+      shelved: currentAlarms.filter(a => a.state === 'SHELVED').length,
+      suppressed: currentAlarms.filter(a => a.state === 'SUPPRESSED').length,
+      
+      // Action required
+      requireOperatorAction: currentAlarms.filter(a => a.requiresOperatorAction && a.state === 'ACTIVE').length,
+      
+      // Time-based statistics
+      totalToday: currentAlarms.filter(a => {
+        const today = new Date();
+        const alarmDate = new Date(a.timestamp);
+        return alarmDate.toDateString() === today.toDateString();
+      }).length,
+      lastHour: currentAlarms.filter(a => a.timestamp >= oneHourAgo).length,
+      last24Hours: currentAlarms.filter(a => a.timestamp >= oneDayAgo).length,
+      lastWeek: currentAlarms.filter(a => a.timestamp >= oneWeekAgo).length,
+      
+      // Category breakdown
+      groupedByCategory: currentAlarms.reduce((acc, alarm) => {
+        acc[alarm.category] = (acc[alarm.category] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      
+      // Alarm group breakdown
+      groupedByAlarmGroup: currentAlarms.reduce((acc, alarm) => {
+        if (alarm.alarmGroup) {
+          acc[alarm.alarmGroup] = (acc[alarm.alarmGroup] || 0) + 1;
+        }
+        return acc;
+      }, {} as Record<string, number>),
+      
+      // Performance metrics
+      avgResponseTime: 0, // Would be calculated from actual acknowledgment times
+      alarmRate: currentAlarms.length / Math.max(1, (now.getTime() - (lastUpdate?.getTime() || now.getTime())) / 60000), // alarms per minute
+      
+      // Reliability metrics
+      systemAvailability: isConnected ? 100 : 0,
+      dataQuality: lastUpdate && (now.getTime() - lastUpdate.getTime()) < 5000 ? 100 : 
+                   lastUpdate && (now.getTime() - lastUpdate.getTime()) < 30000 ? 75 : 50
+    };
+    
+    return stats;
+  }, [currentAlarms, alarmHistory, isConnected, lastUpdate]);
+
+  // Professional acknowledgment system with enhanced logging
+  const handleAcknowledge = useCallback((alarm: AlarmEntry, comment?: string) => {
+    console.log('🛠️ ALARM ACKNOWLEDGMENT:', {
+      alarmId: alarm.id,
+      operator: currentOperator,
+      timestamp: new Date().toISOString(),
+      comment: comment || 'Standard acknowledgment',
+      severity: alarm.severity,
+      source: alarm.source,
+      description: alarm.description
+    });
+    
+    playAlarmSound('acknowledge');
+    
+    // Create acknowledged alarm record
+    const acknowledgedAlarm: AlarmEntry = {
+      ...alarm,
+      state: 'ACKNOWLEDGED',
+      acknowledgedBy: currentOperator,
+      acknowledgedAt: new Date()
+    };
+    
+    setAlarmHistory(prev => [...prev, acknowledgedAlarm]);
+    setSelectedAlarms(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(alarm.id);
+      return newSet;
+    });
+    
+    setShowAckModal(false);
+    setAckComment('');
+    
+    // Save to localStorage for persistence
+    localStorage.setItem('currentOperator', currentOperator);
+  }, [currentOperator, playAlarmSound]);
+
+  const handleBulkAcknowledge = useCallback((alarms: AlarmEntry[], comment: string) => {
+    console.log('🔄 BULK ALARM ACKNOWLEDGMENT:', {
+      count: alarms.length,
+      operator: currentOperator,
+      timestamp: new Date().toISOString(),
+      comment
+    });
+    
+    alarms.forEach(alarm => {
+      if (alarm.state === 'ACTIVE') {
+        handleAcknowledge(alarm, comment);
+      }
+    });
+    setShowBatchAckModal(false);
+    setSelectedAlarms(new Set());
+  }, [handleAcknowledge, currentOperator]);
+
+  const handleShelveAlarm = useCallback((alarm: AlarmEntry, comment: string, duration: number) => {
+    console.log('📋 ALARM SHELVING:', {
+      alarmId: alarm.id,
+      operator: currentOperator,
+      duration: duration + ' minutes',
+      comment,
+      severity: alarm.severity
+    });
+    
+    const shelveExpiry = new Date();
+    shelveExpiry.setMinutes(shelveExpiry.getMinutes() + duration);
+    
+    const shelvedAlarm: AlarmEntry = {
+      ...alarm,
+      state: 'SHELVED',
+      shelvedBy: currentOperator,
+      shelvedAt: new Date(),
+      shelveExpiry
+    };
+    
+    setAlarmHistory(prev => [...prev, shelvedAlarm]);
+    setShowShelveModal(false);
+    setShelveComment('');
+  }, [currentOperator]);
+
+  const handleSuppressAlarm = useCallback((alarm: AlarmEntry, reason: string) => {
+    console.log('🔇 ALARM SUPPRESSION:', {
+      alarmId: alarm.id,
+      operator: currentOperator,
+      reason,
+      severity: alarm.severity
+    });
+    
+    const suppressedAlarm: AlarmEntry = {
+      ...alarm,
+      state: 'SUPPRESSED'
+    };
+    
+    setAlarmHistory(prev => [...prev, suppressedAlarm]);
+  }, [currentOperator]);
+
+  const handleToggleSelection = useCallback((alarmId: string) => {
+    setSelectedAlarms(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(alarmId)) {
+        newSet.delete(alarmId);
+      } else {
+        newSet.add(alarmId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    const activeAlarms = paginatedAlarms.filter(a => a.state === 'ACTIVE');
+    setSelectedAlarms(new Set(activeAlarms.map(a => a.id)));
+  }, [paginatedAlarms]);
+
+  const handleDeselectAll = useCallback(() => {
+    setSelectedAlarms(new Set());
+  }, []);
+
+  // Enhanced export functionality
+  const handleExportAlarms = useCallback(() => {
+    let exportData = [...currentAlarms, ...alarmHistory];
+    
+    // Apply date range filter
+    if (exportDateRange === 'today') {
+      const today = new Date();
+      exportData = exportData.filter(alarm => 
+        alarm.timestamp.toDateString() === today.toDateString()
+      );
+    } else if (exportDateRange === 'week') {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      exportData = exportData.filter(alarm => alarm.timestamp >= weekAgo);
+    } else if (exportDateRange === 'month') {
+      const monthAgo = new Date();
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      exportData = exportData.filter(alarm => alarm.timestamp >= monthAgo);
+    } else if (exportDateRange === 'custom' && exportCustomStart && exportCustomEnd) {
+      const startDate = new Date(exportCustomStart);
+      const endDate = new Date(exportCustomEnd);
+      endDate.setHours(23, 59, 59, 999);
+      exportData = exportData.filter(alarm => 
+        alarm.timestamp >= startDate && alarm.timestamp <= endDate
+      );
+    }
+
+    // Generate export based on format
+    if (exportFormat === 'csv') {
+      const csvHeader = [
+        'Timestamp', 'Severity', 'Priority', 'Source', 'Category', 'Description',
+        'Current Value', 'Limit', 'State', 'Alarm Group', 'Consequence',
+        'Corrective Action', 'Acknowledged By', 'Acknowledged At', 'Operator'
+      ].join(',');
+      
+      const csvData = exportData.map(alarm => [
+        alarm.timestamp.toISOString(),
+        alarm.severity,
+        alarm.priority,
+        `"${alarm.source}"`,
+        alarm.category,
+        `"${alarm.description}"`,
+        `"${alarm.value || ''}"`,
+        `"${alarm.limit || ''}"`,
+        alarm.state,
+        `"${alarm.alarmGroup || ''}"`,
+        `"${alarm.consequence || ''}"`,
+        `"${alarm.correctiveAction || ''}"`,
+        `"${alarm.acknowledgedBy || ''}"`,
+        alarm.acknowledgedAt ? alarm.acknowledgedAt.toISOString() : '',
+        currentOperator
+      ].join(',')).join('\n');
+      
+      const csvContent = csvHeader + '\n' + csvData;
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `alarm_export_${new Date().toISOString().slice(0,10)}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    
+    console.log(`📊 ALARM EXPORT: ${exportFormat.toUpperCase()} - ${exportData.length} records`);
+    setShowExportModal(false);
+  }, [currentAlarms, alarmHistory, exportFormat, exportDateRange, exportCustomStart, exportCustomEnd, currentOperator]);
+
+  // Sound silence management
+  const handleSilenceAlarms = useCallback((minutes: number) => {
+    setIsSoundSilenced(true);
+    const silenceEnd = new Date();
+    silenceEnd.setMinutes(silenceEnd.getMinutes() + minutes);
+    setSilenceEndTime(silenceEnd);
+    
+    console.log(`🔕 ALARM SOUNDS SILENCED: ${minutes} minutes until ${silenceEnd.toLocaleTimeString()}`);
+  }, []);
+
+  // Get unique sources for filtering
+  const uniqueSources = ['ALL', ...Array.from(new Set(currentAlarms.map(a => a.source)))];
+  const uniqueCategories = ['ALL', ...Array.from(new Set(currentAlarms.map(a => a.category)))];
+
+  // Professional SCADA styling helpers
+  const getSeverityColor = (severity: AlarmSeverity) => SEVERITY_COLORS[severity];
+
+  const getSeverityIcon = (severity: AlarmSeverity) => {
+    switch (severity) {
+      case 'CRITICAL': return '🔴';
+      case 'HIGH': return '🟠';
+      case 'WARNING': return '🟡';
+      case 'INFO': return '🔵';
+      default: return '❓';
+    }
+  };
+
+  const getStateIcon = (state: AlarmState) => {
+    switch (state) {
+      case 'ACTIVE': return '🚨';
+      case 'ACKNOWLEDGED': return '✅';
+      case 'RESOLVED': return '✅';
+      case 'SHELVED': return '📋';
+      case 'SUPPRESSED': return '🔇';
+      default: return '❓';
+    }
+  };
+
+  const getCategoryIcon = (category: AlarmEntry['category']) => {
+    switch (category) {
+      case 'PROCESS': return '⚙️';
+      case 'SAFETY': return '🛡️';
+      case 'EQUIPMENT': return '🔧';
+      case 'COMMUNICATION': return '📡';
+      case 'SECURITY': return '🔒';
+      default: return '❓';
+    }
+  };
+
+  const getPriorityColor = (priority: number) => {
+    if (priority >= 9) return SEVERITY_COLORS.CRITICAL;
+    if (priority >= 7) return SEVERITY_COLORS.HIGH;
+    if (priority >= 4) return SEVERITY_COLORS.WARNING;
+    return SEVERITY_COLORS.INFO;
+  };
+
+  const getPriorityIcon = (priority: number) => {
+    if (priority >= 9) return '🔥';
+    if (priority >= 7) return '⚠️';
+    if (priority >= 4) return '📈';
+    return 'ℹ️';
+  };
+
+  return (
+    <div className="professional-alarms-page">
+      {/* Minimal SCADA Header - Space Optimized */}
+      <div className="minimal-alarm-header">
+        <div className="header-compact">
+          <div className="system-title-compact">
+            <span className="alarm-icon">🚨</span>
+            <h1>ALARM SYSTEM</h1>
+            <span className="isa-badge">ISA-18.2</span>
+          </div>
+          <div className="status-compact">
+            <div className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`}>
+              {isConnected ? '🟢' : '🔴'}
+            </div>
+            <span className="status-text">{isConnected ? 'ONLINE' : 'OFFLINE'}</span>
+            <div className="quality-indicator">{alarmStats.dataQuality}%</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Enhanced Alarm Summary Dashboard with ISA-18.2 Colors */}
+      <div className="alarm-summary-banner">
+        <div className="priority-summary">
+          <div className="summary-card critical" style={{ borderColor: SEVERITY_COLORS.CRITICAL }}>
+            <div className="led-indicator critical" />
+            <div className="summary-content">
+              <div className="summary-count">{alarmStats.critical}</div>
+              <div className="summary-label">CRITICAL</div>
+            </div>
+            {alarmStats.critical > 0 && alarmConfig.flashingEnabled && (
+              <div className="flash-overlay critical" />
+            )}
+          </div>
+          
+          <div className="summary-card high" style={{ borderColor: SEVERITY_COLORS.HIGH }}>
+            <div className="led-indicator high" />
+            <div className="summary-content">
+              <div className="summary-count">{alarmStats.high}</div>
+              <div className="summary-label">HIGH</div>
+            </div>
+            {alarmStats.high > 0 && alarmConfig.flashingEnabled && (
+              <div className="flash-overlay high" />
+            )}
+          </div>
+          
+          <div className="summary-card warning" style={{ borderColor: SEVERITY_COLORS.WARNING }}>
+            <div className="led-indicator warning" />
+            <div className="summary-content">
+              <div className="summary-count">{alarmStats.warning}</div>
+              <div className="summary-label">WARNING</div>
+            </div>
+          </div>
+          
+          <div className="summary-card info" style={{ borderColor: SEVERITY_COLORS.INFO }}>
+            <div className="led-indicator info" />
+            <div className="summary-content">
+              <div className="summary-count">{alarmStats.info}</div>
+              <div className="summary-label">INFO</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="status-summary">
+          <div className="status-card">
+            <div className="status-count">{alarmStats.acknowledged}</div>
+            <div className="status-label">ACKNOWLEDGED</div>
+          </div>
+          <div className="status-card">
+            <div className="status-count">{alarmStats.shelved}</div>
+            <div className="status-label">SHELVED</div>
+          </div>
+          <div className="status-card">
+            <div className="status-count">{alarmStats.requireOperatorAction}</div>
+            <div className="status-label">REQ ACTION</div>
+          </div>
+          <div className="status-card">
+            <div className="status-count">{alarmStats.lastHour}</div>
+            <div className="status-label">LAST HOUR</div>
+          </div>
+        </div>
+        
+        <div className="action-controls">
+          <button 
+            className="scada-button sound-button"
+            onClick={() => setAlarmConfig(prev => ({ ...prev, soundEnabled: !prev.soundEnabled }))}
+            style={{ 
+              backgroundColor: alarmConfig.soundEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+              minWidth: `${TOUCH_TARGET_MIN}px`,
+              minHeight: `${TOUCH_TARGET_MIN}px`
+            }}
+          >
+            {alarmConfig.soundEnabled ? '🔊 SOUND ON' : '🔇 SOUND OFF'}
+          </button>
+          
+          <button 
+            className="scada-button silence-button"
+            onClick={() => handleSilenceAlarms(5)}
+            style={{ 
+              minWidth: `${TOUCH_TARGET_MIN}px`,
+              minHeight: `${TOUCH_TARGET_MIN}px`
+            }}
+          >
+            🔕 SILENCE 5MIN
+          </button>
+          
+          <button 
+            className="scada-button silence-button-long"
+            onClick={() => handleSilenceAlarms(30)}
+            style={{ 
+              minWidth: `${TOUCH_TARGET_MIN}px`,
+              minHeight: `${TOUCH_TARGET_MIN}px`
+            }}
+          >
+            🔕 SILENCE 30MIN
+          </button>
+        </div>
+      </div>
+
+      {/* Enhanced Professional Filtering System - COLLAPSIBLE */}
+      <div className={`professional-filters-expanded ${isFilterPanelExpanded ? 'expanded' : 'collapsed'}`}>
+        <div className="filter-header">
+          <button
+            className="filter-toggle-button"
+            onClick={() => setIsFilterPanelExpanded(!isFilterPanelExpanded)}
+          >
+            <span className="toggle-icon">{isFilterPanelExpanded ? '🔽' : '🔼'}</span>
+            <h3>🔍 ADVANCED ALARM FILTERING & SEARCH</h3>
+            <span className="toggle-hint">{isFilterPanelExpanded ? 'COLLAPSE' : 'EXPAND'}</span>
+          </button>
+          <div className="filter-actions">
+            <div className="filter-summary">
+              Showing {sortedAlarms.length} of {currentAlarms.length} alarms
+            </div>
+            {isFilterPanelExpanded && (
+              <button 
+                className="scada-button-small reset-filters"
+                onClick={() => {
+                  setSeverityFilter('ALL');
+                  setStateFilter('ALL');
+                  setCategoryFilter('ALL');
+                  setSourceFilter('ALL');
+                  setSearchQuery('');
+                  setPriorityFilter('ALL');
+                  setDateFromFilter('');
+                  setDateToFilter('');
+                }}
+              >
+                🔄 RESET FILTERS
+              </button>
+            )}
+          </div>
+        </div>
+        
+        {isFilterPanelExpanded && (
+          <div className="filter-controls-professional">
+            <div className="filter-row">
+              <div className="filter-group">
+                <label>Search Query:</label>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search alarms, sources, groups, actions..."
+                  className="professional-input"
+                />
+              </div>
+              
+              <div className="filter-group">
+                <label>Severity:</label>
+                <select 
+                  value={severityFilter} 
+                  onChange={(e) => setSeverityFilter(e.target.value as any)}
+                  className="professional-select"
+                >
+                  <option value="ALL">All Severities</option>
+                  <option value="CRITICAL">🔴 Critical</option>
+                  <option value="HIGH">🟠 High</option>
+                  <option value="WARNING">🟡 Warning</option>
+                  <option value="INFO">🔵 Information</option>
+                </select>
+              </div>
+              
+              <div className="filter-group">
+                <label>State:</label>
+                <select 
+                  value={stateFilter} 
+                  onChange={(e) => setStateFilter(e.target.value as AlarmFilter)}
+                  className="professional-select"
+                >
+                  <option value="ALL">All States</option>
+                  <option value="UNACKNOWLEDGED">🚨 Unacknowledged</option>
+                  <option value="ACKNOWLEDGED">✅ Acknowledged</option>
+                  <option value="SHELVED">📋 Shelved</option>
+                  <option value="SUPPRESSED">🔇 Suppressed</option>
+                </select>
+              </div>
+              
+              <div className="filter-group">
+                <label>Priority:</label>
+                <select 
+                  value={priorityFilter} 
+                  onChange={(e) => setPriorityFilter(e.target.value as any)}
+                  className="professional-select"
+                >
+                  <option value="ALL">All Priorities</option>
+                  <option value="HIGH">🔥 High (7-10)</option>
+                  <option value="MEDIUM">⚠️ Medium (4-6)</option>
+                  <option value="LOW">ℹ️ Low (1-3)</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="filter-row">
+              <div className="filter-group">
+                <label>Category:</label>
+                <select 
+                  value={categoryFilter} 
+                  onChange={(e) => setCategoryFilter(e.target.value as any)}
+                  className="professional-select"
+                >
+                  {uniqueCategories.map(category => (
+                    <option key={category} value={category}>
+                      {category === 'ALL' ? 'All Categories' : 
+                       `${getCategoryIcon(category as any)} ${category}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="filter-group">
+                <label>Source:</label>
+                <select 
+                  value={sourceFilter} 
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                  className="professional-select"
+                >
+                  {uniqueSources.map(source => (
+                    <option key={source} value={source}>{source}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="filter-group">
+                <label>Date From:</label>
+                <input
+                  type="date"
+                  value={dateFromFilter}
+                  onChange={(e) => setDateFromFilter(e.target.value)}
+                  className="professional-input"
+                />
+              </div>
+              
+              <div className="filter-group">
+                <label>Date To:</label>
+                <input
+                  type="date"
+                  value={dateToFilter}
+                  onChange={(e) => setDateToFilter(e.target.value)}
+                  className="professional-input"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Professional Alarm Display Controls */}
+      <div className="display-controls">
+        <div className="view-controls">
+          <label>View Mode:</label>
+          <div className="view-buttons">
+            <button 
+              className={`view-button ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => setViewMode('grid')}
+            >
+              🔲 GRID
+            </button>
+            <button 
+              className={`view-button ${viewMode === 'table' ? 'active' : ''}`}
+              onClick={() => setViewMode('table')}
+            >
+              📋 TABLE
+            </button>
+            <button 
+              className={`view-button ${viewMode === 'compact' ? 'active' : ''}`}
+              onClick={() => setViewMode('compact')}
+            >
+              📄 COMPACT
+            </button>
+            <button 
+              className={`view-button ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => setViewMode('list')}
+            >
+              📃 LIST
+            </button>
+          </div>
+        </div>
+        
+        <div className="sort-controls">
+          <label>Sort By:</label>
+          <select 
+            value={sortBy} 
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="professional-select-small"
+          >
+            <option value="timestamp">⏰ Time</option>
+            <option value="severity">🚨 Severity</option>
+            <option value="priority">🔥 Priority</option>
+            <option value="source">📍 Source</option>
+          </select>
+          
+          <button 
+            className="sort-direction-button"
+            onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+            title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+          >
+            {sortDirection === 'asc' ? '⬆️' : '⬇️'}
+          </button>
+        </div>
+        
+        <div className="selection-controls">
+          {selectedAlarms.size > 0 && (
+            <>
+              <span className="selection-count">
+                {selectedAlarms.size} selected
+              </span>
+              <button 
+                className="scada-button-small batch-ack-button"
+                onClick={() => setShowBatchAckModal(true)}
+                style={{ minWidth: `${TOUCH_TARGET_MIN}px` }}
+              >
+                ✅ BATCH ACK
+              </button>
+              <button 
+                className="scada-button-small deselect-button"
+                onClick={handleDeselectAll}
+              >
+                ❌ CLEAR
+              </button>
+            </>
+          )}
+          
+          <button 
+            className="scada-button-small select-all-button"
+            onClick={handleSelectAll}
+          >
+            ☑️ SELECT ALL
+          </button>
+        </div>
+        
+        <div className="pagination-controls">
+          <label>Items per page:</label>
+          <select 
+            value={itemsPerPage} 
+            onChange={(e) => {
+              setItemsPerPage(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="professional-select-small"
+          >
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+            <option value={200}>200</option>
+          </select>
+        </div>
+        
+        <div className="refresh-controls">
+          <label>Auto Refresh:</label>
+          <input
+            type="checkbox"
+            checked={autoRefresh}
+            onChange={(e) => setAutoRefresh(e.target.checked)}
+          />
+          <select
+            value={refreshInterval}
+            onChange={(e) => setRefreshInterval(Number(e.target.value))}
+            className="professional-select-small"
+            disabled={!autoRefresh}
+          >
+            <option value={1000}>1s</option>
+            <option value={2000}>2s</option>
+            <option value={5000}>5s</option>
+            <option value={10000}>10s</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Grid View Display */}
+      {viewMode === 'grid' && (
+        <div className="professional-alarms-grid">
+          {paginatedAlarms.map(alarm => (
+            <div 
+              key={alarm.id} 
+              className={`professional-alarm-card ${alarm.severity.toLowerCase()}`}
+              style={{
+                borderColor: getSeverityColor(alarm.severity),
+                backgroundColor: selectedAlarms.has(alarm.id) ? 'rgba(96, 160, 255, 0.1)' : undefined
+              }}
+            >
+              <div className="alarm-card-header">
+                <div className="header-left">
+                  {alarm.state === 'ACTIVE' && (
+                    <input
+                      type="checkbox"
+                      checked={selectedAlarms.has(alarm.id)}
+                      onChange={() => handleToggleSelection(alarm.id)}
+                      className="alarm-select-checkbox"
+                    />
+                  )}
+                  <div className="severity-indicator" style={{ backgroundColor: getSeverityColor(alarm.severity) }}>
+                    {getSeverityIcon(alarm.severity)}
+                    <span>{alarm.severity}</span>
+                  </div>
+                  <div className="priority-indicator" style={{ color: getPriorityColor(alarm.priority) }}>
+                    {getPriorityIcon(alarm.priority)} P{alarm.priority}
+                  </div>
+                </div>
+                
+                <div className="header-right">
+                  <div className="category-badge">
+                    {getCategoryIcon(alarm.category)}
+                    {alarm.category}
+                  </div>
+                  <div className="state-indicator">
+                    {getStateIcon(alarm.state)}
+                    {alarm.state}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="alarm-card-content">
+                <div className="source-info">
+                  <span className="source-name">{alarm.source}</span>
+                  {alarm.alarmGroup && (
+                    <span className="alarm-group-badge">{alarm.alarmGroup}</span>
+                  )}
+                </div>
+                
+                <div className="alarm-description">
+                  {alarm.description}
+                </div>
+                
+                {alarm.value && (
+                  <div className="alarm-values">
+                    <span className="current-value">Current: {alarm.value}</span>
+                    {alarm.limit && <span className="limit-value">Limit: {alarm.limit}</span>}
+                  </div>
+                )}
+                
+                <div className="alarm-metadata">
+                  <div className="timestamp">
+                    📅 {alarm.timestamp.toLocaleString('tr-TR')}
+                  </div>
+                  {alarm.requiresOperatorAction && (
+                    <div className="requires-action">
+                      ⚠️ OPERATOR ACTION REQUIRED
+                    </div>
+                  )}
+                  {alarm.consequence && (
+                    <div className="consequence">
+                      ⚡ {alarm.consequence}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="alarm-card-actions">
+                {alarm.state === 'ACTIVE' && (
+                  <>
+                    <button 
+                      className="scada-button ack-button"
+                      onClick={() => {
+                        setSelectedAlarm(alarm);
+                        setShowAckModal(true);
+                      }}
+                      style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
+                    >
+                      ✅ ACKNOWLEDGE
+                    </button>
+                    <button 
+                      className="scada-button shelve-button"
+                      onClick={() => {
+                        setSelectedAlarm(alarm);
+                        setShowShelveModal(true);
+                      }}
+                      style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
+                    >
+                      📋 SHELVE
+                    </button>
+                  </>
+                )}
+                <button 
+                  className="scada-button details-button"
+                  onClick={() => {
+                    setSelectedAlarm(alarm);
+                    setShowDetailsModal(true);
+                  }}
+                  style={{ minWidth: `${TOUCH_TARGET_MIN}px`, minHeight: `${TOUCH_TARGET_MIN}px` }}
+                >
+                  📄 DETAILS
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Professional Pagination */}
+      {totalPages > 1 && (
+        <div className="professional-pagination">
+          <div className="pagination-info">
+            Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, sortedAlarms.length)} of {sortedAlarms.length} alarms
+            {filteredAlarms.length !== currentAlarms.length && (
+              <span className="filtered-info"> (filtered from {currentAlarms.length} total)</span>
+            )}
+          </div>
+          
+          <div className="pagination-controls">
+            <button 
+              className="page-button"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              ⏮️ First
+            </button>
+            <button 
+              className="page-button"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              ⬅️ Prev
+            </button>
+            
+            <div className="page-numbers">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                return (
+                  <button
+                    key={pageNum}
+                    className={`page-number ${currentPage === pageNum ? 'active' : ''}`}
+                    onClick={() => setCurrentPage(pageNum)}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button 
+              className="page-button"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next ➡️
+            </button>
+            <button 
+              className="page-button"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              Last ⏭️
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Compact Control Buttons - Space Optimized */}
+      <div className="compact-stats-button-panel">
+        <button 
+          className="stats-popup-button"
+          onClick={() => setShowStatsModal(true)}
+        >
+          <span className="stats-icon">📊</span>
+          <span className="stats-text">STATISTICS & PERFORMANCE</span>
+          <span className="stats-summary">{alarmStats.totalActive} Active | {alarmStats.requireOperatorAction} Action Required</span>
+        </button>
+        
+        <button 
+          className="settings-popup-button"
+          onClick={() => setShowConfigModal(true)}
+        >
+          <span className="settings-icon">⚙️</span>
+          <span className="settings-text">ALARM SETTINGS</span>
+          <span className="settings-summary">Sound: {alarmConfig.soundEnabled ? 'ON' : 'OFF'} | Flash: {alarmConfig.flashingEnabled ? 'ON' : 'OFF'}</span>
+        </button>
+      </div>
+
+      {/* Statistics & Performance Modal */}
+      {showStatsModal && (
+        <div className="professional-modal-overlay">
+          <div className="professional-modal stats-modal large">
+            <div className="modal-header">
+              <h3>📊 ALARM STATISTICS & PERFORMANCE</h3>
+              <div className="stats-timestamp">
+                Last Updated: {new Date().toLocaleTimeString('tr-TR')}
+              </div>
+              <button 
+                className="modal-close-btn"
+                onClick={() => setShowStatsModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="stats-dashboard">
+                <div className="stats-section">
+                  <h4>📈 Current Status</h4>
+                  <div className="stats-row">
+                    <div className="stat-card">
+                      <div className="stat-label">Total Active</div>
+                      <div className="stat-value">{alarmStats.totalActive}</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-label">Requiring Action</div>
+                      <div className="stat-value critical-text">{alarmStats.requireOperatorAction}</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-label">Acknowledged</div>
+                      <div className="stat-value success-text">{alarmStats.acknowledged}</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-label">System Availability</div>
+                      <div className={`stat-value ${isConnected ? 'success-text' : 'critical-text'}`}>
+                        {alarmStats.systemAvailability.toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="stats-section">
+                  <h4>🚨 Severity Distribution</h4>
+                  <div className="stats-row">
+                    <div className="stat-card">
+                      <div className="stat-label">Critical</div>
+                      <div className="stat-value critical-text">{alarmStats.critical}</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-label">High</div>
+                      <div className="stat-value high-text">{alarmStats.high}</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-label">Warning</div>
+                      <div className="stat-value warning-text">{alarmStats.warning}</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-label">Info</div>
+                      <div className="stat-value info-text">{alarmStats.info}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="modal-actions">
+              <button 
+                className="scada-button refresh-button"
+                onClick={() => {
+                  console.log('🔄 Refreshing statistics...');
+                }}
+              >
+                🔄 REFRESH DATA
+              </button>
+              <button 
+                className="scada-button export-button"
+                onClick={() => {
+                  setShowStatsModal(false);
+                  setShowExportModal(true);
+                }}
+              >
+                📊 EXPORT STATS
+              </button>
+              <button 
+                className="scada-button cancel-button"
+                onClick={() => setShowStatsModal(false)}
+              >
+                ❌ CLOSE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enhanced Acknowledgment Modal */}
+      {showAckModal && selectedAlarm && (
+        <div className="professional-modal-overlay">
+          <div className="professional-modal acknowledgment-modal">
+            <div className="modal-header">
+              <h3>✅ ACKNOWLEDGE ALARM - ISA-18.2 Compliant</h3>
+              <button 
+                className="modal-close-btn"
+                onClick={() => setShowAckModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="alarm-summary">
+                <div className="summary-grid">
+                  <div className="summary-field">
+                    <label>Alarm ID:</label>
+                    <span className="monospace">{selectedAlarm.id}</span>
+                  </div>
+                  <div className="summary-field">
+                    <label>Source:</label>
+                    <span>{selectedAlarm.source}</span>
+                  </div>
+                  <div className="summary-field">
+                    <label>Severity:</label>
+                    <span style={{ color: getSeverityColor(selectedAlarm.severity) }}>
+                      {getSeverityIcon(selectedAlarm.severity)} {selectedAlarm.severity}
+                    </span>
+                  </div>
+                  <div className="summary-field">
+                    <label>Priority:</label>
+                    <span style={{ color: getPriorityColor(selectedAlarm.priority) }}>
+                      {getPriorityIcon(selectedAlarm.priority)} P{selectedAlarm.priority}
+                    </span>
+                  </div>
+                  <div className="summary-field full-width">
+                    <label>Description:</label>
+                    <span>{selectedAlarm.description}</span>
+                  </div>
+                  {selectedAlarm.correctiveAction && (
+                    <div className="summary-field full-width">
+                      <label>Required Corrective Action:</label>
+                      <span className="action-highlight">{selectedAlarm.correctiveAction}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="operator-section">
+                <div className="operator-field">
+                  <label>Operator ID: *</label>
+                  <input
+                    type="text"
+                    value={currentOperator}
+                    onChange={(e) => setCurrentOperator(e.target.value)}
+                    className="professional-input"
+                    required
+                  />
+                </div>
+                <div className="operator-field">
+                  <label>Acknowledgment Comment:</label>
+                  <textarea
+                    value={ackComment}
+                    onChange={(e) => setAckComment(e.target.value)}
+                    placeholder="Enter acknowledgment comment (optional)..."
+                    className="professional-textarea"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="modal-actions">
+              <button 
+                className="scada-button cancel-button"
+                onClick={() => setShowAckModal(false)}
+              >
+                ❌ CANCEL
+              </button>
+              <button 
+                className="scada-button confirm-button"
+                onClick={() => handleAcknowledge(selectedAlarm, ackComment)}
+                disabled={!currentOperator.trim()}
+              >
+                ✅ ACKNOWLEDGE ALARM
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="professional-modal-overlay">
+          <div className="professional-modal export-modal">
+            <div className="modal-header">
+              <h3>📊 EXPORT ALARM DATA</h3>
+              <button 
+                className="modal-close-btn"
+                onClick={() => setShowExportModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="export-section">
+                <h4>Export Format</h4>
+                <div className="format-selection">
+                  <label>
+                    <input
+                      type="radio"
+                      value="csv"
+                      checked={exportFormat === 'csv'}
+                      onChange={(e) => setExportFormat(e.target.value as any)}
+                    />
+                    📊 CSV (Excel Compatible)
+                  </label>
+                </div>
+              </div>
+              
+              <div className="export-section">
+                <h4>Date Range</h4>
+                <div className="date-selection">
+                  <label>
+                    <input
+                      type="radio"
+                      value="today"
+                      checked={exportDateRange === 'today'}
+                      onChange={(e) => setExportDateRange(e.target.value as any)}
+                    />
+                    📅 Today
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      value="week"
+                      checked={exportDateRange === 'week'}
+                      onChange={(e) => setExportDateRange(e.target.value as any)}
+                    />
+                    📅 Last 7 Days
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <div className="modal-actions">
+              <button 
+                className="scada-button cancel-button"
+                onClick={() => setShowExportModal(false)}
+              >
+                ❌ CANCEL
+              </button>
+              <button 
+                className="scada-button confirm-button"
+                onClick={handleExportAlarms}
+              >
+                📊 EXPORT DATA
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alarm Settings Modal */}
+      {showConfigModal && (
+        <div className="professional-modal-overlay">
+          <div className="professional-modal config-modal">
+            <div className="modal-header">
+              <h3>⚙️ ALARM SYSTEM CONFIGURATION</h3>
+              <button 
+                className="modal-close-btn"
+                onClick={() => setShowConfigModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="config-section">
+                <h4>🔊 Audio Settings</h4>
+                <div className="config-row">
+                  <label className="config-label">
+                    <input
+                      type="checkbox"
+                      checked={alarmConfig.soundEnabled}
+                      onChange={(e) => setAlarmConfig(prev => ({ ...prev, soundEnabled: e.target.checked }))}
+                    />
+                    Enable Alarm Sounds
+                  </label>
+                </div>
+                <div className="config-row">
+                  <label className="config-label">
+                    <input
+                      type="checkbox"
+                      checked={alarmConfig.criticalAlarmSound}
+                      onChange={(e) => setAlarmConfig(prev => ({ ...prev, criticalAlarmSound: e.target.checked }))}
+                      disabled={!alarmConfig.soundEnabled}
+                    />
+                    Critical Alarm Sound (ISA-18.2)
+                  </label>
+                </div>
+                <div className="config-row">
+                  <label className="config-label">
+                    <input
+                      type="checkbox"
+                      checked={alarmConfig.highAlarmSound}
+                      onChange={(e) => setAlarmConfig(prev => ({ ...prev, highAlarmSound: e.target.checked }))}
+                      disabled={!alarmConfig.soundEnabled}
+                    />
+                    High Priority Alarm Sound
+                  </label>
+                </div>
+              </div>
+
+              <div className="config-section">
+                <h4>📱 Visual Settings</h4>
+                <div className="config-row">
+                  <label className="config-label">
+                    <input
+                      type="checkbox"
+                      checked={alarmConfig.flashingEnabled}
+                      onChange={(e) => setAlarmConfig(prev => ({ ...prev, flashingEnabled: e.target.checked }))}
+                    />
+                    Enable LED Flashing Indicators
+                  </label>
+                </div>
+                <div className="config-row">
+                  <label className="config-label">
+                    <input
+                      type="checkbox"
+                      checked={alarmConfig.autoScrollEnabled}
+                      onChange={(e) => setAlarmConfig(prev => ({ ...prev, autoScrollEnabled: e.target.checked }))}
+                    />
+                    Auto-scroll to New Alarms
+                  </label>
+                </div>
+              </div>
+
+              <div className="config-section">
+                <h4>⏰ Timing Settings</h4>
+                <div className="config-row">
+                  <label className="config-label">
+                    Acknowledgment Timeout (minutes):
+                    <input
+                      type="number"
+                      value={alarmConfig.acknowledgmentTimeout / 60}
+                      onChange={(e) => setAlarmConfig(prev => ({ 
+                        ...prev, 
+                        acknowledgmentTimeout: Number(e.target.value) * 60 
+                      }))}
+                      min="1"
+                      max="60"
+                      className="config-input"
+                    />
+                  </label>
+                </div>
+                <div className="config-row">
+                  <label className="config-label">
+                    Shelve Timeout (hours):
+                    <input
+                      type="number"
+                      value={alarmConfig.shelveTimeout / 60}
+                      onChange={(e) => setAlarmConfig(prev => ({ 
+                        ...prev, 
+                        shelveTimeout: Number(e.target.value) * 60 
+                      }))}
+                      min="1"
+                      max="24"
+                      className="config-input"
+                    />
+                  </label>
+                </div>
+                <div className="config-row">
+                  <label className="config-label">
+                    Max History Entries:
+                    <input
+                      type="number"
+                      value={alarmConfig.maxHistoryEntries}
+                      onChange={(e) => setAlarmConfig(prev => ({ 
+                        ...prev, 
+                        maxHistoryEntries: Number(e.target.value) 
+                      }))}
+                      min="1000"
+                      max="50000"
+                      step="1000"
+                      className="config-input"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="config-section">
+                <h4>👤 Operator Settings</h4>
+                <div className="config-row">
+                  <label className="config-label">
+                    Current Operator ID:
+                    <input
+                      type="text"
+                      value={currentOperator}
+                      onChange={(e) => setCurrentOperator(e.target.value)}
+                      className="config-input"
+                      placeholder="Enter operator ID"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <div className="modal-actions">
+              <button 
+                className="scada-button cancel-button"
+                onClick={() => setShowConfigModal(false)}
+              >
+                ❌ CANCEL
+              </button>
+              <button 
+                className="scada-button confirm-button"
+                onClick={() => {
+                  // Save configuration to localStorage
+                  localStorage.setItem('alarmConfig', JSON.stringify(alarmConfig));
+                  localStorage.setItem('currentOperator', currentOperator);
+                  console.log('⚙️ ALARM CONFIGURATION SAVED:', alarmConfig);
+                  setShowConfigModal(false);
+                }}
+              >
+                💾 SAVE SETTINGS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AlarmsPage;
