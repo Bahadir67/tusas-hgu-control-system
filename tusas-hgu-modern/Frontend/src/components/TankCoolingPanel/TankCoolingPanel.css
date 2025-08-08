@@ -622,6 +622,163 @@
   }
 }
 
+/* Progress Bar Styles for SCADA */
+.with-progress {
+  position: relative;
+}
+
+.metric-with-progress {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 24px;
+  width: 100%;
+}
+
+.progress-background {
+  position: absolute;
+  top: 0;
+  left: 6px;
+  right: 6px;
+  bottom: 0;
+  background: rgba(10, 14, 19, 0.8);
+  border: 1px solid rgba(96, 160, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: #22c55e;
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 3px;
+  box-shadow: 
+    0 0 8px currentColor,
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent);
+  animation: progressShine 3s infinite;
+}
+
+@keyframes progressShine {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+.progress-fill.temperature {
+  background: linear-gradient(90deg, #06b6d4, #22c55e, #f59e0b, #ef4444);
+}
+
+.progress-fill.water-contamination {
+  background: linear-gradient(90deg, #22c55e, #f59e0b, #ef4444);
+}
+
+.progress-fill.water-temperature {
+  background: #06b6d4;
+}
+
+.progress-fill.flow-rate {
+  background: #8b5cf6;
+}
+
+.overlay-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  font-weight: 700;
+  color: white !important;
+  text-shadow: 
+    0 0 8px rgba(0, 0, 0, 0.9),
+    0 2px 4px rgba(0, 0, 0, 0.8),
+    0 0 16px rgba(0, 0, 0, 0.7),
+    1px 1px 0 rgba(0, 0, 0, 0.9),
+    -1px -1px 0 rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.overlay-text .metric-unit {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.8) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.overlay-text .metric-value {
+  color: white !important;
+  font-weight: 700;
+}
+
+/* Force white color for all progress bar text values */
+.metric-display.overlay-text,
+.metric-display.overlay-text .metric-value,
+.metric-display.overlay-text .metric-unit {
+  color: white !important;
+}
+
+/* Enhanced Tank and Cooling Metric Styles */
+.tank-metric.with-progress,
+.cooling-metric.with-progress {
+  background: rgba(10, 14, 19, 0.3);
+  border: 1px solid rgba(96, 160, 255, 0.15);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.tank-metric.with-progress:hover,
+.cooling-metric.with-progress:hover {
+  border-color: rgba(96, 160, 255, 0.25);
+  background: rgba(10, 14, 19, 0.5);
+  box-shadow: 0 0 12px rgba(96, 160, 255, 0.1);
+}
+
+.cooling-metric.with-progress .metric-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.cooling-metric.with-progress .metric-icon {
+  font-size: 12px;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+.cooling-metric.with-progress .metric-label {
+  font-size: 9px;
+  color: rgba(168, 178, 192, 0.8);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   .tank-cooling-panel,
@@ -630,7 +787,8 @@
   .expand-icon,
   .tank-level,
   .range-current-marker,
-  .pump-icon {
+  .pump-icon,
+  .progress-fill {
     animation: none;
     transition: none;
   }
@@ -638,4 +796,66 @@
   .tank-cooling-panel:hover {
     transform: none;
   }
+  
+  .progress-fill::after {
+    display: none;
+  }
+}
+
+/* Modal Overlay for Cooling Settings */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.modal-placeholder {
+  background: linear-gradient(135deg, 
+    rgba(22, 32, 38, 0.98), 
+    rgba(13, 18, 22, 0.95));
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 2px solid rgba(96, 160, 255, 0.3);
+  border-radius: 12px;
+  max-width: 600px;
+  width: 95%;
+  padding: 24px;
+  color: white;
+  box-shadow: 
+    0 16px 48px rgba(0, 0, 0, 0.6),
+    0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.modal-placeholder h3 {
+  margin: 0 0 16px 0;
+  color: #60a5fa;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.modal-placeholder p {
+  margin: 0 0 20px 0;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.modal-placeholder button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.modal-placeholder button:hover {
+  background: #2563eb;
 }

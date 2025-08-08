@@ -27,6 +27,10 @@ interface SystemData {
   oilTemperature: number;
   tankLevel: number;
   aquaSensor: number;
+  totalFlowSetpoint: number;
+  pressureSetpoint: number;
+  statusExecution: number;
+  activePumps: number;
 }
 
 // Store interface
@@ -79,6 +83,10 @@ export const useOpcStore = create<OpcStore>((set) => ({
     oilTemperature: 0,
     tankLevel: 0,
     aquaSensor: 0,
+    totalFlowSetpoint: 450,
+    pressureSetpoint: 125.5,
+    statusExecution: 1,
+    activePumps: 3,
   },
   
   isConnected: false,
@@ -115,6 +123,10 @@ export const useOpcStore = create<OpcStore>((set) => ({
       oilTemperature: data['OIL_TEMPERATURE']?.value || 0,
       tankLevel: data['TANK_LEVEL']?.value || 0,
       aquaSensor: data['AQUA_SENSOR']?.value || 0,
+      totalFlowSetpoint: data['SYSTEM_TOTAL_FLOW_SETPOINT']?.value || 450,
+      pressureSetpoint: data['SYSTEM_TOTAL_PRESSURE_SETPOINT']?.value || 125.5,
+      statusExecution: data['SYSTEM_STATUS_EXECUTION']?.value || 1,
+      activePumps: data['SYSTEM_ACTIVE_PUMPS']?.value || 3,
     };
     
     return {

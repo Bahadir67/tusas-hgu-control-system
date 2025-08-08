@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 // import { useOpcStore } from '../../store/opcStore';
+import CoolingSetpointsModal from '../CoolingSetpointsModal';
 import './TankCoolingPanel.css';
 
 interface TankCoolingPanelProps {
@@ -8,6 +10,7 @@ interface TankCoolingPanelProps {
 
 const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
   // const system = useOpcStore((state) => state.system);
+  const [showCoolingModal, setShowCoolingModal] = useState(false);
   
   // Mock tank & cooling data - replace with actual OPC data
   const tankCoolingData = {
@@ -57,9 +60,8 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
   const tankLevelStatus = getTankLevelStatus(tankCoolingData.tankLevel);
 
   const handleClick = () => {
-    if (onClick) {
-      onClick();
-    }
+    // Open cooling setpoints modal instead of onClick callback
+    setShowCoolingModal(true);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
@@ -132,29 +134,43 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
           </div>
           
           <div className="tank-metrics">
-            <div className="tank-metric">
+            <div className="tank-metric with-progress">
               <div className="metric-label">Tank Temperature</div>
-              <div 
-                className="metric-value"
-                style={{ 
-                  color: getTemperatureColor(
-                    tankCoolingData.tankTemperature, 
-                    tankCoolingData.minOilTempSetpoint, 
-                    tankCoolingData.maxOilTempSetpoint
-                  ) 
-                }}
-              >
-                {tankCoolingData.tankTemperature.toFixed(1)}°C
+              <div className="metric-with-progress">
+                <div className="progress-background">
+                  <div 
+                    className="progress-fill temperature"
+                    style={{ 
+                      width: `${Math.min((tankCoolingData.tankTemperature / tankCoolingData.maxOilTempSetpoint) * 100, 100)}%`,
+                      backgroundColor: getTemperatureColor(
+                        tankCoolingData.tankTemperature, 
+                        tankCoolingData.minOilTempSetpoint, 
+                        tankCoolingData.maxOilTempSetpoint
+                      )
+                    }}
+                  />
+                </div>
+                <div className="metric-value overlay-text">
+                  {tankCoolingData.tankTemperature.toFixed(1)}°C
+                </div>
               </div>
             </div>
             
-            <div className="tank-metric">
+            <div className="tank-metric with-progress">
               <div className="metric-label">Water in Oil</div>
-              <div 
-                className="metric-value"
-                style={{ color: getAquaSensorColor(tankCoolingData.aquaSensor) }}
-              >
-                {(tankCoolingData.aquaSensor * 100).toFixed(2)}%
+              <div className="metric-with-progress">
+                <div className="progress-background">
+                  <div 
+                    className="progress-fill water-contamination"
+                    style={{ 
+                      width: `${Math.min((tankCoolingData.aquaSensor * 100) / 1.0 * 100, 100)}%`,
+                      backgroundColor: getAquaSensorColor(tankCoolingData.aquaSensor)
+                    }}
+                  />
+                </div>
+                <div className="metric-value overlay-text">
+                  {(tankCoolingData.aquaSensor * 100).toFixed(2)}%
+                </div>
               </div>
             </div>
           </div>
@@ -170,31 +186,47 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
         
         <div className="cooling-metrics">
           <div className="cooling-metric-grid">
-            <div className="cooling-metric">
+            <div className="cooling-metric with-progress">
               <div className="metric-header">
                 <span className="metric-icon">🌡️</span>
                 <span className="metric-label">Water Temp</span>
               </div>
-              <div 
-                className="metric-display"
-                style={{ color: '#06b6d4' }}
-              >
-                <span className="metric-value">{tankCoolingData.waterTemperature.toFixed(1)}</span>
-                <span className="metric-unit">°C</span>
+              <div className="metric-with-progress">
+                <div className="progress-background">
+                  <div 
+                    className="progress-fill water-temperature"
+                    style={{ 
+                      width: `${Math.min((tankCoolingData.waterTemperature / 50) * 100, 100)}%`,
+                      backgroundColor: '#06b6d4'
+                    }}
+                  />
+                </div>
+                <div className="metric-display overlay-text">
+                  <span className="metric-value">{tankCoolingData.waterTemperature.toFixed(1)}</span>
+                  <span className="metric-unit">°C</span>
+                </div>
               </div>
             </div>
 
-            <div className="cooling-metric">
+            <div className="cooling-metric with-progress">
               <div className="metric-header">
                 <span className="metric-icon">💧</span>
                 <span className="metric-label">Flow Rate</span>
               </div>
-              <div 
-                className="metric-display"
-                style={{ color: '#8b5cf6' }}
-              >
-                <span className="metric-value">{tankCoolingData.coolingFlowRate.toFixed(1)}</span>
-                <span className="metric-unit">L/min</span>
+              <div className="metric-with-progress">
+                <div className="progress-background">
+                  <div 
+                    className="progress-fill flow-rate"
+                    style={{ 
+                      width: `${Math.min((tankCoolingData.coolingFlowRate / 200) * 100, 100)}%`,
+                      backgroundColor: '#8b5cf6'
+                    }}
+                  />
+                </div>
+                <div className="metric-display overlay-text">
+                  <span className="metric-value">{tankCoolingData.coolingFlowRate.toFixed(1)}</span>
+                  <span className="metric-unit">L/min</span>
+                </div>
               </div>
             </div>
           </div>
@@ -239,6 +271,14 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
         <span>Tap for cooling settings & history</span>
         <span className="expand-icon">🔧</span>
       </div>
+
+      {/* Cooling Setpoints Modal - Portal to document.body */}
+      {showCoolingModal && ReactDOM.createPortal(
+        <CoolingSetpointsModal 
+          onClose={() => setShowCoolingModal(false)}
+        />,
+        document.body
+      )}
     </div>
   );
 };

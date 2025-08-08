@@ -99,7 +99,7 @@ const CompactMotorPanel: React.FC<CompactMotorPanelProps> = ({
         </div>
       </div>
 
-      {/* Digital Display Section */}
+      {/* Digital Display Section - 2x3 Layout for All Motors */}
       <div className="digital-displays">
         <div className="digital-row">
           <div className="digital-display">
@@ -108,6 +108,23 @@ const CompactMotorPanel: React.FC<CompactMotorPanelProps> = ({
               {motor.rpm?.toFixed(0) || '0'}
             </span>
           </div>
+          <div className="digital-display">
+            <span className="display-label">PRESSURE</span>
+            <span className="display-value" style={{ 
+              color: motor.pressure > 160 ? '#ef4444' : 
+                    motor.pressure > 140 ? '#f59e0b' : '#22c55e' 
+            }}>
+              {motor.pressure?.toFixed(1) || '0'} bar
+            </span>
+          </div>
+          <div className="digital-display">
+            <span className="display-label">FLOW</span>
+            <span className="display-value" style={{ color: '#06b6d4' }}>
+              {motor.flow?.toFixed(1) || '0'} L/min
+            </span>
+          </div>
+        </div>
+        <div className="digital-row">
           <div className="digital-display">
             <span className="display-label">CURRENT</span>
             <span className="display-value" style={{ 
@@ -123,13 +140,22 @@ const CompactMotorPanel: React.FC<CompactMotorPanelProps> = ({
               {((motor.current || 0) * 380 * 1.732 / 1000).toFixed(1)}kW
             </span>
           </div>
+          <div className="digital-display">
+            <span className="display-label">TEMP</span>
+            <span className="display-value" style={{ 
+              color: motor.temperature > 60 ? '#ef4444' : 
+                    motor.temperature > 50 ? '#f59e0b' : '#22c55e' 
+            }}>
+              {motor.temperature?.toFixed(0) || '0'}°C
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Quick Action Buttons */}
-      <div className="quick-actions">
+      {/* Quick Action Buttons - Touch Optimized */}
+      <div className="quick-actions-touch">
         <button 
-          className="quick-action-btn start"
+          className="quick-action-btn-touch start"
           onClick={(e) => handleQuickAction('start', e)}
           disabled={motor.status === 1}
           title="Start Motor"
@@ -137,7 +163,7 @@ const CompactMotorPanel: React.FC<CompactMotorPanelProps> = ({
           ▶ START
         </button>
         <button 
-          className="quick-action-btn stop"
+          className="quick-action-btn-touch stop"
           onClick={(e) => handleQuickAction('stop', e)}
           disabled={motor.status === 0}
           title="Stop Motor"
@@ -145,41 +171,26 @@ const CompactMotorPanel: React.FC<CompactMotorPanelProps> = ({
           ⏹ STOP
         </button>
         <button 
-          className="quick-action-btn reset"
+          className="quick-action-btn-touch reset"
           onClick={(e) => handleQuickAction('reset', e)}
           title="Reset Alarms"
         >
           🔄 RESET
         </button>
-        <button 
-          className="quick-action-btn calibrate"
-          onClick={(e) => handleQuickAction('calibrate', e)}
-          title="Calibrate Sensors"
-        >
-          ⚙ CAL
-        </button>
       </div>
 
-      {/* Status Indicators */}
-      <div className="enhanced-indicators">
+      {/* Compact Status Indicators */}
+      <div className="compact-indicators">
         <div 
-          className={`indicator ${motor.enabled ? 'enabled' : 'disabled'}`}
-          title={motor.enabled ? 'Motor Enabled' : 'Motor Disabled'}
-        >
-          <span className="indicator-icon">{motor.enabled ? '⚡' : '⏸️'}</span>
-          <span className="indicator-label">PWR</span>
-        </div>
-        
-        <div 
-          className={`indicator ${motor.valve ? 'valve-open' : 'valve-closed'}`}
+          className={`compact-indicator ${motor.valve ? 'valve-open' : 'valve-closed'}`}
           title={motor.valve ? 'Valve Open' : 'Valve Closed'}
         >
-          <span className="indicator-icon">{motor.valve ? '🟢' : '🔴'}</span>
-          <span className="indicator-label">VLV</span>
+          <span className="compact-icon">{motor.valve ? '🟢' : '🔴'}</span>
+          <span className="compact-label">VALVE</span>
         </div>
         
         <div 
-          className={`indicator filter-${
+          className={`compact-indicator filter-${
             motor.lineFilter === 0 ? 'error' : 
             motor.lineFilter === 1 ? 'warning' : 'normal'
           }`}
@@ -188,8 +199,26 @@ const CompactMotorPanel: React.FC<CompactMotorPanelProps> = ({
             motor.lineFilter === 1 ? 'Warning' : 'Normal'
           }`}
         >
-          <span className="indicator-icon">🔽</span>
-          <span className="indicator-label">FLT</span>
+          <span className="compact-icon">
+            {motor.lineFilter === 0 ? '🔴' : motor.lineFilter === 1 ? '🟡' : '🟢'}
+          </span>
+          <span className="compact-label">LINE FILTER</span>
+        </div>
+        
+        <div 
+          className={`compact-indicator filter-${
+            (motor.suctionFilter || 0) === 0 ? 'error' : 
+            (motor.suctionFilter || 0) === 1 ? 'warning' : 'normal'
+          }`}
+          title={`Suction Filter: ${
+            (motor.suctionFilter || 0) === 0 ? 'Error' : 
+            (motor.suctionFilter || 0) === 1 ? 'Warning' : 'Normal'
+          }`}
+        >
+          <span className="compact-icon">
+            {(motor.suctionFilter || 0) === 0 ? '🔴' : (motor.suctionFilter || 0) === 1 ? '🟡' : '🟢'}
+          </span>
+          <span className="compact-label">SUCTION FILTER</span>
         </div>
       </div>
 

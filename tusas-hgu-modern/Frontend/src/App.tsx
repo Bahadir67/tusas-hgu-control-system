@@ -229,13 +229,6 @@ function App() {
       case 'motors':
         return (
           <div className="motors-page-content">
-            <div className="motors-page-header">
-              <div className="motors-title">
-                <span className="motors-icon">⚙️</span>
-                <span className="motors-text">HYDRAULIC MOTORS</span>
-              </div>
-            </div>
-            
             {/* Ultra Compact Motor Grid - Inverted Pyramid Layout */}
             <div className="ultra-compact-motor-grid">
               {/* Top row - Motors 1,2,3,4 */}

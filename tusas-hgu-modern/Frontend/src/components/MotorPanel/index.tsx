@@ -97,105 +97,224 @@ const MotorPanel: React.FC<MotorPanelProps> = ({ motorId, isSpecial = false }) =
           </div>
         </div>
 
-        {/* Simple Clean Gauge Display */}
-        <div className="motor-gauges" style={{
-          display: 'grid',
-          gridTemplateColumns: isSpecial ? '1fr 1fr' : 'repeat(3, 1fr)',
-          gap: 'var(--spacing-sm)',
-          marginBottom: 'var(--spacing-md)',
-          justifyItems: 'center'
-        }}>
-          {/* RPM Gauge */}
-          <SimpleGauge
-            value={motor.rpm}
-            min={0}
-            max={3000}
-            unit="RPM"
-            label="DEVIR"
-            size={90}
-            warningThreshold={2700}
-            criticalThreshold={2900}
-          />
-          
-          {/* Pressure Gauge */}
-          <SimpleGauge
-            value={motor.pressure}
-            min={0}
-            max={200}
-            unit="bar"
-            label="BASINÇ"
-            size={90}
-            warningThreshold={160}
-            criticalThreshold={180}
-          />
-          
-          {!isSpecial && (
-            /* Flow Gauge - Only for normal motors */
+        {/* Hydraulic Pump Gauges Display - Motor 1 Special Layout */}
+        {motorId === 1 ? (
+          <div style={{ marginBottom: 'var(--spacing-md)' }}>
+            {/* Upper Row: RPM, Pressure, Flow Rate */}
+            <div className="motor-gauges" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 'var(--spacing-xs)',
+              marginBottom: 'var(--spacing-sm)',
+              justifyItems: 'center'
+            }}>
+              <SimpleGauge
+                value={motor.rpm}
+                min={0}
+                max={3000}
+                unit="RPM"
+                label="DEVIR"
+                size={75}
+                warningThreshold={2700}
+                criticalThreshold={2900}
+              />
+              
+              <SimpleGauge
+                value={motor.pressure}
+                min={0}
+                max={200}
+                unit="bar"
+                label="BASINÇ"
+                size={75}
+                warningThreshold={160}
+                criticalThreshold={180}
+              />
+              
+              <SimpleGauge
+                value={motor.flow}
+                min={0}
+                max={100}
+                unit="L/min"
+                label="DEBİ"
+                size={75}
+                warningThreshold={85}
+                criticalThreshold={95}
+              />
+            </div>
+
+            {/* Lower Row: Current, Power, Motor Temperature */}
+            <div className="motor-gauges" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 'var(--spacing-xs)',
+              justifyItems: 'center'
+            }}>
+              <SimpleGauge
+                value={motor.current}
+                min={0}
+                max={200}
+                unit="A"
+                label="AKIM"
+                size={75}
+                warningThreshold={140}
+                criticalThreshold={160}
+              />
+              
+              <SimpleGauge
+                value={motor.power || motor.current * 220 * 1.73 / 1000} // Approximate power if not available
+                min={0}
+                max={100}
+                unit="kW"
+                label="GÜÇ"
+                size={75}
+                warningThreshold={85}
+                criticalThreshold={95}
+              />
+              
+              <SimpleGauge
+                value={motor.temperature}
+                min={0}
+                max={100}
+                unit="°C"
+                label="SICAKLIK"
+                size={75}
+                warningThreshold={60}
+                criticalThreshold={75}
+              />
+            </div>
+          </div>
+        ) : (
+          /* Original Layout for Other Motors */
+          <div className="motor-gauges" style={{
+            display: 'grid',
+            gridTemplateColumns: isSpecial ? '1fr 1fr' : 'repeat(3, 1fr)',
+            gap: 'var(--spacing-sm)',
+            marginBottom: 'var(--spacing-md)',
+            justifyItems: 'center'
+          }}>
+            {/* RPM Gauge */}
             <SimpleGauge
-              value={motor.flow}
+              value={motor.rpm}
               min={0}
-              max={100}
-              unit="L/min"
-              label="DEBİ"
+              max={3000}
+              unit="RPM"
+              label="DEVIR"
               size={90}
-              warningThreshold={85}
-              criticalThreshold={95}
+              warningThreshold={2700}
+              criticalThreshold={2900}
             />
-          )}
-        </div>
-
-        {/* Digital Values Display */}
-        <div className="motor-values" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: 'var(--spacing-xs)',
-          marginBottom: 'var(--spacing-md)'
-        }}>
-          {/* Current */}
-          <div className="digital-display">
-            <div className="digital-label">AKIM</div>
-            <div 
-              className="digital-value"
-              style={{ color: getValueColor(motor.current, 140, 160) }}
-            >
-              {motor.current.toFixed(1)}
-            </div>
-            <div className="digital-unit">A</div>
+            
+            {/* Pressure Gauge */}
+            <SimpleGauge
+              value={motor.pressure}
+              min={0}
+              max={200}
+              unit="bar"
+              label="BASINÇ"
+              size={90}
+              warningThreshold={160}
+              criticalThreshold={180}
+            />
+            
+            {!isSpecial && (
+              /* Flow Gauge - Only for normal motors */
+              <SimpleGauge
+                value={motor.flow}
+                min={0}
+                max={100}
+                unit="L/min"
+                label="DEBİ"
+                size={90}
+                warningThreshold={85}
+                criticalThreshold={95}
+              />
+            )}
           </div>
+        )}
 
-          {/* Temperature */}
-          <div className="digital-display">
-            <div className="digital-label">SICAKLIK</div>
-            <div 
-              className="digital-value"
-              style={{ color: getValueColor(motor.temperature, 60, 75) }}
-            >
-              {motor.temperature.toFixed(0)}
+        {/* Digital Values Display - Only for non-Motor 1 or minimal info for Motor 1 */}
+        {motorId !== 1 ? (
+          <div className="motor-values" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 'var(--spacing-xs)',
+            marginBottom: 'var(--spacing-md)'
+          }}>
+            {/* Current */}
+            <div className="digital-display">
+              <div className="digital-label">AKIM</div>
+              <div 
+                className="digital-value"
+                style={{ color: getValueColor(motor.current, 140, 160) }}
+              >
+                {motor.current.toFixed(1)}
+              </div>
+              <div className="digital-unit">A</div>
             </div>
-            <div className="digital-unit">°C</div>
-          </div>
 
-          {/* Target RPM */}
-          <div className="digital-display">
-            <div className="digital-label">HEDEF RPM</div>
-            <div className="digital-value" style={{ color: 'var(--color-text-secondary)' }}>
-              {motor.targetRpm.toFixed(0)}
+            {/* Temperature */}
+            <div className="digital-display">
+              <div className="digital-label">SICAKLIK</div>
+              <div 
+                className="digital-value"
+                style={{ color: getValueColor(motor.temperature, 60, 75) }}
+              >
+                {motor.temperature.toFixed(0)}
+              </div>
+              <div className="digital-unit">°C</div>
             </div>
-            <div className="digital-unit">RPM</div>
-          </div>
 
-          {/* Leak */}
-          <div className="digital-display">
-            <div className="digital-label">SIZINTI</div>
-            <div 
-              className="digital-value"
-              style={{ color: getValueColor(motor.leak, 0.02, 0.05) }}
-            >
-              {motor.leak.toFixed(2)}
+            {/* Target RPM */}
+            <div className="digital-display">
+              <div className="digital-label">HEDEF RPM</div>
+              <div className="digital-value" style={{ color: 'var(--color-text-secondary)' }}>
+                {motor.targetRpm.toFixed(0)}
+              </div>
+              <div className="digital-unit">RPM</div>
             </div>
-            <div className="digital-unit">L/min</div>
+
+            {/* Leak */}
+            <div className="digital-display">
+              <div className="digital-label">SIZINTI</div>
+              <div 
+                className="digital-value"
+                style={{ color: getValueColor(motor.leak, 0.02, 0.05) }}
+              >
+                {motor.leak.toFixed(2)}
+              </div>
+              <div className="digital-unit">L/min</div>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Motor 1 - Only essential digital info */
+          <div className="motor-values" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 'var(--spacing-xs)',
+            marginBottom: 'var(--spacing-md)'
+          }}>
+            {/* Target RPM */}
+            <div className="digital-display">
+              <div className="digital-label">HEDEF RPM</div>
+              <div className="digital-value" style={{ color: 'var(--color-text-secondary)' }}>
+                {motor.targetRpm.toFixed(0)}
+              </div>
+              <div className="digital-unit">RPM</div>
+            </div>
+
+            {/* Leak */}
+            <div className="digital-display">
+              <div className="digital-label">SIZINTI</div>
+              <div 
+                className="digital-value"
+                style={{ color: getValueColor(motor.leak, 0.02, 0.05) }}
+              >
+                {motor.leak.toFixed(2)}
+              </div>
+              <div className="digital-unit">L/min</div>
+            </div>
+          </div>
+        )}
 
         {/* Setpoints Display */}
         <div className="setpoints-display" style={{

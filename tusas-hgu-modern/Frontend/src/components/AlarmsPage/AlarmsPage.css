@@ -617,11 +617,33 @@
   flex-shrink: 0;
 }
 
-.sound-button, .silence-button, .silence-button-long {
+.settings-button, .sound-button, .silence-button, .silence-button-long {
   padding: 6px 8px; /* Reduced for compactness */
   font-size: 11px; /* Further reduced */
   min-width: auto;
   min-height: 36px; /* Reduced from touch-min for compactness */
+}
+
+.settings-button {
+  background: linear-gradient(135deg, rgba(0, 204, 255, 0.2), rgba(0, 204, 255, 0.1)) !important;
+  border-color: rgba(0, 204, 255, 0.3) !important;
+  color: var(--color-info) !important;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+.settings-button:hover {
+  background: linear-gradient(135deg, rgba(0, 204, 255, 0.3), rgba(0, 204, 255, 0.2)) !important;
+  border-color: rgba(0, 204, 255, 0.5) !important;
+  box-shadow: 0 0 12px rgba(0, 204, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.settings-button:active {
+  transform: translateY(0);
+  box-shadow: 0 0 8px rgba(0, 204, 255, 0.3);
 }
 
 /* Professional Filters - COLLAPSIBLE DESIGN */
@@ -954,7 +976,7 @@
   accent-color: var(--color-info);
 }
 
-/* Compact Statistics Button Panel - Space Optimized */
+/* Statistics Button Panel - Space Optimized */
 .compact-stats-button-panel {
   margin-bottom: 8px;
   flex-shrink: 0;

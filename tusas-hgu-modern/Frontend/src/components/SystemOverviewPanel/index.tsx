@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { useOpcStore } from '../../store/opcStore';
+import SystemSetpointsModal from '../SystemSetpointsModal';
 import './SystemOverviewPanel.css';
 
 interface SystemOverviewPanelProps {
@@ -9,6 +11,7 @@ interface SystemOverviewPanelProps {
 
 const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alarms = [] }) => {
   const system = useOpcStore((state) => state.system);
+  const [showSetpointsModal, setShowSetpointsModal] = useState(false);
   
   // Mock system data - replace with actual OPC data
   const systemData = {
@@ -50,9 +53,8 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alar
   };
 
   const handleClick = () => {
-    if (onClick) {
-      onClick();
-    }
+    // Open setpoints modal instead of onClick callback
+    setShowSetpointsModal(true);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
@@ -201,28 +203,34 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alar
         </div>
       </div>
 
-      {/* Monitoring & Alarms Section */}
-      <div className="monitoring-section">
-        <div className="monitoring-header">
-          <span className="monitoring-icon">🔔</span>
-          <span className="monitoring-title">ALARMS</span>
-          {alarms.length > 0 && (
-            <span className="alarm-count">{alarms.length}</span>
-          )}
+      {/* System Setpoints Section */}
+      <div className="setpoints-section">
+        <div className="setpoints-header">
+          <span className="setpoints-icon">🎯</span>
+          <span className="setpoints-title">TARGET VALUES</span>
         </div>
         
-        {alarms.length > 0 ? (
-          <div className="alarms-list">
-            {alarms.slice(-2).map(alarm => (
-              <div key={alarm.id} className={`alarm-item ${alarm.type}`}>
-                <span className="alarm-dot" />
-                <span className="alarm-msg">{alarm.message}</span>
-              </div>
-            ))}
+        <div className="setpoints-display">
+          <div className="setpoint-item">
+            <div className="setpoint-header">
+              <span className="setpoint-icon">💧</span>
+              <span className="setpoint-label">Flow Target</span>
+            </div>
+            <div className="setpoint-value" style={{ color: '#06b6d4' }}>
+              {systemData.totalFlowSetpoint.toFixed(1)} L/min
+            </div>
           </div>
-        ) : (
-          <div className="no-alarms">All systems normal</div>
-        )}
+          
+          <div className="setpoint-item">
+            <div className="setpoint-header">
+              <span className="setpoint-icon">⚡</span>
+              <span className="setpoint-label">Pressure Target</span>
+            </div>
+            <div className="setpoint-value" style={{ color: '#8b5cf6' }}>
+              {systemData.pressureSetpoint.toFixed(1)} bar
+            </div>
+          </div>
+        </div>
         
         {/* Emergency Status */}
         <div className="emergency-status-compact">
@@ -237,6 +245,14 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alar
         <span>Tap for detailed system settings</span>
         <span className="expand-icon">📊</span>
       </div>
+
+      {/* System Setpoints Modal - Portal to document.body */}
+      {showSetpointsModal && ReactDOM.createPortal(
+        <SystemSetpointsModal 
+          onClose={() => setShowSetpointsModal(false)}
+        />,
+        document.body
+      )}
     </div>
   );
 };

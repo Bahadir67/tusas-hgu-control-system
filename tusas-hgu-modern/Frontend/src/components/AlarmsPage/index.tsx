@@ -1184,6 +1184,21 @@ const AlarmsPage: React.FC = () => {
         
         <div className="action-controls">
           <button 
+            className="scada-button settings-button"
+            onClick={() => setShowConfigModal(true)}
+            style={{ 
+              backgroundColor: 'rgba(0, 204, 255, 0.2)',
+              borderColor: 'rgba(0, 204, 255, 0.3)',
+              color: 'var(--color-info)',
+              minWidth: `${TOUCH_TARGET_MIN}px`,
+              minHeight: `${TOUCH_TARGET_MIN}px`
+            }}
+            title="Configure alarm system settings"
+          >
+            ⚙️ SETTINGS
+          </button>
+          
+          <button 
             className="scada-button sound-button"
             onClick={() => setAlarmConfig(prev => ({ ...prev, soundEnabled: !prev.soundEnabled }))}
             style={{ 
@@ -1678,15 +1693,7 @@ const AlarmsPage: React.FC = () => {
           <span className="stats-text">STATISTICS & PERFORMANCE</span>
           <span className="stats-summary">{alarmStats.totalActive} Active | {alarmStats.requireOperatorAction} Action Required</span>
         </button>
-        
-        <button 
-          className="settings-popup-button"
-          onClick={() => setShowConfigModal(true)}
-        >
-          <span className="settings-icon">⚙️</span>
-          <span className="settings-text">ALARM SETTINGS</span>
-          <span className="settings-summary">Sound: {alarmConfig.soundEnabled ? 'ON' : 'OFF'} | Flash: {alarmConfig.flashingEnabled ? 'ON' : 'OFF'}</span>
-        </button>
+
       </div>
 
       {/* Statistics & Performance Modal */}
