@@ -23,7 +23,7 @@ class OpcApiService {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private cacheTimeout = 500; // 500ms cache for rapid requests
 
-  constructor(baseUrl: string = 'http://localhost:5000/api/opc') {
+  constructor(baseUrl: string = 'http://localhost:5000/api/Opc') {
     this.baseUrl = baseUrl;
   }
 

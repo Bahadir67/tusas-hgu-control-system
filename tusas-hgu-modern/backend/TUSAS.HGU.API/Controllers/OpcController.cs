@@ -189,6 +189,136 @@ namespace TUSAS.HGU.API.Controllers
         }
 
         /// <summary>
+        /// Çoklu değişken okuma - Collection'dan bulk read
+        /// </summary>
+        [HttpPost("batch")]
+        public IActionResult BatchRead([FromBody] BatchReadRequest request)
+        {
+            try
+            {
+                if (!_opcClient.IsConnected)
+                {
+                    return BadRequest(new { Message = "OPC UA not connected" });
+                }
+
+                var collection = _opcClient.OpcVariableCollection;
+                if (collection == null)
+                {
+                    return BadRequest(new { message = "OPC collection not initialized" });
+                }
+
+                var response = new BatchReadResponse
+                {
+                    Success = true,
+                    Timestamp = DateTime.Now,
+                    Variables = new Dictionary<string, VariableValue>(),
+                    PageContext = request.PageContext
+                };
+
+                var notFoundVariables = new List<string>();
+
+                foreach (var displayName in request.Variables ?? new List<string>())
+                {
+                    var variable = collection.GetByName(displayName);
+                    if (variable != null)
+                    {
+                        response.Variables[displayName] = new VariableValue
+                        {
+                            Value = variable.Value,
+                            Timestamp = variable.LastUpdated,
+                            DataType = variable.DataType,
+                            Quality = variable.IsValid ? "Good" : "Bad"
+                        };
+                    }
+                    else
+                    {
+                        notFoundVariables.Add(displayName);
+                        // Null value for missing variables
+                        response.Variables[displayName] = new VariableValue
+                        {
+                            Value = null,
+                            Timestamp = DateTime.Now,
+                            DataType = "Unknown",
+                            Quality = "Bad"
+                        };
+                    }
+                }
+
+                if (notFoundVariables.Any())
+                {
+                    response.Errors = notFoundVariables.Select(v => $"Variable '{v}' not found in collection").ToList();
+                }
+
+                _logger.LogInformation("Batch read requested: {Count} variables, {Found} found, Page: {Page}", 
+                    request.Variables?.Count ?? 0, 
+                    response.Variables.Count(v => v.Value.Quality == "Good"),
+                    request.PageContext ?? "unknown");
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in batch read operation");
+                return StatusCode(500, new BatchReadResponse
+                {
+                    Success = false,
+                    Timestamp = DateTime.Now,
+                    Variables = new Dictionary<string, VariableValue>(),
+                    Errors = new List<string> { ex.Message }
+                });
+            }
+        }
+
+        /// <summary>
+        /// Collection'daki tüm değişkenleri getir
+        /// </summary>
+        [HttpGet("all")]
+        public IActionResult GetAllVariables()
+        {
+            try
+            {
+                if (!_opcClient.IsConnected)
+                {
+                    return BadRequest(new { Message = "OPC UA not connected" });
+                }
+
+                var collection = _opcClient.OpcVariableCollection;
+                if (collection == null)
+                {
+                    return BadRequest(new { message = "OPC collection not initialized" });
+                }
+
+                var response = new
+                {
+                    Success = true,
+                    Timestamp = DateTime.Now,
+                    TotalCount = collection.Count,
+                    ValidCount = collection.ValidCount,
+                    Variables = collection.Variables.ToDictionary(
+                        v => v.DisplayName,
+                        v => new VariableValue
+                        {
+                            Value = v.Value,
+                            Timestamp = v.LastUpdated,
+                            DataType = v.DataType,
+                            Quality = v.IsValid ? "Good" : "Bad"
+                        }
+                    )
+                };
+
+                _logger.LogInformation("All variables requested - Total: {Total}, Valid: {Valid}", 
+                    collection.Count, collection.ValidCount);
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all variables");
+                return StatusCode(500, new { Error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// OPC değişkenine yaz
         /// </summary>
         [HttpPost("write")]
@@ -270,5 +400,28 @@ namespace TUSAS.HGU.API.Controllers
     {
         public string DisplayName { get; set; } = string.Empty;
         public object? Value { get; set; }
+    }
+
+    public class BatchReadRequest
+    {
+        public List<string> Variables { get; set; } = new();
+        public string? PageContext { get; set; }
+    }
+
+    public class BatchReadResponse
+    {
+        public bool Success { get; set; }
+        public DateTime Timestamp { get; set; }
+        public Dictionary<string, VariableValue> Variables { get; set; } = new();
+        public List<string>? Errors { get; set; }
+        public string? PageContext { get; set; }
+    }
+
+    public class VariableValue
+    {
+        public object? Value { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string DataType { get; set; } = "";
+        public string Quality { get; set; } = "Good";
     }
 }
