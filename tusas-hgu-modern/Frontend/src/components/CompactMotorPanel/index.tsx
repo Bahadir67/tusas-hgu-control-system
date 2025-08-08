@@ -86,7 +86,7 @@ const CompactMotorPanel: React.FC<CompactMotorPanelProps> = ({
       <div className="enhanced-header">
         <div className="motor-title">
           <span className="motor-id">MOTOR {motorId}</span>
-          {isSpecial && <span className="special-badge">MAIN PUMP</span>}
+          {isSpecial && <span className="special-badge">HIGH PRESSURE</span>}
           <span className="power-rating">{isSpecial ? '90kW' : '75kW'}</span>
         </div>
         <div className="status-section">

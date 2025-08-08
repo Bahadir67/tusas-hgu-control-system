@@ -124,22 +124,22 @@
   }
 }
 
-/* Special Motor (Motor 7) */
+/* Special Motor (Motor 7) - High Pressure System */
 .enhanced-motor-panel.special {
   background: linear-gradient(135deg, 
     rgba(34, 44, 52, 0.95), 
     rgba(22, 32, 38, 0.85));
-  border-color: rgba(6, 182, 212, 0.3);
-  min-height: 350px;
+  border-color: rgba(245, 158, 11, 0.3);
+  min-height: 160px;
 }
 
 .enhanced-motor-panel.special:hover {
-  border-color: rgba(6, 182, 212, 0.6);
+  border-color: rgba(245, 158, 11, 0.6);
   box-shadow: 
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    0 6px 20px rgba(0, 0, 0, 0.4),
-    0 0 30px rgba(6, 182, 212, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 6px 18px rgba(0, 0, 0, 0.4),
+    0 3px 8px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(245, 158, 11, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 /* Status LED Strip */
@@ -186,7 +186,7 @@
 
 .special-badge {
   font-size: 10px;
-  background: linear-gradient(45deg, #06b6d4, #0891b2);
+  background: linear-gradient(45deg, #f59e0b, #d97706);
   color: white;
   padding: 2px 8px;
   border-radius: 4px;
