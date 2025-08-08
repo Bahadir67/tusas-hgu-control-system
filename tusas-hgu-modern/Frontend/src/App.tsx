@@ -13,7 +13,17 @@ import './styles/industrial-theme.css';
 import './styles/modern-layout.css';
 
 function App() {
-  const { system, updateAll, setConnection } = useOpcStore();
+  const { 
+    system, 
+    isConnected, 
+    isLoading, 
+    errors,
+    currentPage: storeCurrentPage,
+    fetchPageData, 
+    setConnection,
+    setCurrentPage: setStoreCurrentPage,
+    clearErrors 
+  } = useOpcStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedMotorId, setSelectedMotorId] = useState<number | null>(null);
   const [selectedSystemPanel, setSelectedSystemPanel] = useState<string | null>(null);
@@ -45,66 +55,72 @@ function App() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [currentPage]);
 
-  // Simulated data updates (replace with real API calls)
+  // Real OPC data fetching with page-based optimization
   useEffect(() => {
-    // Simulate initial connection
-    setConnection(true);
+    // Initial connection check and data fetch
+    const initializeData = async () => {
+      try {
+        // Check OPC connection
+        const connectionCheck = await fetch('http://localhost:5000/api/opc/status');
+        setConnection(connectionCheck.ok);
+        
+        // Fetch initial data for current page
+        await fetchPageData(currentPage);
+        
+      } catch (error) {
+        console.warn('OPC Backend not available, using mock data');
+        setConnection(false);
+        // Mock data will be provided by the API service
+        await fetchPageData(currentPage);
+      }
+    };
 
-    // Create interval for simulated data updates
-    const interval = setInterval(() => {
-      // Simulate random data for testing
-      const simulatedData: any = {};
-      
-      // Generate data for each motor
-      for (let i = 1; i <= 7; i++) {
-        simulatedData[`MOTOR_${i}_RPM_EXECUTION`] = { value: 1450 + Math.random() * 100 };
-        simulatedData[`MOTOR_${i}_CURRENT_EXECUTION`] = { value: 120 + Math.random() * 20 };
-        simulatedData[`MOTOR_${i}_TARGET_EXECUTION`] = { value: 1500 };
-        simulatedData[`MOTOR_${i}_LEAK_EXECUTION`] = { value: Math.random() * 0.05 };
-        simulatedData[`MOTOR_${i}_TEMPERATURE_EXECUTION`] = { value: 45 + Math.random() * 10 };
-        simulatedData[`MOTOR_${i}_STATUS_EXECUTION`] = { value: Math.random() > 0.8 ? 1 : 0 };
-        simulatedData[`MOTOR_${i}_VALVE_EXECUTION`] = { value: Math.random() > 0.5 ? 1 : 0 };
-        simulatedData[`MOTOR_${i}_LINE_FILTER_EXECUTION`] = { value: 2 };
-        simulatedData[`MOTOR_${i}_SUCTION_FILTER_EXECUTION`] = { value: 2 };
-        simulatedData[`MOTOR_${i}_FLOW_FLOWMETER`] = { value: 75 + Math.random() * 10 };
-        simulatedData[`MOTOR_${i}_PRESSURE_VALUE`] = { value: 120 + Math.random() * 15 }; // Add actual pressure value
-        simulatedData[`MOTOR_${i}_PRESSURE_SETPOINT`] = { value: 125 };
-        simulatedData[`MOTOR_${i}_FLOW_SETPOINT`] = { value: 80 };
-        simulatedData[`MOTOR_${i}_ENABLE_EXECUTION`] = { value: Math.random() > 0.3 ? 1 : 0 };
+    initializeData();
+
+    // Set up periodic data updates (every 2 seconds for page-specific data)
+    const interval = setInterval(async () => {
+      try {
+        await fetchPageData(currentPage);
+        
+        // Generate random alarms for testing (remove in production)
+        if (Math.random() > 0.95) {
+          const newAlarm = {
+            id: Date.now(),
+            message: `Motor ${Math.floor(Math.random() * 7) + 1} yüksek sıcaklık uyarısı`,
+            type: Math.random() > 0.5 ? 'warning' : 'critical'
+          };
+          setAlarms(prev => [...prev.slice(-4), newAlarm]);
+        }
+      } catch (error) {
+        console.error('Data update failed:', error);
       }
-      
-      // System data
-      simulatedData['SYSTEM_TOTAL_FLOW'] = { value: 450 + Math.random() * 50 };
-      simulatedData['SYSTEM_TOTAL_PRESSURE'] = { value: 125 + Math.random() * 10 };
-      simulatedData['OIL_TEMPERATURE'] = { value: 55 + Math.random() * 5 };
-      simulatedData['TANK_LEVEL'] = { value: 75 + Math.random() * 10 };
-      simulatedData['AQUA_SENSOR'] = { value: Math.random() * 0.5 };
-      
-      updateAll(simulatedData);
-      
-      // Generate random alarms for testing
-      if (Math.random() > 0.95) {
-        const newAlarm = {
-          id: Date.now(),
-          message: `Motor ${Math.floor(Math.random() * 7) + 1} yüksek sıcaklık uyarısı`,
-          type: Math.random() > 0.5 ? 'warning' : 'critical'
-        };
-        setAlarms(prev => [...prev.slice(-4), newAlarm]);
-      }
-    }, 1000);
+    }, 2000); // 2 second intervals for better performance
 
     return () => clearInterval(interval);
-  }, []);
+  }, [storeCurrentPage, fetchPageData]);  // Re-fetch when page changes
 
-  // Navigation functions
+  // Navigation functions with data fetching
   const navigateToPage = (page: 'main' | 'motors' | 'process-flow' | 'logs' | 'alarms' | 'stats') => {
     if (page === currentPage || isTransitioning) return;
     
     setIsTransitioning(true);
+    
+    // Clear any existing errors
+    clearErrors();
+    
+    // Update page in store and fetch new data
+    setStoreCurrentPage(page as any);
+    
     setTimeout(() => {
-      setCurrentPage(page);
       setIsTransitioning(false);
     }, 150);
+    
+    // Fetch data for new page immediately
+    if (['main', 'motors', 'process-flow', 'logs', 'alarms', 'stats'].includes(page)) {
+      fetchPageData(page as any).catch(error => {
+        console.error(`Failed to fetch data for page ${page}:`, error);
+      });
+    }
   };
 
   const handleMotorClick = (motorId: number) => {
