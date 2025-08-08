@@ -1304,7 +1304,7 @@ const ProcessFlowPage: React.FC = () => {
                     {[0, 0.4, 0.8].map((delay, i) => (
                       <circle key={i} r="3" fill="#06b6d4" opacity="0.8">
                         <animate attributeName="cx" values="640;680;640" dur="1.5s" begin={`${delay * 1.5}s`} repeatCount="indefinite" />
-                        <animate attributeName="cy" values={yPos} dur="1.5s" repeatCount="indefinite" />
+                        <animate attributeName="cy" values={`${yPos}`} dur="1.5s" repeatCount="indefinite" />
                       </circle>
                     ))}
                   </>
