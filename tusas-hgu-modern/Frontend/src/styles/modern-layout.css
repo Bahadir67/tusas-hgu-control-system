@@ -709,6 +709,37 @@
   }
 }
 
+/* Special Motor 7 Layout - High Pressure System */
+.motor-row-special {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 30px;
+  padding: 20px;
+  border-top: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.special-motor {
+  position: relative;
+}
+
+.special-motor::before {
+  content: 'HIGH PRESSURE SYSTEM';
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(245, 158, 11, 0.9);
+  background: rgba(245, 158, 11, 0.1);
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  white-space: nowrap;
+  z-index: 10;
+}
+
 /* Responsive Design */
 @media (max-width: 1200px) {
   .system-panels-row {

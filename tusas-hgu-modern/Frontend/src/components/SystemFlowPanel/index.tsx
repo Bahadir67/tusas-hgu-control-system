@@ -23,10 +23,9 @@ const SystemFlowPanel: React.FC = () => {
     };
   }, [activeMotors]);
 
-  // Flow path animation data
+  // Flow path animation data (Motor 7 removed from main system)
   const flowPaths = [
-    { from: 'tank', to: 'pump7', active: motors[7]?.enabled },
-    { from: 'pump7', to: 'manifold', active: motors[7]?.enabled },
+    { from: 'tank', to: 'manifold', active: true }, // Direct tank to manifold
     { from: 'manifold', to: 'motor1', active: motors[1]?.enabled },
     { from: 'manifold', to: 'motor2', active: motors[2]?.enabled },
     { from: 'manifold', to: 'motor3', active: motors[3]?.enabled },
@@ -135,46 +134,23 @@ const SystemFlowPanel: React.FC = () => {
             </text>
           </g>
           
-          {/* Main Pump (Motor 7) */}
-          <g className="component pump">
-            <circle cx="250" cy="230" r="35" fill="rgba(26, 34, 44, 0.8)" 
-                    stroke={motors[7]?.enabled ? "rgba(0, 255, 136, 0.6)" : "rgba(85, 107, 121, 0.4)"} 
-                    strokeWidth="3" filter="url(#glow)"/>
-            <circle cx="250" cy="230" r="20" fill="none" 
-                    stroke={motors[7]?.enabled ? "rgba(0, 255, 136, 0.8)" : "rgba(85, 107, 121, 0.4)"} 
-                    strokeWidth="2">
-              {motors[7]?.enabled && (
-                <animateTransform
-                  attributeName="transform"
-                  attributeType="XML"
-                  type="rotate"
-                  from="0 250 230"
-                  to="360 250 230"
-                  dur="2s"
-                  repeatCount="indefinite"
-                />
-              )}
-            </circle>
-            <text x="250" y="285" textAnchor="middle" fill="rgba(168, 178, 192, 0.9)" fontSize="12">
-              Ana Pompa
-            </text>
-          </g>
+          {/* Motor 7 removed from main system - it's now separate high-pressure system */}
           
           {/* Distribution Manifold */}
           <g className="component manifold">
-            <rect x="450" y="210" width="100" height="40" rx="20" fill="rgba(26, 34, 44, 0.8)" 
+            <rect x="350" y="210" width="100" height="40" rx="20" fill="rgba(26, 34, 44, 0.8)" 
                   stroke="rgba(96, 160, 255, 0.4)" strokeWidth="2"/>
-            <text x="500" y="285" textAnchor="middle" fill="rgba(168, 178, 192, 0.9)" fontSize="12">
+            <text x="400" y="285" textAnchor="middle" fill="rgba(168, 178, 192, 0.9)" fontSize="12">
               Dağıtım Manifoldu
             </text>
           </g>
           
-          {/* Motor Units */}
+          {/* Motor Units - Increased spacing */}
           {[1, 2, 3, 4, 5, 6].map((motorId, index) => {
             const row = Math.floor(index / 3);
             const col = index % 3;
-            const x = 700 + col * 150;
-            const y = 150 + row * 120;
+            const x = 650 + col * 180; // Increased horizontal spacing
+            const y = 120 + row * 140; // Increased vertical spacing
             const motor = motors[motorId];
             
             return (
@@ -210,43 +186,32 @@ const SystemFlowPanel: React.FC = () => {
           })}
           
           {/* Flow Pipes */}
-          {/* Tank to Main Pump */}
-          <line x1="130" y1="230" x2="215" y2="230" 
-                stroke={motors[7]?.enabled ? "url(#activeFlow)" : "url(#inactiveFlow)"} 
+          {/* Tank directly to Manifold (Motor 7 removed) */}
+          <line x1="130" y1="230" x2="350" y2="230" 
+                stroke="url(#activeFlow)" 
                 strokeWidth="6" strokeLinecap="round">
-            {motors[7]?.enabled && (
-              <animate attributeName="stroke-dasharray" values="0 20;20 0" dur="1s" repeatCount="indefinite"/>
-            )}
+            <animate attributeName="stroke-dasharray" values="0 20;20 0" dur="1s" repeatCount="indefinite"/>
           </line>
           
-          {/* Main Pump to Manifold */}
-          <line x1="285" y1="230" x2="450" y2="230" 
-                stroke={motors[7]?.enabled ? "url(#activeFlow)" : "url(#inactiveFlow)"} 
-                strokeWidth="6" strokeLinecap="round">
-            {motors[7]?.enabled && (
-              <animate attributeName="stroke-dasharray" values="0 20;20 0" dur="1s" repeatCount="indefinite"/>
-            )}
-          </line>
-          
-          {/* Manifold to Motors */}
+          {/* Manifold to Motors - Updated positioning and removed Motor 7 dependency */}
           {[1, 2, 3, 4, 5, 6].map((motorId, index) => {
             const row = Math.floor(index / 3);
             const col = index % 3;
-            const x = 700 + col * 150;
-            const y = 180 + row * 120;
+            const x = 650 + col * 180; // Updated X position
+            const y = 150 + row * 140; // Updated Y position
             const motor = motors[motorId];
-            const isActive = motor?.enabled && motors[7]?.enabled;
+            const isActive = motor?.enabled; // Removed Motor 7 dependency
             
             return (
               <g key={motorId}>
-                <line x1="550" y1="230" x2="650" y2={y} 
+                <line x1="450" y1="230" x2="550" y2={y} 
                       stroke={isActive ? "url(#activeFlow)" : "url(#inactiveFlow)"} 
                       strokeWidth="4" strokeLinecap="round">
                   {isActive && (
                     <animate attributeName="stroke-dasharray" values="0 15;15 0" dur="1.5s" repeatCount="indefinite"/>
                   )}
                 </line>
-                <line x1="650" y1={y} x2={x} y2={y} 
+                <line x1="550" y1={y} x2={x} y2={y} 
                       stroke={isActive ? "url(#activeFlow)" : "url(#inactiveFlow)"} 
                       strokeWidth="4" strokeLinecap="round">
                   {isActive && (
@@ -257,19 +222,8 @@ const SystemFlowPanel: React.FC = () => {
             );
           })}
           
-          {/* Flow direction indicators */}
-          {motors[7]?.enabled && (
-            <>
-              <polygon points="180,225 190,230 180,235" fill="rgba(0, 255, 136, 0.8)">
-                <animateTransform attributeName="transform" type="translate" 
-                                values="0,0; 20,0; 0,0" dur="2s" repeatCount="indefinite"/>
-              </polygon>
-              <polygon points="380,225 390,230 380,235" fill="rgba(0, 255, 136, 0.8)">
-                <animateTransform attributeName="transform" type="translate" 
-                                values="0,0; 20,0; 0,0" dur="2s" repeatCount="indefinite"/>
-              </polygon>
-            </>
-          )}
+          {/* Flow direction indicators - Red arrows removed as requested */}
+          {/* Removed animated arrows to main manifold */}
         </svg>
       </div>
 
@@ -295,9 +249,9 @@ const SystemFlowPanel: React.FC = () => {
         </div>
         
         <div className="status-section">
-          <div className="status-label">Ana Pompa</div>
-          <div className={`status-value ${motors[7]?.enabled ? 'running' : 'stopped'}`}>
-            {motors[7]?.enabled ? 'AKTİF' : 'PASİF'}
+          <div className="status-label">Sistem Basıncı</div>
+          <div className="status-value">
+            {system.totalPressure?.toFixed(1) || '0.0'} bar
           </div>
         </div>
       </div>

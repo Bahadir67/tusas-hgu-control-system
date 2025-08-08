@@ -18,6 +18,7 @@ interface MotorData {
   enabled: boolean;
   vibration?: number; // Optional vibration monitoring
   powerFactor?: number; // Optional power factor
+  power?: number; // Calculated power (current * voltage)
 }
 
 // System data interface
