@@ -190,7 +190,7 @@ export const PAGE_VARIABLE_SETS = {
   motors: {
     name: 'Motors Page',
     systemVariables: ['totalFlow', 'totalPressure'],
-    motorVariables: ['rpm', 'pressure', 'flow', 'current', 'temperature', 'status', 'enabled', 'valve', 'lineFilter', 'suctionFilter', 'leak'],
+    motorVariables: ['rpm', 'targetRpm', 'pressure', 'pressureSetpoint', 'flow', 'flowSetpoint', 'current', 'temperature', 'status', 'enabled', 'valve', 'lineFilter', 'suctionFilter', 'leak'],
     motors: [1, 2, 3, 4, 5, 6, 7] // All motors, all details
   },
   

@@ -17,6 +17,7 @@ interface TrendData {
 
 const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, onClose }) => {
   const motor = useOpcStore((state) => state.motors[motorId]);
+  const fetchLeakageOnly = useOpcStore((state) => state.fetchLeakageOnly);
   const [activeTab, setActiveTab] = useState<'realtime' | 'trends' | 'settings' | 'maintenance'>('realtime');
   const [isLoading, setIsLoading] = useState(false);
   const [trendData, setTrendData] = useState<{
@@ -29,9 +30,10 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
     temperature: []
   });
 
-  // Setpoint states
-  const [pressureSetpoint, setPressureSetpoint] = useState(motor?.pressureSetpoint || 125);
-  const [flowSetpoint, setFlowSetpoint] = useState(motor?.flowSetpoint || 80);
+  // Setpoint states - initialized from OPC collection
+  const [rpmSetpoint, setRpmSetpoint] = useState(motor?.targetRpm || 0);
+  const [pressureSetpoint, setPressureSetpoint] = useState(motor?.pressureSetpoint || 0);
+  const [flowSetpoint, setFlowSetpoint] = useState(motor?.flowSetpoint || 0);
   const [tempSetpoint, setTempSetpoint] = useState(65);
 
   // Close modal on escape key
@@ -52,6 +54,42 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
       document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose]);
+
+  // Load current values from OPC collection ONLY when modal first opens
+  useEffect(() => {
+    if (isOpen && motor) {
+      console.log(`🔧 Motor ${motorId} Settings Values - LOADED ONCE:`, motor);
+      console.log(`🎯 Settings Initial Values:`, {
+        targetRpm: motor.targetRpm,
+        pressureSetpoint: motor.pressureSetpoint,
+        flowSetpoint: motor.flowSetpoint
+      });
+      setRpmSetpoint(motor.targetRpm || 0);
+      setPressureSetpoint(motor.pressureSetpoint || 0);
+      setFlowSetpoint(motor.flowSetpoint || 0);
+    }
+  }, [isOpen, motorId]); // Only depend on isOpen and motorId, NOT motor data
+
+  // Continuous leakage updates while modal is open
+  useEffect(() => {
+    let leakageInterval: NodeJS.Timeout;
+    
+    if (isOpen) {
+      console.log(`🔄 Starting leakage updates for Motor ${motorId}`);
+      
+      // Update leakage every 1 second while modal is open
+      leakageInterval = setInterval(() => {
+        fetchLeakageOnly();
+      }, 1000);
+    }
+    
+    return () => {
+      if (leakageInterval) {
+        console.log(`🛑 Stopping leakage updates for Motor ${motorId}`);
+        clearInterval(leakageInterval);
+      }
+    };
+  }, [isOpen, motorId, fetchLeakageOnly]);
 
   // Load trend data when trends tab is active
   useEffect(() => {
@@ -271,31 +309,9 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                 />
               </div>
 
-              {/* Digital Values */}
+              {/* Digital Values - Reordered per request */}
               <div className="digital-values-section">
                 <div className="value-grid">
-                  <div className="digital-value-card">
-                    <div className="card-header">Current</div>
-                    <div className="card-value" style={{ 
-                      color: motor.current > 140 ? '#ef4444' : 
-                            motor.current > 120 ? '#f59e0b' : '#22c55e' 
-                    }}>
-                      {motor.current.toFixed(1)}
-                    </div>
-                    <div className="card-unit">Amperes</div>
-                  </div>
-
-                  <div className="digital-value-card">
-                    <div className="card-header">Leak Rate</div>
-                    <div className="card-value" style={{ 
-                      color: motor.leak > 0.05 ? '#ef4444' : 
-                            motor.leak > 0.02 ? '#f59e0b' : '#22c55e' 
-                    }}>
-                      {motor.leak.toFixed(3)}
-                    </div>
-                    <div className="card-unit">L/min</div>
-                  </div>
-
                   <div className="digital-value-card">
                     <div className="card-header">Target RPM</div>
                     <div className="card-value" style={{ color: '#06b6d4' }}>
@@ -305,11 +321,30 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                   </div>
 
                   <div className="digital-value-card">
-                    <div className="card-header">Efficiency</div>
+                    <div className="card-header">Pressure Setpoint</div>
                     <div className="card-value" style={{ color: '#8b5cf6' }}>
-                      {(85 + Math.random() * 10).toFixed(1)}
+                      {motor.pressureSetpoint.toFixed(1)}
                     </div>
-                    <div className="card-unit">%</div>
+                    <div className="card-unit">bar</div>
+                  </div>
+
+                  <div className="digital-value-card">
+                    <div className="card-header">Flow Setpoint</div>
+                    <div className="card-value" style={{ color: '#f59e0b' }}>
+                      {motor.flowSetpoint.toFixed(1)}
+                    </div>
+                    <div className="card-unit">L/min</div>
+                  </div>
+
+                  <div className="digital-value-card">
+                    <div className="card-header">Leakage</div>
+                    <div className="card-value" style={{ 
+                      color: motor.leak > 0.05 ? '#ef4444' : 
+                            motor.leak > 0.02 ? '#f59e0b' : '#22c55e' 
+                    }}>
+                      {motor.leak.toFixed(3)}
+                    </div>
+                    <div className="card-unit">L/min</div>
                   </div>
                 </div>
               </div>
@@ -628,6 +663,29 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                 <div className="settings-grid">
                   <div className="setting-group">
                     <label className="setting-label">
+                      RPM Setpoint
+                      <input
+                        type="number"
+                        className="setting-input"
+                        value={rpmSetpoint}
+                        onChange={(e) => setRpmSetpoint(Number(e.target.value))}
+                        min="0"
+                        max="3000"
+                        step="10"
+                      />
+                      <span className="setting-unit">RPM</span>
+                    </label>
+                    <button 
+                      className="apply-button"
+                      onClick={() => handleSetpointSubmit('MOTOR_TARGET_RPM', rpmSetpoint)}
+                      disabled={isLoading}
+                    >
+                      Apply
+                    </button>
+                  </div>
+
+                  <div className="setting-group">
+                    <label className="setting-label">
                       Pressure Setpoint
                       <input
                         type="number"
@@ -642,7 +700,7 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                     </label>
                     <button 
                       className="apply-button"
-                      onClick={() => handleSetpointSubmit('PRESSURE', pressureSetpoint)}
+                      onClick={() => handleSetpointSubmit('PUMP_PRESSURE', pressureSetpoint)}
                       disabled={isLoading}
                     >
                       Apply
@@ -665,7 +723,7 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                     </label>
                     <button 
                       className="apply-button"
-                      onClick={() => handleSetpointSubmit('FLOW', flowSetpoint)}
+                      onClick={() => handleSetpointSubmit('PUMP_FLOW', flowSetpoint)}
                       disabled={isLoading}
                     >
                       Apply
@@ -707,52 +765,9 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                         Motor Enabled
                       </label>
                     </div>
-                    
-                    <div className="control-switch">
-                      <label>
-                        <input type="checkbox" checked={motor.valve} readOnly />
-                        <span className="switch-slider"></span>
-                        Main Valve
-                      </label>
-                    </div>
                   </div>
                 </div>
 
-                {/* Filter Status */}
-                <div className="filter-status-section">
-                  <h4>Filter Status</h4>
-                  <div className="filter-grid">
-                    <div className={`filter-status filter-${
-                      motor.lineFilter === 0 ? 'error' : 
-                      motor.lineFilter === 1 ? 'warning' : 'normal'
-                    }`}>
-                      <span className="filter-icon">🔽</span>
-                      <span>Line Filter</span>
-                      <span className={`filter-badge ${
-                        motor.lineFilter === 0 ? 'error' : 
-                        motor.lineFilter === 1 ? 'warning' : 'normal'
-                      }`}>
-                        {motor.lineFilter === 0 ? 'Error' : 
-                         motor.lineFilter === 1 ? 'Warning' : 'Normal'}
-                      </span>
-                    </div>
-                    
-                    <div className={`filter-status filter-${
-                      motor.suctionFilter === 0 ? 'error' : 
-                      motor.suctionFilter === 1 ? 'warning' : 'normal'
-                    }`}>
-                      <span className="filter-icon">🔧</span>
-                      <span>Suction Filter</span>
-                      <span className={`filter-badge ${
-                        motor.suctionFilter === 0 ? 'error' : 
-                        motor.suctionFilter === 1 ? 'warning' : 'normal'
-                      }`}>
-                        {motor.suctionFilter === 0 ? 'Error' : 
-                         motor.suctionFilter === 1 ? 'Warning' : 'Normal'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -845,39 +860,7 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                       </div>
                     </div>
 
-                    <div className="health-item">
-                      <div className="health-header">
-                        <span className="health-icon">🔽</span>
-                        <span className="health-name">Line Filter</span>
-                        <span className={`health-status ${
-                          motor.lineFilter === 2 ? 'good' : 
-                          motor.lineFilter === 1 ? 'fair' : 'poor'
-                        }`}>
-                          {motor.lineFilter === 2 ? 'GOOD' : 
-                           motor.lineFilter === 1 ? 'FAIR' : 'POOR'}
-                        </span>
-                      </div>
-                      <div className="health-detail">
-                        Pressure drop: {motor.lineFilter === 2 ? 'Normal' : motor.lineFilter === 1 ? 'Elevated' : 'High'} | Replace in {30 + motorId * 5} days
-                      </div>
-                    </div>
-
-                    <div className="health-item">
-                      <div className="health-header">
-                        <span className="health-icon">🔧</span>
-                        <span className="health-name">Suction Filter</span>
-                        <span className={`health-status ${
-                          motor.suctionFilter === 2 ? 'good' : 
-                          motor.suctionFilter === 1 ? 'fair' : 'poor'
-                        }`}>
-                          {motor.suctionFilter === 2 ? 'GOOD' : 
-                           motor.suctionFilter === 1 ? 'FAIR' : 'POOR'}
-                        </span>
-                      </div>
-                      <div className="health-detail">
-                        Flow restriction: {motor.suctionFilter === 2 ? 'Minimal' : motor.suctionFilter === 1 ? 'Moderate' : 'High'} | Last cleaned: 12 days ago
-                      </div>
-                    </div>
+                    {/* Filter sections removed per user request */}
                   </div>
                 </div>
 
@@ -946,15 +929,7 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                       </div>
                     )}
                     
-                    {motor.lineFilter === 1 && (
-                      <div className="alert info">
-                        <span className="alert-icon">ℹ️</span>
-                        <div className="alert-content">
-                          <div className="alert-title">Filter Maintenance</div>
-                          <div className="alert-message">Line filter showing wear. Schedule replacement within 30 days.</div>
-                        </div>
-                      </div>
-                    )}
+                    {/* Line filter alert removed per user request */}
                     
                     <div className="alert info">
                       <span className="alert-icon">📅</span>

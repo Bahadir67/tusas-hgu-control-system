@@ -116,6 +116,7 @@ _ = Task.Run(async () =>
                 var xmlParser = new TUSAS.HGU.Core.Services.OPC.A1XmlParser(loggerFactory.CreateLogger<TUSAS.HGU.Core.Services.OPC.A1XmlParser>());
                 
                 var collection = xmlParser.ParseA1Xml(xmlPath);
+                logger.LogInformation("✅ A1.xml parsing bitti, {Count} değişken", collection?.Count ?? 0);
                 if (collection != null && collection.Count > 0)
                 {
                     opcClient.SetOpcVariableCollection(collection);

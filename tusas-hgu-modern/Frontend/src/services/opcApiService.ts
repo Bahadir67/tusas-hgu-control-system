@@ -190,6 +190,50 @@ class OpcApiService {
     }
   }
 
+  // Get only leakage variables for all motors (for continuous updates)
+  async getLeakageVariables(): Promise<OpcBatchResponse> {
+    const cacheKey = 'leakage_only';
+    const cachedData = this.getCachedData(cacheKey);
+    
+    if (cachedData) {
+      return cachedData;
+    }
+
+    try {
+      // Generate leakage variables for all 7 motors
+      const leakageVariables = [];
+      for (let i = 1; i <= 7; i++) {
+        leakageVariables.push(`MOTOR_${i}_PUMP_LEAK_EXECUTION`);
+      }
+      
+      const response = await fetch(`${this.baseUrl}/batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          variables: leakageVariables,
+          pageContext: 'leakage_only'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: OpcBatchResponse = await response.json();
+      this.setCacheData(cacheKey, data);
+      
+      return data;
+      
+    } catch (error) {
+      console.error('Error fetching leakage variables:', error);
+      
+      // Return mock leakage data
+      return this.getMockLeakageData();
+    }
+  }
+
   // Check OPC server connection
   async checkConnection(): Promise<{ connected: boolean; serverInfo?: any }> {
     try {
@@ -260,6 +304,25 @@ class OpcApiService {
   private getMockAllVariables(): OpcBatchResponse {
     // Return mock data for all system variables
     return this.getMockDataForPage('main');
+  }
+
+  private getMockLeakageData(): OpcBatchResponse {
+    const mockVariables: Record<string, any> = {};
+
+    // Generate mock leakage data for all 7 motors
+    for (let i = 1; i <= 7; i++) {
+      mockVariables[`MOTOR_${i}_PUMP_LEAK_EXECUTION`] = {
+        value: Math.random() * 0.05, // Random leak between 0-0.05 L/min
+        quality: 'Good',
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    return {
+      success: true,
+      timestamp: new Date().toISOString(),
+      variables: mockVariables
+    };
   }
 }
 

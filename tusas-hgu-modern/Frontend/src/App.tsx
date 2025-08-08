@@ -29,9 +29,11 @@ function App() {
   const [selectedSystemPanel, setSelectedSystemPanel] = useState<string | null>(null);
   const [alarms, setAlarms] = useState<Array<{ id: number; message: string; type: string }>>([]);
   
-  // Page navigation state
-  const [currentPage, setCurrentPage] = useState<'main' | 'motors' | 'process-flow' | 'logs' | 'alarms' | 'stats'>('main');
+  // Page navigation state - use store state directly
   const [isTransitioning, setIsTransitioning] = useState(false);
+  
+  // Use store's currentPage directly
+  const currentPage = storeCurrentPage as 'main' | 'motors' | 'process-flow' | 'logs' | 'alarms' | 'stats';
 
   // Keyboard navigation
   useEffect(() => {
@@ -97,7 +99,7 @@ function App() {
     }, 2000); // 2 second intervals for better performance
 
     return () => clearInterval(interval);
-  }, [storeCurrentPage, fetchPageData]);  // Re-fetch when page changes
+  }, [currentPage, fetchPageData, setConnection, clearErrors]);  // Re-fetch when page changes
 
   // Navigation functions with data fetching
   const navigateToPage = (page: 'main' | 'motors' | 'process-flow' | 'logs' | 'alarms' | 'stats') => {
@@ -111,16 +113,16 @@ function App() {
     // Update page in store and fetch new data
     setStoreCurrentPage(page as any);
     
-    setTimeout(() => {
-      setIsTransitioning(false);
-    }, 150);
-    
     // Fetch data for new page immediately
     if (['main', 'motors', 'process-flow', 'logs', 'alarms', 'stats'].includes(page)) {
       fetchPageData(page as any).catch(error => {
         console.error(`Failed to fetch data for page ${page}:`, error);
       });
     }
+    
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 150);
   };
 
   const handleMotorClick = (motorId: number) => {

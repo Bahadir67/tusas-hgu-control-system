@@ -13,16 +13,16 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alar
   const system = useOpcStore((state) => state.system);
   const [showSetpointsModal, setShowSetpointsModal] = useState(false);
   
-  // Mock system data - replace with actual OPC data
+  // Use actual OPC data from store
   const systemData = {
-    totalFlowExecution: system?.totalFlow || 425.8,
-    pressureExecution: system?.totalPressure || 127.3,
-    statusExecution: 2, // 0=Test, 1=Ready, 2=Active, 3=Warning, 4=Error
-    totalFlowSetpoint: 450.0,
-    pressureSetpoint: 125.0,
-    efficiency: 94.2,
-    activePumps: 5,
-    totalPower: 412.5
+    totalFlowExecution: system?.totalFlow || 0,
+    pressureExecution: system?.totalPressure || 0,
+    statusExecution: system?.statusExecution || 0, // 0=Test, 1=Ready, 2=Active, 3=Warning, 4=Error
+    totalFlowSetpoint: system?.totalFlowSetpoint || 180, // From OPC: SYSTEM_TOTAL_FLOW_SETPOINT  
+    pressureSetpoint: system?.pressureSetpoint || 280, // From OPC: SYSTEM_PRESSURE_SETPOINT
+    efficiency: 94.2, // Calculated field - add to backend later
+    activePumps: system?.activePumps || 0,
+    totalPower: 412.5 // Calculated field - add to backend later
   };
 
   const getSystemStatusInfo = (status: number) => {

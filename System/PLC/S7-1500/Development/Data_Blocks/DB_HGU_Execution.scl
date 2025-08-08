@@ -1,4 +1,4 @@
-DATA_BLOCK "DB_HGU_Execution" 
+DATA_BLOCK "DB_HGU_Execution"
 TITLE = 'HGU Execution Variables Data Block'
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 1.0
@@ -7,181 +7,218 @@ VERSION : 1.0
 // TIA Portal S7-1500 Structured Control Language (SCL)
 // Generated: 2025-01-14
 // Description: All execution variables for HGU system synchronized with UI
-// FLOW_EXECUTION and PRESSURE_EXECUTION variables removed from Motors 1-6
 // =============================================================================
    VAR 
-      MOTOR_1_RPM_EXECUTION : Real;   // Motor 1 RPM Execution Value
-      MOTOR_1_CURRENT_EXECUTION : Real;   // Motor 1 Current (A) Execution Value
-      MOTOR_1_TARGET_EXECUTION : Real;   // Motor 1 Target RPM Execution Value
-      MOTOR_1_LEAK_EXECUTION : Real;   // Motor 1 Leak Rate (L/min) Execution Value
-      MOTOR_1_TEMPERATURE_EXECUTION : Real;   // Motor 1 Temperature (°C) Execution Value
-      MOTOR_1_STATUS_EXECUTION : USInt;   // Motor 1 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_1_VALVE_EXECUTION : USInt;   // Motor 1 Valve Control (0=Closed, 1=Open)
-      MOTOR_1_LINE_FILTER_EXECUTION : USInt;   // Motor 1 Line Filter Status (0=Error, 1=Warning, 2=OK)
-      MOTOR_1_SUCTION_FILTER_EXECUTION : USInt;   // Motor 1 Suction Filter Status (0=Error, 1=OK)
-      MOTOR_1_ENABLE_EXECUTION : Bool;   // Motor 1 Enable Control (FALSE=Disabled, TRUE=Enabled)
-      MOTOR_1_FLOW_SETPOINT : Real;   // Motor 1 Flow Setpoint (L/min) - User Adjustable from Popup
-      MOTOR_1_PRESSURE_SETPOINT : Real;   // Motor 1 Pressure Setpoint (Bar) - User Adjustable from Popup
-      MOTOR_1_FLOW_FLOWMETER : Real;  // Motor 1 Flow meter value.(L/min)
+      MOTOR_1_MOTOR_RPM_EXECUTION : Real;           // Motor 1 RPM Execution Value
+      MOTOR_1_MOTOR_TARGET_RPM_EXECUTION : Real;    // Motor 1 Target RPM Execution Value      
+      MOTOR_1_MOTOR_CURRENT_EXECUTION : Real;       // Motor 1 Current (A) Execution Value      
+      MOTOR_1_MOTOR_TEMPERATURE_EXECUTION : Real;   // Motor 1 Temperature (°C) Execution Value
+      MOTOR_1_MOTOR_STATUS_EXECUTION : USInt;       // Motor 1 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_1_PUMP_FLOW_EXECUTION : Real;           // Motor 1 Flow Rate (L/min) Execution Value
+      MOTOR_1_PUMP_LEAK_EXECUTION : Real;           // Motor 1 Leak Rate (L/min) Execution Value      
+      MOTOR_1_PUMP_PRESSURE_EXECUTION : Real;       // Motor 1 Pressure (bar) Execution Value
+      MOTOR_1_PUMP_FLOW_SETPOINT : Real;            // Motor 1 Flow Setpoint (L/min) - User Adjustable from Popup
+      MOTOR_1_PUMP_PRESSURE_SETPOINT : Real;        // Motor 1 Flow Setpoint (Bar) - User Adjustable from Popup
+      MOTOR_1_VALVE_EXECUTION : USInt;              // Motor 1 Valve Control (0=Closed, 1=Open)
+      MOTOR_1_LINE_FILTER_EXECUTION : USInt;        // Motor 1 Line Filter Status (0=Error, 1=Warning, 2=OK)
+      MOTOR_1_SUCTION_FILTER_EXECUTION : USInt;     // Motor 1 Suction Filter Status (0=Error, 1=OK)
+      MOTOR_1_ENABLED_EXECUTION : Bool;             // Motor 1 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_1_ENABLE_CONTROL_EXECUTION : Bool;      // Motor 1 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_1_ERROR_CODE_EXECUTION  : UsInt;        // Motor 1 Motor error code
+      MOTOR_1_START_EXECUTION : Bool;               // Motor 1 Start
+      MOTOR_1_STOP_EXECUTION : Bool;                // Motor 1 Stop
+      MOTOR_1_RESET_EXECUTION : Bool;               // Motor 1 Reset
 
 
+
+
+      
       // Motor-Pump #2 Variables
-      MOTOR_2_RPM_EXECUTION : Real;   // Motor 2 RPM Execution Value
-      MOTOR_2_CURRENT_EXECUTION : Real;   // Motor 2 Current (A) Execution Value
-      MOTOR_2_TARGET_EXECUTION : Real;   // Motor 2 Target RPM Execution Value
-      MOTOR_2_LEAK_EXECUTION : Real;   // Motor 2 Leak Rate (L/min) Execution Value
-      MOTOR_2_TEMPERATURE_EXECUTION : Real;   // Motor 2 Temperature (°C) Execution Value
-      MOTOR_2_STATUS_EXECUTION : USInt;   // Motor 2 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_2_VALVE_EXECUTION : USInt;   // Motor 2 Valve Control (0=Closed, 1=Open)
-      MOTOR_2_LINE_FILTER_EXECUTION : USInt;   // Motor 2 Line Filter Status (0=Error, 1=Warning, 2=OK)
-      MOTOR_2_SUCTION_FILTER_EXECUTION : USInt;   // Motor 2 Suction Filter Status (0=Error, 1=OK)
-      MOTOR_2_ENABLE_EXECUTION : Bool;   // Motor 2 Enable Control (FALSE=Disabled, TRUE=Enabled)
-      MOTOR_2_FLOW_SETPOINT : Real;   // Motor 2 Flow Setpoint (L/min) - User Adjustable from Popup
-      MOTOR_2_PRESSURE_SETPOINT : Real;   // Motor 2 Pressure Setpoint (Bar) - User Adjustable from Popup
-      MOTOR_2_FLOW_FLOWMETER : Real;  // Motor 2 Flow meter value.(L/min)	
+      MOTOR_2_MOTOR_RPM_EXECUTION : Real;           // Motor 2 RPM Execution Value
+      MOTOR_2_MOTOR_TARGET_RPM_EXECUTION : Real;    // Motor 2 Target RPM Execution Value      
+      MOTOR_2_MOTOR_CURRENT_EXECUTION : Real;       // Motor 2 Current (A) Execution Value      
+      MOTOR_2_MOTOR_TEMPERATURE_EXECUTION : Real;   // Motor 2 Temperature (°C) Execution Value
+      MOTOR_2_MOTOR_STATUS_EXECUTION : USInt;       // Motor 2 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_2_PUMP_FLOW_EXECUTION : Real;           // Motor 2 Flow Rate (L/min) Execution Value
+      MOTOR_2_PUMP_LEAK_EXECUTION : Real;           // Motor 2 Leak Rate (L/min) Execution Value      
+      MOTOR_2_PUMP_PRESSURE_EXECUTION : Real;       // Motor 2 Pressure (bar) Execution Value
+      MOTOR_2_PUMP_FLOW_SETPOINT : Real;            // Motor 2 Flow Setpoint (L/min) - User Adjustable from Popup
+      MOTOR_2_PUMP_PRESSURE_SETPOINT : Real;        // Motor 2 Flow Setpoint (Bar) - User Adjustable from Popup
+      MOTOR_2_VALVE_EXECUTION : USInt;              // Motor 2 Valve Control (0=Closed, 1=Open)
+      MOTOR_2_LINE_FILTER_EXECUTION : USInt;        // Motor 2 Line Filter Status (0=Error, 1=Warning, 2=OK)
+      MOTOR_2_SUCTION_FILTER_EXECUTION : USInt;     // Motor 2 Suction Filter Status (0=Error, 1=OK)
+      MOTOR_2_ENABLED_EXECUTION : Bool;             // Motor 2 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_2_ENABLE_CONTROL_EXECUTION : Bool;      // Motor 2 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_2_ERROR_CODE_EXECUTION  : UsInt;        // Motor 2 Motor error code
+      MOTOR_2_START_EXECUTION : Bool;               // Motor 2 Start
+      MOTOR_2_STOP_EXECUTION : Bool;                // Motor 2 Stop
+      MOTOR_2_RESET_EXECUTION : Bool;               // Motor 2 Reset
+
 
       // Motor-Pump #3 Variables
-      MOTOR_3_RPM_EXECUTION : Real;   // Motor 3 RPM Execution Value
-      MOTOR_3_CURRENT_EXECUTION : Real;   // Motor 3 Current (A) Execution Value
-      MOTOR_3_TARGET_EXECUTION : Real;   // Motor 3 Target RPM Execution Value
-      MOTOR_3_LEAK_EXECUTION : Real;   // Motor 3 Leak Rate (L/min) Execution Value
-      MOTOR_3_TEMPERATURE_EXECUTION : Real;   // Motor 3 Temperature (°C) Execution Value
-      MOTOR_3_STATUS_EXECUTION : USInt;   // Motor 3 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_3_VALVE_EXECUTION : USInt;   // Motor 3 Valve Control (0=Closed, 1=Open)
-      MOTOR_3_LINE_FILTER_EXECUTION : USInt;   // Motor 3 Line Filter Status (0=Error, 1=Warning, 2=OK)
-      MOTOR_3_SUCTION_FILTER_EXECUTION : USInt;   // Motor 3 Suction Filter Status (0=Error, 1=OK)
-      MOTOR_3_ENABLE_EXECUTION : Bool;   // Motor 3 Enable Control (FALSE=Disabled, TRUE=Enabled)            
-      MOTOR_3_FLOW_SETPOINT : Real;   // Motor 3 Flow Setpoint (L/min) - User Adjustable from Popup
-      MOTOR_3_PRESSURE_SETPOINT : Real;   // Motor 3 Pressure Setpoint (Bar) - User Adjustable from Popup
-      MOTOR_3_FLOW_FLOWMETER : Real;  // Motor 3 Flow meter value.(L/min)
+      MOTOR_3_MOTOR_RPM_EXECUTION : Real;           // Motor 3 RPM Execution Value
+      MOTOR_3_MOTOR_TARGET_RPM_EXECUTION : Real;    // Motor 3 Target RPM Execution Value      
+      MOTOR_3_MOTOR_CURRENT_EXECUTION : Real;       // Motor 3 Current (A) Execution Value      
+      MOTOR_3_MOTOR_TEMPERATURE_EXECUTION : Real;   // Motor 3 Temperature (°C) Execution Value
+      MOTOR_3_MOTOR_STATUS_EXECUTION : USInt;       // Motor 3 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_3_PUMP_FLOW_EXECUTION : Real;           // Motor 3 Flow Rate (L/min) Execution Value
+      MOTOR_3_PUMP_LEAK_EXECUTION : Real;           // Motor 3 Leak Rate (L/min) Execution Value      
+      MOTOR_3_PUMP_PRESSURE_EXECUTION : Real;       // Motor 3 Pressure (bar) Execution Value
+      MOTOR_3_PUMP_FLOW_SETPOINT : Real;            // Motor 3 Flow Setpoint (L/min) - User Adjustable from Popup
+      MOTOR_3_PUMP_PRESSURE_SETPOINT : Real;        // Motor 3 Flow Setpoint (Bar) - User Adjustable from Popup
+      MOTOR_3_VALVE_EXECUTION : USInt;              // Motor 3 Valve Control (0=Closed, 1=Open)
+      MOTOR_3_LINE_FILTER_EXECUTION : USInt;        // Motor 3 Line Filter Status (0=Error, 1=Warning, 2=OK)
+      MOTOR_3_SUCTION_FILTER_EXECUTION : USInt;     // Motor 3 Suction Filter Status (0=Error, 1=OK)
+      MOTOR_3_ENABLED_EXECUTION : Bool;             // Motor 3 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_3_ENABLE_CONTROL_EXECUTION : Bool;      // Motor 3 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_3_ERROR_CODE_EXECUTION  : UsInt;        // Motor 3 Motor error code
+      MOTOR_3_START_EXECUTION : Bool;               // Motor 3 Start
+      MOTOR_3_STOP_EXECUTION : Bool;                // Motor 3 Stop
+      MOTOR_3_RESET_EXECUTION : Bool;               // Motor 3 Reset
+	
 
       // Motor-Pump #4 Variables
-      MOTOR_4_RPM_EXECUTION : Real;   // Motor 4 RPM Execution Value
-      MOTOR_4_CURRENT_EXECUTION : Real;   // Motor 4 Current (A) Execution Value
-      MOTOR_4_TARGET_EXECUTION : Real;   // Motor 4 Target RPM Execution Value
-      MOTOR_4_LEAK_EXECUTION : Real;   // Motor 4 Leak Rate (L/min) Execution Value
-      MOTOR_4_TEMPERATURE_EXECUTION : Real;   // Motor 4 Temperature (°C) Execution Value
-      MOTOR_4_STATUS_EXECUTION : USInt;   // Motor 4 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_4_VALVE_EXECUTION : USInt;   // Motor 4 Valve Control (0=Closed, 1=Open)
-      MOTOR_4_LINE_FILTER_EXECUTION : USInt;   // Motor 4 Line Filter Status (0=Error, 1=Warning, 2=OK)
-      MOTOR_4_SUCTION_FILTER_EXECUTION : USInt;   // Motor 4 Suction Filter Status (0=Error, 1=OK)
-      MOTOR_4_ENABLE_EXECUTION : Bool;   // Motor 4 Enable Control (FALSE=Disabled, TRUE=Enabled)      
-      MOTOR_4_FLOW_SETPOINT : Real;   // Motor 4 Flow Setpoint (L/min) - User Adjustable from Popup
-      MOTOR_4_PRESSURE_SETPOINT : Real;   // Motor 4 Pressure Setpoint (Bar) - User Adjustable from Popup
-      MOTOR_4_FLOW_FLOWMETER : Real;  // Motor 4 Flow meter value.(L/min)
+      MOTOR_4_MOTOR_RPM_EXECUTION : Real;           // Motor 4 RPM Execution Value
+      MOTOR_4_MOTOR_TARGET_RPM_EXECUTION : Real;    // Motor 4 Target RPM Execution Value      
+      MOTOR_4_MOTOR_CURRENT_EXECUTION : Real;       // Motor 4 Current (A) Execution Value      
+      MOTOR_4_MOTOR_TEMPERATURE_EXECUTION : Real;   // Motor 4 Temperature (°C) Execution Value
+      MOTOR_4_MOTOR_STATUS_EXECUTION : USInt;       // Motor 4 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_4_PUMP_FLOW_EXECUTION : Real;           // Motor 4 Flow Rate (L/min) Execution Value
+      MOTOR_4_PUMP_LEAK_EXECUTION : Real;           // Motor 4 Leak Rate (L/min) Execution Value      
+      MOTOR_4_PUMP_PRESSURE_EXECUTION : Real;       // Motor 4 Pressure (bar) Execution Value
+      MOTOR_4_PUMP_FLOW_SETPOINT : Real;            // Motor 4 Flow Setpoint (L/min) - User Adjustable from Popup
+      MOTOR_4_PUMP_PRESSURE_SETPOINT : Real;        // Motor 4 Flow Setpoint (Bar) - User Adjustable from Popup
+      MOTOR_4_VALVE_EXECUTION : USInt;              // Motor 4 Valve Control (0=Closed, 1=Open)
+      MOTOR_4_LINE_FILTER_EXECUTION : USInt;        // Motor 4 Line Filter Status (0=Error, 1=Warning, 2=OK)
+      MOTOR_4_SUCTION_FILTER_EXECUTION : USInt;     // Motor 4 Suction Filter Status (0=Error, 1=OK)
+      MOTOR_4_ENABLED_EXECUTION : Bool;             // Motor 4 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_4_ENABLE_CONTROL_EXECUTION : Bool;      // Motor 4 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_4_ERROR_CODE_EXECUTION  : UsInt;        // Motor 4 Motor error code
+      MOTOR_4_START_EXECUTION : Bool;               // Motor 4 Start
+      MOTOR_4_STOP_EXECUTION : Bool;                // Motor 4 Stop
+      MOTOR_4_RESET_EXECUTION : Bool;               // Motor 4 Reset
+
 
       // Motor-Pump #5 Variables
-      MOTOR_5_RPM_EXECUTION : Real;   // Motor 5 RPM Execution Value
-      MOTOR_5_CURRENT_EXECUTION : Real;   // Motor 5 Current (A) Execution Value
-      MOTOR_5_TARGET_EXECUTION : Real;   // Motor 5 Target RPM Execution Value
-      MOTOR_5_LEAK_EXECUTION : Real;   // Motor 5 Leak Rate (L/min) Execution Value
-      MOTOR_5_TEMPERATURE_EXECUTION : Real;   // Motor 5 Temperature (°C) Execution Value
-      MOTOR_5_STATUS_EXECUTION : USInt;   // Motor 5 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_5_VALVE_EXECUTION : USInt;   // Motor 5 Valve Control (0=Closed, 1=Open)
-      MOTOR_5_LINE_FILTER_EXECUTION : USInt;   // Motor 5 Line Filter Status (0=Error, 1=Warning, 2=OK)
-      MOTOR_5_SUCTION_FILTER_EXECUTION : USInt;   // Motor 5 Suction Filter Status (0=Error, 1=OK)
-      MOTOR_5_ENABLE_EXECUTION : Bool;   // Motor 5 Enable Control (FALSE=Disabled, TRUE=Enabled)      
-      MOTOR_5_FLOW_SETPOINT : Real;   // Motor 5 Flow Setpoint (L/min) - User Adjustable from Popup
-      MOTOR_5_PRESSURE_SETPOINT : Real;   // Motor 5 Pressure Setpoint (Bar) - User Adjustable from Popup
-      MOTOR_5_FLOW_FLOWMETER : Real;  // Motor 5 Flow meter value.(L/min)
+      MOTOR_5_MOTOR_RPM_EXECUTION : Real;           // Motor 5 RPM Execution Value
+      MOTOR_5_MOTOR_TARGET_RPM_EXECUTION : Real;    // Motor 5 Target RPM Execution Value      
+      MOTOR_5_MOTOR_CURRENT_EXECUTION : Real;       // Motor 5 Current (A) Execution Value      
+      MOTOR_5_MOTOR_TEMPERATURE_EXECUTION : Real;   // Motor 5 Temperature (°C) Execution Value
+      MOTOR_5_MOTOR_STATUS_EXECUTION : USInt;       // Motor 5 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_5_PUMP_FLOW_EXECUTION : Real;           // Motor 5 Flow Rate (L/min) Execution Value
+      MOTOR_5_PUMP_LEAK_EXECUTION : Real;           // Motor 5 Leak Rate (L/min) Execution Value      
+      MOTOR_5_PUMP_PRESSURE_EXECUTION : Real;       // Motor 5 Pressure (bar) Execution Value
+      MOTOR_5_PUMP_FLOW_SETPOINT : Real;            // Motor 5 Flow Setpoint (L/min) - User Adjustable from Popup
+      MOTOR_5_PUMP_PRESSURE_SETPOINT : Real;        // Motor 5 Flow Setpoint (Bar) - User Adjustable from Popup
+      MOTOR_5_VALVE_EXECUTION : USInt;              // Motor 5 Valve Control (0=Closed, 1=Open)
+      MOTOR_5_LINE_FILTER_EXECUTION : USInt;        // Motor 5 Line Filter Status (0=Error, 1=Warning, 2=OK)
+      MOTOR_5_SUCTION_FILTER_EXECUTION : USInt;     // Motor 5 Suction Filter Status (0=Error, 1=OK)
+      MOTOR_5_ENABLED_EXECUTION : Bool;             // Motor 5 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_5_ENABLE_CONTROL_EXECUTION : Bool;      // Motor 5 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_5_ERROR_CODE_EXECUTION  : UsInt;        // Motor 5 Motor error code
+      MOTOR_5_START_EXECUTION : Bool;               // Motor 5 Start
+      MOTOR_5_STOP_EXECUTION : Bool;                // Motor 5 Stop
+      MOTOR_5_RESET_EXECUTION : Bool;               // Motor 5 Reset
+
 
       // Motor-Pump #6 Variables
-      MOTOR_6_RPM_EXECUTION : Real;   // Motor 6 RPM Execution Value
-      MOTOR_6_CURRENT_EXECUTION : Real;   // Motor 6 Current (A) Execution Value
-      MOTOR_6_TARGET_EXECUTION : Real;   // Motor 6 Target RPM Execution Value
-      MOTOR_6_LEAK_EXECUTION : Real;   // Motor 6 Leak Rate (L/min) Execution Value
-      MOTOR_6_TEMPERATURE_EXECUTION : Real;   // Motor 6 Temperature (°C) Execution Value
-      MOTOR_6_STATUS_EXECUTION : USInt;   // Motor 6 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_6_VALVE_EXECUTION : USInt;   // Motor 6 Valve Control (0=Closed, 1=Open)
-      MOTOR_6_LINE_FILTER_EXECUTION : USInt;   // Motor 6 Line Filter Status (0=Error, 1=Warning, 2=OK)
-      MOTOR_6_SUCTION_FILTER_EXECUTION : USInt;   // Motor 6 Suction Filter Status (0=Error, 1=OK)
-      MOTOR_6_ENABLE_EXECUTION : Bool;   // Motor 6 Enable Control (FALSE=Disabled, TRUE=Enabled)      
-      MOTOR_6_FLOW_SETPOINT : Real;   // Motor 6 Flow Setpoint (L/min) - User Adjustable from Popup
-      MOTOR_6_PRESSURE_SETPOINT : Real;   // Motor 6 Pressure Setpoint (Bar) - User Adjustable from Popup
-      MOTOR_6_FLOW_FLOWMETER : Real;  // Motor 6 Flow meter value.(L/min)	
-	
+      MOTOR_6_MOTOR_RPM_EXECUTION : Real;           // Motor 6 RPM Execution Value
+      MOTOR_6_MOTOR_TARGET_RPM_EXECUTION : Real;    // Motor 6 Target RPM Execution Value      
+      MOTOR_6_MOTOR_CURRENT_EXECUTION : Real;       // Motor 6 Current (A) Execution Value      
+      MOTOR_6_MOTOR_TEMPERATURE_EXECUTION : Real;   // Motor 6 Temperature (°C) Execution Value
+      MOTOR_6_MOTOR_STATUS_EXECUTION : USInt;       // Motor 6 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_6_PUMP_FLOW_EXECUTION : Real;           // Motor 6 Flow Rate (L/min) Execution Value
+      MOTOR_6_PUMP_LEAK_EXECUTION : Real;           // Motor 6 Leak Rate (L/min) Execution Value      
+      MOTOR_6_PUMP_PRESSURE_EXECUTION : Real;       // Motor 6 Pressure (bar) Execution Value
+      MOTOR_6_PUMP_FLOW_SETPOINT : Real;            // Motor 6 Flow Setpoint (L/min) - User Adjustable from Popup
+      MOTOR_6_PUMP_PRESSURE_SETPOINT : Real;        // Motor 6 Flow Setpoint (Bar) - User Adjustable from Popup
+      MOTOR_6_VALVE_EXECUTION : USInt;              // Motor 6 Valve Control (0=Closed, 1=Open)
+      MOTOR_6_LINE_FILTER_EXECUTION : USInt;        // Motor 6 Line Filter Status (0=Error, 1=Warning, 2=OK)
+      MOTOR_6_SUCTION_FILTER_EXECUTION : USInt;     // Motor 6 Suction Filter Status (0=Error, 1=OK)
+      MOTOR_6_ENABLED_EXECUTION : Bool;             // Motor 6 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_6_ENABLE_CONTROL_EXECUTION : Bool;      // Motor 6 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_6_ERROR_CODE_EXECUTION  : UsInt;        // Motor 6 Motor error code
+      MOTOR_6_START_EXECUTION : Bool;               // Motor 6 Start
+      MOTOR_6_STOP_EXECUTION : Bool;                // Motor 6 Stop
+      MOTOR_6_RESET_EXECUTION : Bool;               // Motor 6 Reset
+
+
       // =============================================================================
       // MOTOR-PUMP #7 VARIABLES (SPECIAL SYSTEM - Different Control Logic)
       // =============================================================================
-      MOTOR_7_RPM_EXECUTION : Real;   // Motor 7 RPM (FIXED - Read Only, always 1500 RPM)
-      MOTOR_7_CURRENT_EXECUTION : Real;   // Motor 7 Current (A) Execution Value
-      MOTOR_7_TARGET_EXECUTION : Real;   // Motor 7 Target RPM (FIXED - Read Only, always 1500 RPM)
-      MOTOR_7_FLOW_EXECUTION : Real;   // Motor 7 Flow Rate (FIXED - Read Only, always 34 L/min)
-      MOTOR_7_PRESSURE_EXECUTION : Real;   // Motor 7 Pressure (bar) - ADJUSTABLE SETPOINT
-      MOTOR_7_LEAK_EXECUTION : Real;   // Motor 7 Leak Rate (L/min) Execution Value
-      MOTOR_7_TEMPERATURE_EXECUTION : Real;   // Motor 7 Temperature (°C) Execution Value
-      MOTOR_7_STATUS_EXECUTION : USInt;   // Motor 7 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_7_VALVE_EXECUTION : USInt;   // Motor 7 Valve Control (0=Closed, 1=Open)
-      MOTOR_7_LINE_FILTER_EXECUTION : USInt;   // Motor 7 Line Filter Status (0=Error, 1=Warning, 2=OK)
-      MOTOR_7_SUCTION_FILTER_EXECUTION : USInt;   // Motor 7 Suction Filter Status (0=Error, 1=OK)
-      MOTOR_7_ENABLE_EXECUTION : Bool;   // Motor 7 Enable Control (FALSE=Disabled, TRUE=Enabled) 
-      MOTOR_7_PRESSURE_SETPOINT : Real;   // Motor 7 Pressure Setpoint (bar) - User Adjustable
-      MOTOR_6_FLOW_FLOWMETER : Real;  // Motor 6 Flow meter value.(L/min)      
+      MOTOR_7_MOTOR_RPM_EXECUTION : Real;           // RPM (FIXED - Read Only, always 1500 RPM)
+      MOTOR_7_MOTOR_TARGET_RPM_EXECUTION : Real;    // Motor 7 Target RPM Execution Value      
+      MOTOR_7_MOTOR_CURRENT_EXECUTION : Real;       // Motor 7 Current (A) Execution Value      
+      MOTOR_7_MOTOR_TEMPERATURE_EXECUTION : Real;   // Motor 7 Temperature (°C) Execution Value
+      MOTOR_7_MOTOR_STATUS_EXECUTION : USInt;       // Motor 7 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_7_PUMP_FLOW_EXECUTION : Real;           // Motor 7 Flow Rate (FIXED - Read Only, always 34 L/min)
+      MOTOR_7_PUMP_LEAK_EXECUTION : Real;           // Motor 7 Leak Rate (L/min) Execution Value      
+      MOTOR_7_PUMP_PRESSURE_EXECUTION : Real;       // Motor 7 Pressure (bar) Execution Value
+      MOTOR_7_PUMP_FLOW_SETPOINT : Real;            // Motor 7 Flow Setpoint (L/min) - User Adjustable from Popup
+      MOTOR_7_PUMP_PRESSURE_SETPOINT : Real;        // Motor 7 Flow Setpoint (Bar) - User Adjustable from Popup
+      MOTOR_7_VALVE_EXECUTION : USInt;              // Motor 7 Valve Control (0=Closed, 1=Open)
+      MOTOR_7_LINE_FILTER_EXECUTION : USInt;        // Motor 7 Line Filter Status (0=Error, 1=Warning, 2=OK)
+      MOTOR_7_SUCTION_FILTER_EXECUTION : USInt;     // Motor 7 Suction Filter Status (0=Error, 1=OK)
+      MOTOR_7_ENABLED_EXECUTION : Bool;             // Motor 7 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_7_ENABLE_CONTROL_EXECUTION : Bool;      // Motor 7 Enable Control (FALSE=Disabled, TRUE=Enabled)
+      MOTOR_7_ERROR_CODE_EXECUTION  : UsInt;        // Motor 7 Motor error code
+      MOTOR_7_START_EXECUTION : Bool;               // Motor 7 Start
+      MOTOR_7_STOP_EXECUTION : Bool;                // Motor 7 Stop
+      MOTOR_7_RESET_EXECUTION : Bool;               // Motor 7 Reset
+
+
 
       // =============================================================================
       // SYSTEM LEVEL EXECUTION VARIABLES
       // =============================================================================
       // System Control Panel Variables
-      SYSTEM_TOTAL_FLOW_EXECUTION : Real;   // Total System Flow Rate (L/min) - Sum of Motor 1-6 flows
-      SYSTEM_PRESSURE_EXECUTION : Real;   // System Pressure (bar) - Main system pressure
-      SYSTEM_TOTAL_FLOW_SETPOINT : Real;   // Total System Flow Setpoint (L/min) - User Adjustable from Popup
-      SYSTEM_PRESSURE_SETPOINT : Real;   // System Pressure Setpoint (bar) - User Adjustable from Popup
-      SYSTEM_TANK_LEVEL_EXECUTION : Real;   // Tank Oil Level (%)
-      SYSTEM_TANK_TEMPERATURE_EXECUTION : Real;   // Tank Oil Temperature (°C)
-      SYSTEM_STATUS_EXECUTION : USInt;   // Overall System Status (0=Offline, 1=Ready, 2=Running, 3=Error, 4=Maintenance) 
+      SYSTEM_TOTAL_FLOW_EXECUTION : Real;   	   // Total System Flow Rate (L/min) - Sum of Motor 1-6 flows
+      SYSTEM_PRESSURE_EXECUTION : Real;            // System Pressure (bar) - Main system pressure
+      SYSTEM_TOTAL_FLOW_SETPOINT : Real;           // Total System Flow Setpoint (L/min) - User Adjustable from Popup
+      SYSTEM_PRESSURE_SETPOINT : Real;             // System Pressure Setpoint (bar) - User Adjustable from Popup
+      SYSTEM_TANK_LEVEL_EXECUTION : Real;          // Tank Oil Level (%)
+      SYSTEM_TANK_TEMPERATURE_EXECUTION : Real;    // Tank Oil Temperature (°C)
+      SYSTEM_STATUS_EXECUTION : USInt;             // Overall System Status (0=Offline, 1=Ready, 2=Running, 3=Error, 4=Maintenance) 
       // Temperature & Cooling System Variables
-      COOLING_AQUA_SENSOR_EXECUTION : Real;   // Aqua/Water Sensor Level (%)
+      COOLING_AQUA_SENSOR_EXECUTION : Real;        // Aqua/Water Sensor Level (%)
       COOLING_OIL_LEVEL_LITERS_EXECUTION : Real;   // Oil Level in Tank (Liters)
-      COOLING_OIL_LEVEL_PERCENT_EXECUTION : Real;   // Oil Level in Tank (%)
-      COOLING_OIL_TEMPERATURE_EXECUTION : Real;   // Oil Temperature (°C)
-      COOLING_WATER_TEMPERATURE_EXECUTION : Real;   // Water/Coolant Temperature (°C)
-      COOLING_SYSTEM_STATUS_EXECUTION : USInt;   // Cooling System Status (0=Offline, 1=Normal, 2=Warning, 3=Critical)
-      COOLING_MAX_OIL_TEMP_SETPOINT : Real;   // Maximum Oil Temperature Setpoint (°C) - User Adjustable from Popup
-      COOLING_MIN_OIL_TEMP_SETPOINT : Real;   // Minimum Oil Temperature Setpoint (°C) - User Adjustable from Popup
-      COOLING_AUTO_CONTROL_ENABLE : Bool;   // Automatic Temperature Control Enable - User Adjustable from Popup
+      COOLING_OIL_LEVEL_PERCENT_EXECUTION : Real;  // Oil Level in Tank (%)
+      COOLING_OIL_TEMPERATURE_EXECUTION : Real;    // Oil Temperature (°C)
+      COOLING_WATER_TEMPERATURE_EXECUTION : Real;  // Water/Coolant Temperature (°C)
+      COOLING_SYSTEM_STATUS_EXECUTION : USInt;     // Cooling System Status (0=Offline, 1=Normal, 2=Warning, 3=Critical)
+      COOLING_MAX_OIL_TEMP_SETPOINT : Real;        // Maximum Oil Temperature Setpoint (°C) - User Adjustable from Popup
+      COOLING_MIN_OIL_TEMP_SETPOINT : Real;        // Minimum Oil Temperature Setpoint (°C) - User Adjustable from Popup
+      COOLING_AUTO_CONTROL_ENABLE : Bool;          // Automatic Temperature Control Enable - User Adjustable from Popup
       // System Control Variables
-      SYSTEM_CONTROL_MODE_EXECUTION : USInt;   // Control Mode (0=Local, 1=Remote)
-      SYSTEM_EMERGENCY_STOP_EXECUTION : Bool;   // Emergency Stop Status (FALSE=Normal, TRUE=Emergency Stop)
-      SYSTEM_PUMP_ENABLE_EXECUTION : Bool;   // System Pump Enable (FALSE=Disabled, TRUE=Enabled) 
+      SYSTEM_CONTROL_MODE_EXECUTION : USInt;       // Control Mode (0=Local, 1=Remote)
+      SYSTEM_EMERGENCY_STOP_EXECUTION : Bool;      // Emergency Stop Status (FALSE=Normal, TRUE=Emergency Stop)
+      SYSTEM_PUMP_ENABLE_EXECUTION : Bool;         // System Pump Enable (FALSE=Disabled, TRUE=Enabled) 
       // Calculated Values (Read-Only)
-      TOTAL_ACTIVE_MOTORS : USInt;   // Count of currently running motors
-      TOTAL_POWER_CONSUMPTION : Real;   // Total power consumption (kW)
-      AVERAGE_SYSTEM_TEMPERATURE : Real;   // Average temperature across all motors
-      SYSTEM_EFFICIENCY : Real;   // System efficiency percentage 
+      TOTAL_ACTIVE_MOTORS : USInt;                 // Count of currently running motors
+      TOTAL_POWER_CONSUMPTION : Real;              // Total power consumption (kW)
+      AVERAGE_SYSTEM_TEMPERATURE : Real;           // Average temperature across all motors
+      SYSTEM_EFFICIENCY : Real;                    // System efficiency percentage 
       // =============================================================================
       // ALARM AND WARNING VARIABLES
       // =============================================================================
       // System Alarms
-      ALARM_HIGH_PRESSURE : Bool;   // High Pressure Alarm (FALSE=Normal, TRUE=Alarm)
-      ALARM_LOW_PRESSURE : Bool;   // Low Pressure Alarm (FALSE=Normal, TRUE=Alarm)
-      ALARM_HIGH_TEMPERATURE : Bool;   // High Temperature Alarm (FALSE=Normal, TRUE=Alarm)
-      ALARM_LOW_TANK_LEVEL : Bool;   // Low Tank Level Alarm (FALSE=Normal, TRUE=Alarm)
-      ALARM_FILTER_BLOCKED : Bool;   // Filter Blocked Alarm (FALSE=Normal, TRUE=Alarm)
-      ALARM_MOTOR_OVERLOAD : Bool;   // Motor Overload Alarm (FALSE=Normal, TRUE=Alarm) 
-      // Motor Specific Alarm Bitmasks
-      MOTOR_ALARM_OVERLOAD_MASK : Byte;   // Motor Overload Alarm Bitmask (bit 0=Motor1, bit 1=Motor2, etc.)
-      MOTOR_ALARM_OVERHEAT_MASK : Byte;   // Motor Overheat Alarm Bitmask
-      MOTOR_ALARM_LEAK_MASK : Byte;   // Motor Leak Alarm Bitmask
+      ALARM_HIGH_PRESSURE : Bool;                  // High Pressure Alarm (FALSE=Normal, TRUE=Alarm)
+      ALARM_LOW_PRESSURE : Bool;                   // Low Pressure Alarm (FALSE=Normal, TRUE=Alarm)
+      ALARM_HIGH_TEMPERATURE : Bool;               // High Temperature Alarm (FALSE=Normal, TRUE=Alarm)
+      ALARM_LOW_TANK_LEVEL : Bool;                 // Low Tank Level Alarm (FALSE=Normal, TRUE=Alarm)      
       
       // =============================================================================
       // SENSOR VARIABLES (From A1.xml - UI Interface)
       // =============================================================================
-      Pressure_Supply : Real;   // Main Supply Pressure (0-350 bar) - From A1.xml
-      On_Off_Test : Bool;   // Test Signal - From A1.xml
-      Pump_Status : Bool;   // Pump Operation Status - From A1.xml
-      System_Ready : Bool;   // System Ready Status - From A1.xml
-      Temperature_Oil_Tank : Real;   // Tank Oil Temperature (-10 to +80°C) - From A1.xml
-      Temperature_Motor : Real;   // Motor Temperature (°C) - From A1.xml
-      Pressure_Accumulator : Real;   // Accumulator Pressure (0-350 bar) - From A1.xml
-      
+      System_Ready : Bool;                         // System Ready Status - From A1.xml      
       // =============================================================================
       // MAINTENANCE VARIABLES
       // =============================================================================
-      MAINTENANCE_TIMER : Time;   // Maintenance Timer
-      LAST_MAINTENANCE_DATE : Date;   // Last Maintenance Date
-      NEXT_MAINTENANCE_DUE : Date;   // Next Maintenance Due Date
-      AVERAGE_EFFICIENCY : Real;   // Average System Efficiency (%)
-      SYSTEM_LOAD_FACTOR : Real;   // System Load Factor (%)
+      MAINTENANCE_TIMER : Time;                   // Maintenance Timer
+      LAST_MAINTENANCE_DATE : Date;               // Last Maintenance Date
+      NEXT_MAINTENANCE_DUE : Date;                // Next Maintenance Due Date
+      AVERAGE_EFFICIENCY : Real;                  // Average System Efficiency (%)
+      SYSTEM_LOAD_FACTOR : Real;                  // System Load Factor (%)
    END_VAR
 
 
@@ -189,6 +226,8 @@ BEGIN
    MOTOR_1_RPM_EXECUTION := 0.0;
    MOTOR_1_CURRENT_EXECUTION := 0.0;
    MOTOR_1_TARGET_EXECUTION := 0.0;
+   MOTOR_1_FLOW_EXECUTION := 0.0;
+   MOTOR_1_PRESSURE_EXECUTION := 0.0;
    MOTOR_1_LEAK_EXECUTION := 0.0;
    MOTOR_1_TEMPERATURE_EXECUTION := 0.0;
    MOTOR_1_STATUS_EXECUTION := 0;
@@ -200,6 +239,8 @@ BEGIN
    MOTOR_2_RPM_EXECUTION := 0.0;
    MOTOR_2_CURRENT_EXECUTION := 0.0;
    MOTOR_2_TARGET_EXECUTION := 0.0;
+   MOTOR_2_FLOW_EXECUTION := 0.0;
+   MOTOR_2_PRESSURE_EXECUTION := 0.0;
    MOTOR_2_LEAK_EXECUTION := 0.0;
    MOTOR_2_TEMPERATURE_EXECUTION := 0.0;
    MOTOR_2_STATUS_EXECUTION := 0;
@@ -211,6 +252,8 @@ BEGIN
    MOTOR_3_RPM_EXECUTION := 0.0;
    MOTOR_3_CURRENT_EXECUTION := 0.0;
    MOTOR_3_TARGET_EXECUTION := 0.0;
+   MOTOR_3_FLOW_EXECUTION := 0.0;
+   MOTOR_3_PRESSURE_EXECUTION := 0.0;
    MOTOR_3_LEAK_EXECUTION := 0.0;
    MOTOR_3_TEMPERATURE_EXECUTION := 0.0;
    MOTOR_3_STATUS_EXECUTION := 0;
@@ -222,6 +265,8 @@ BEGIN
    MOTOR_4_RPM_EXECUTION := 0.0;
    MOTOR_4_CURRENT_EXECUTION := 0.0;
    MOTOR_4_TARGET_EXECUTION := 0.0;
+   MOTOR_4_FLOW_EXECUTION := 0.0;
+   MOTOR_4_PRESSURE_EXECUTION := 0.0;
    MOTOR_4_LEAK_EXECUTION := 0.0;
    MOTOR_4_TEMPERATURE_EXECUTION := 0.0;
    MOTOR_4_STATUS_EXECUTION := 0;
@@ -233,6 +278,8 @@ BEGIN
    MOTOR_5_RPM_EXECUTION := 0.0;
    MOTOR_5_CURRENT_EXECUTION := 0.0;
    MOTOR_5_TARGET_EXECUTION := 0.0;
+   MOTOR_5_FLOW_EXECUTION := 0.0;
+   MOTOR_5_PRESSURE_EXECUTION := 0.0;
    MOTOR_5_LEAK_EXECUTION := 0.0;
    MOTOR_5_TEMPERATURE_EXECUTION := 0.0;
    MOTOR_5_STATUS_EXECUTION := 0;
@@ -244,6 +291,8 @@ BEGIN
    MOTOR_6_RPM_EXECUTION := 0.0;
    MOTOR_6_CURRENT_EXECUTION := 0.0;
    MOTOR_6_TARGET_EXECUTION := 0.0;
+   MOTOR_6_FLOW_EXECUTION := 0.0;
+   MOTOR_6_PRESSURE_EXECUTION := 0.0;
    MOTOR_6_LEAK_EXECUTION := 0.0;
    MOTOR_6_TEMPERATURE_EXECUTION := 0.0;
    MOTOR_6_STATUS_EXECUTION := 0;

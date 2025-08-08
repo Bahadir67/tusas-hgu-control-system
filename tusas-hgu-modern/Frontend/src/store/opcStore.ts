@@ -60,6 +60,7 @@ interface OpcStore {
   // API Actions
   fetchPageData: (page: keyof typeof PAGE_VARIABLE_SETS) => Promise<void>;
   fetchAllData: () => Promise<void>;
+  fetchLeakageOnly: () => Promise<void>;
   writeVariable: (varName: string, value: any) => Promise<boolean>;
 }
 
@@ -141,11 +142,15 @@ export const useOpcStore = create<OpcStore>((set) => ({
     // Parse system data using real CSV variable names
     const system = {
       ...state.system,
-      totalFlow: data['SYSTEM_TOTAL_FLOW_SETPOINT']?.value ?? state.system.totalFlow,
-      totalPressure: data['SYSTEM_PRESSURE_SETPOINT']?.value ?? state.system.totalPressure,
+      totalFlow: data['SYSTEM_TOTAL_FLOW_EXECUTION']?.value ?? data['SYSTEM_TOTAL_FLOW_SETPOINT']?.value ?? state.system.totalFlow,
+      totalPressure: data['SYSTEM_PRESSURE_EXECUTION']?.value ?? data['SYSTEM_PRESSURE_SETPOINT']?.value ?? state.system.totalPressure,
+      totalFlowSetpoint: data['SYSTEM_TOTAL_FLOW_SETPOINT']?.value ?? state.system.totalFlowSetpoint,
+      pressureSetpoint: data['SYSTEM_PRESSURE_SETPOINT']?.value ?? state.system.pressureSetpoint,
+      statusExecution: data['SYSTEM_STATUS_EXECUTION']?.value ?? state.system.statusExecution,
       oilTemperature: data['COOLING_OIL_TEMPERATURE_EXECUTION']?.value ?? state.system.oilTemperature,
       tankLevel: data['COOLING_OIL_LEVEL_PERCENT_EXECUTION']?.value ?? state.system.tankLevel,
       aquaSensor: data['COOLING_AQUA_SENSOR_EXECUTION']?.value ?? state.system.aquaSensor,
+      activePumps: data['TOTAL_ACTIVE_MOTORS']?.value ?? state.system.activePumps,
     };
     
     return {
@@ -163,6 +168,9 @@ export const useOpcStore = create<OpcStore>((set) => ({
         isLoading: false 
       };
     }
+    
+    console.log('🔄 Store Update - Batch Response:', response);
+    console.log('📊 Variable Count:', Object.keys(response.variables).length);
     
     const motors: Record<number, MotorData> = { ...state.motors };
     const data = response.variables;
@@ -191,12 +199,22 @@ export const useOpcStore = create<OpcStore>((set) => ({
     // Update system data
     const system = {
       ...state.system,
-      totalFlow: data['SYSTEM_TOTAL_FLOW_SETPOINT']?.value ?? state.system.totalFlow,
-      totalPressure: data['SYSTEM_PRESSURE_SETPOINT']?.value ?? state.system.totalPressure,
+      totalFlow: data['SYSTEM_TOTAL_FLOW_EXECUTION']?.value ?? data['SYSTEM_TOTAL_FLOW_SETPOINT']?.value ?? state.system.totalFlow,
+      totalPressure: data['SYSTEM_PRESSURE_EXECUTION']?.value ?? data['SYSTEM_PRESSURE_SETPOINT']?.value ?? state.system.totalPressure,
+      totalFlowSetpoint: data['SYSTEM_TOTAL_FLOW_SETPOINT']?.value ?? state.system.totalFlowSetpoint,
+      pressureSetpoint: data['SYSTEM_PRESSURE_SETPOINT']?.value ?? state.system.pressureSetpoint,
+      statusExecution: data['SYSTEM_STATUS_EXECUTION']?.value ?? state.system.statusExecution,
       oilTemperature: data['COOLING_OIL_TEMPERATURE_EXECUTION']?.value ?? state.system.oilTemperature,
       tankLevel: data['COOLING_OIL_LEVEL_PERCENT_EXECUTION']?.value ?? state.system.tankLevel,
       aquaSensor: data['COOLING_AQUA_SENSOR_EXECUTION']?.value ?? state.system.aquaSensor,
+      activePumps: data['TOTAL_ACTIVE_MOTORS']?.value ?? state.system.activePumps,
     };
+    
+    console.log('✅ Motors Updated:', {
+      motor1: motors[1],
+      motor2: motors[2],
+      motor3: motors[3]
+    });
     
     return {
       motors,
@@ -270,6 +288,38 @@ export const useOpcStore = create<OpcStore>((set) => ({
     }
   },
   
+  fetchLeakageOnly: async () => {
+    try {
+      const response = await opcApiService.getLeakageVariables();
+      if (response.success) {
+        set((state) => {
+          const motors: Record<number, MotorData> = { ...state.motors };
+          const data = response.variables;
+          
+          // Update only leakage values for all motors
+          for (let i = 1; i <= 7; i++) {
+            const leakValue = data[`MOTOR_${i}_PUMP_LEAK_EXECUTION`]?.value;
+            if (leakValue !== undefined) {
+              motors[i] = {
+                ...motors[i],
+                leak: leakValue
+              };
+            }
+          }
+          
+          return {
+            motors,
+            lastUpdate: new Date()
+          };
+        });
+      }
+    } catch (error) {
+      set((state) => ({ 
+        errors: [...state.errors, `Failed to fetch leakage data: ${error}`]
+      }));
+    }
+  },
+
   writeVariable: async (varName, value) => {
     try {
       const result = await opcApiService.writeVariable(varName, value);
