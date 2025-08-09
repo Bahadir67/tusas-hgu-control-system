@@ -194,13 +194,6 @@ export const PAGE_VARIABLE_SETS = {
     motors: [1, 2, 3, 4, 5, 6, 7] // All motors, all details
   },
   
-  'process-flow': {
-    name: 'Process Flow',
-    systemVariables: ['totalFlow', 'totalPressure', 'oilTemperature', 'tankLevel'],
-    motorVariables: ['status', 'enabled', 'flow', 'pressure', 'rpm'], // Flow visualization
-    motors: [1, 2, 3, 4, 5, 6] // Motor 7 separate, but still need status
-  },
-  
   logs: {
     name: 'Logs',
     systemVariables: ['totalFlow', 'totalPressure'],

@@ -5,7 +5,6 @@ import CompactMotorPanel from './components/CompactMotorPanel';
 import MotorDetailModal from './components/MotorDetailModal';
 import SystemOverviewPanel from './components/SystemOverviewPanel';
 import TankCoolingPanel from './components/TankCoolingPanel';
-import SystemFlowPanel from './components/SystemFlowPanel';
 import LogsPage from './components/LogsPage';
 import AlarmsPage from './components/AlarmsPage';
 // import SettingsModal from './components/SettingsModal';
@@ -33,21 +32,19 @@ function App() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   
   // Use store's currentPage directly
-  const currentPage = storeCurrentPage as 'main' | 'motors' | 'process-flow' | 'logs' | 'alarms' | 'stats';
+  const currentPage = storeCurrentPage as 'main' | 'motors' | 'logs' | 'alarms' | 'stats';
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft' && currentPage !== 'main') {
         if (currentPage === 'motors') navigateToPage('main');
-        if (currentPage === 'process-flow') navigateToPage('motors');
-        if (currentPage === 'logs') navigateToPage('process-flow');
+        if (currentPage === 'logs') navigateToPage('motors');
         if (currentPage === 'alarms') navigateToPage('logs');
         if (currentPage === 'stats') navigateToPage('alarms');
       } else if (e.key === 'ArrowRight' && currentPage !== 'stats') {
         if (currentPage === 'main') navigateToPage('motors');
-        if (currentPage === 'motors') navigateToPage('process-flow');
-        if (currentPage === 'process-flow') navigateToPage('logs');
+        if (currentPage === 'motors') navigateToPage('logs');
         if (currentPage === 'logs') navigateToPage('alarms');
         if (currentPage === 'alarms') navigateToPage('stats');
       }
@@ -102,7 +99,7 @@ function App() {
   }, [currentPage, fetchPageData, setConnection, clearErrors]);  // Re-fetch when page changes
 
   // Navigation functions with data fetching
-  const navigateToPage = (page: 'main' | 'motors' | 'process-flow' | 'logs' | 'alarms' | 'stats') => {
+  const navigateToPage = (page: 'main' | 'motors' | 'logs' | 'alarms' | 'stats') => {
     if (page === currentPage || isTransitioning) return;
     
     setIsTransitioning(true);
@@ -114,7 +111,7 @@ function App() {
     setStoreCurrentPage(page as any);
     
     // Fetch data for new page immediately
-    if (['main', 'motors', 'process-flow', 'logs', 'alarms', 'stats'].includes(page)) {
+    if (['main', 'motors', 'logs', 'alarms', 'stats'].includes(page)) {
       fetchPageData(page as any).catch(error => {
         console.error(`Failed to fetch data for page ${page}:`, error);
       });
@@ -155,15 +152,13 @@ function App() {
         if (deltaX > 0 && currentPage !== 'main') {
           // Swipe right - go to previous page
           if (currentPage === 'motors') navigateToPage('main');
-          if (currentPage === 'process-flow') navigateToPage('motors');
-          if (currentPage === 'logs') navigateToPage('process-flow');
+          if (currentPage === 'logs') navigateToPage('motors');
           if (currentPage === 'alarms') navigateToPage('logs');
           if (currentPage === 'stats') navigateToPage('alarms');
         } else if (deltaX < 0 && currentPage !== 'stats') {
           // Swipe left - go to next page
           if (currentPage === 'main') navigateToPage('motors');
-          if (currentPage === 'motors') navigateToPage('process-flow');
-          if (currentPage === 'process-flow') navigateToPage('logs');
+          if (currentPage === 'motors') navigateToPage('logs');
           if (currentPage === 'logs') navigateToPage('alarms');
           if (currentPage === 'alarms') navigateToPage('stats');
         }
@@ -238,11 +233,11 @@ function App() {
       case 'motors':
         return (
           <div className="motors-page-content">
-            {/* Ultra Compact Motor Grid - Motor 7 removed from main system */}
+            {/* Motor Grid - 4 üstte, 3 altta */}
             <div className="ultra-compact-motor-grid">
-              {/* Top row - Motors 1,2,3 */}
+              {/* Top row - Motors 1,2,3,4 */}
               <div className="motor-row-top">
-                {[1, 2, 3].map(id => (
+                {[1, 2, 3, 4].map(id => (
                   <div key={id} className="ultra-compact-motor-wrapper">
                     <CompactMotorPanel 
                       motorId={id} 
@@ -252,9 +247,9 @@ function App() {
                 ))}
               </div>
               
-              {/* Bottom row - Motors 4,5,6 */}
+              {/* Bottom row - Motors 5,6,7 */}
               <div className="motor-row-bottom">
-                {[4, 5, 6].map(id => (
+                {[5, 6, 7].map(id => (
                   <div key={id} className="ultra-compact-motor-wrapper">
                     <CompactMotorPanel 
                       motorId={id} 
@@ -262,17 +257,6 @@ function App() {
                     />
                   </div>
                 ))}
-              </div>
-              
-              {/* Separate Motor 7 - High Pressure System */}
-              <div className="motor-row-special">
-                <div className="ultra-compact-motor-wrapper special-motor">
-                  <CompactMotorPanel 
-                    motorId={7} 
-                    isSpecial={true}
-                    onClick={() => handleMotorClick(7)}
-                  />
-                </div>
               </div>
             </div>
 
@@ -296,8 +280,6 @@ function App() {
           </div>
         );
         
-      case 'process-flow':
-        return <SystemFlowPanel />;
         
       case 'logs':
         return <LogsPage />;
@@ -348,7 +330,7 @@ function App() {
         onToggle={() => setIsMenuOpen(!isMenuOpen)}
         onClose={() => setIsMenuOpen(false)}
         onNavigate={(page) => {
-          navigateToPage(page as 'main' | 'motors' | 'process-flow' | 'logs' | 'alarms' | 'stats');
+          navigateToPage(page as 'main' | 'motors' | 'logs' | 'alarms' | 'stats');
           setIsMenuOpen(false);
         }}
       />
@@ -360,7 +342,6 @@ function App() {
             <h1 className="main-title-modern">
               {currentPage === 'main' && 'TUSAŞ HGU Control'}
               {currentPage === 'motors' && 'TUSAŞ HGU Motors'}
-              {currentPage === 'process-flow' && 'TUSAŞ HGU Process Flow'}
               {currentPage === 'logs' && 'TUSAŞ HGU Logs'}
               {currentPage === 'alarms' && 'TUSAŞ HGU Alarms'}
               {currentPage === 'stats' && 'TUSAŞ HGU Stats'}
@@ -378,10 +359,6 @@ function App() {
           <div 
             className={`page-dot ${currentPage === 'motors' ? 'active' : ''}`}
             onClick={() => navigateToPage('motors')}
-          />
-          <div 
-            className={`page-dot ${currentPage === 'process-flow' ? 'active' : ''}`}
-            onClick={() => navigateToPage('process-flow')}
           />
           <div 
             className={`page-dot ${currentPage === 'logs' ? 'active' : ''}`}

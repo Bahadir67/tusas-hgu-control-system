@@ -4,15 +4,15 @@ import './CompactMotorPanel.css';
 
 interface CompactMotorPanelProps {
   motorId: number;
-  isSpecial?: boolean;
   onClick?: () => void;
 }
 
 const CompactMotorPanel: React.FC<CompactMotorPanelProps> = ({ 
   motorId, 
-  isSpecial = false, 
   onClick 
 }) => {
+  // Motor 7 yüksek basınç motoru - bağımsız çalışır
+  const isHighPressureMotor = motorId === 7;
   const motor = useOpcStore((state) => state.motors[motorId]);
   
   if (!motor) {
@@ -68,7 +68,7 @@ const CompactMotorPanel: React.FC<CompactMotorPanelProps> = ({
 
   return (
     <div 
-      className={`enhanced-motor-panel ${statusInfo.class} ${isSpecial ? 'special' : ''}`}
+      className={`enhanced-motor-panel ${statusInfo.class} ${isHighPressureMotor ? 'high-pressure' : ''}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -86,8 +86,8 @@ const CompactMotorPanel: React.FC<CompactMotorPanelProps> = ({
       <div className="enhanced-header">
         <div className="motor-title">
           <span className="motor-id">MOTOR {motorId}</span>
-          {isSpecial && <span className="special-badge">HIGH PRESSURE</span>}
-          <span className="power-rating">{isSpecial ? '90kW' : '75kW'}</span>
+          {isHighPressureMotor && <span className="high-pressure-badge">HIGH PRESSURE</span>}
+          <span className="power-rating">{isHighPressureMotor ? '90kW' : '75kW'}</span>
         </div>
         <div className="status-section">
           <div 

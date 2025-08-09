@@ -27,7 +27,6 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose
       items: [
         { id: 'main', label: 'Main Dashboard', icon: '🏠', action: () => onNavigate?.('main') },
         { id: 'motors', label: 'Motor Controls', icon: '⚙️', action: () => onNavigate?.('motors') },
-        { id: 'process-flow', label: 'Process Flow', icon: '🔄', action: () => onNavigate?.('process-flow') },
         { id: 'alarms', label: 'Alarms', icon: '🚨', action: () => onNavigate?.('alarms') },
         { id: 'logs', label: 'System Logs', icon: '📋', action: () => onNavigate?.('logs') },
         { id: 'stats', label: 'Statistics', icon: '📊', action: () => onNavigate?.('stats') }
