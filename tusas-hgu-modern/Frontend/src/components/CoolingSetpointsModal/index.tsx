@@ -15,21 +15,27 @@ const CoolingSetpointsModal: React.FC<CoolingSetpointsModalProps> = ({ onClose }
   const currentData = {
     tankTemperature: system.oilTemperature || 0,
     waterInOil: system.aquaSensor || 0,
-    waterTemperature: 35.2, // Will be added to system store when available
-    coolingFlowRate: 145.8, // Will be added to system store when available
-    coolingSystemStatus: 1, // Will be added to system store when available
-    pumpStatus: true // Will be added to system store when available
+    waterTemperature: system.waterTemperature || 0,
+    coolingFlowRate: system.coolingFlowRate || 0,
+    coolingSystemStatus: system.coolingSystemStatus || 0,
+    pumpStatus: system.coolingPumpStatus || false
   };
   
-  // Setpoint states
-  const [minTempSetpoint, setMinTempSetpoint] = useState('30.0');
-  const [maxTempSetpoint, setMaxTempSetpoint] = useState('60.0');
+  // Setpoint states - Initialize from store
+  const [minTempSetpoint, setMinTempSetpoint] = useState(system.minOilTempSetpoint?.toString() || '30.0');
+  const [maxTempSetpoint, setMaxTempSetpoint] = useState(system.maxOilTempSetpoint?.toString() || '60.0');
   const [isSaving, setIsSaving] = useState(false);
   
   // Fetch latest data when modal opens
   useEffect(() => {
     fetchPageData('main').catch(console.error);
   }, [fetchPageData]);
+  
+  // Update form values when system data changes
+  useEffect(() => {
+    setMinTempSetpoint(system.minOilTempSetpoint?.toString() || '30.0');
+    setMaxTempSetpoint(system.maxOilTempSetpoint?.toString() || '60.0');
+  }, [system.minOilTempSetpoint, system.maxOilTempSetpoint]);
 
   // Operating ranges for validation
   const tempRange = { min: 20, max: 80 };

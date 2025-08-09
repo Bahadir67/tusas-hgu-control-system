@@ -34,6 +34,12 @@ interface SystemData {
   pressureSetpoint: number;
   statusExecution: number;
   activePumps: number;
+  waterTemperature: number;
+  coolingFlowRate: number;
+  coolingSystemStatus: number;
+  coolingPumpStatus: boolean;
+  minOilTempSetpoint: number;
+  maxOilTempSetpoint: number;
 }
 
 // Store interface
@@ -106,6 +112,12 @@ export const useOpcStore = create<OpcStore>((set) => ({
     pressureSetpoint: 125.5,
     statusExecution: 1,
     activePumps: 3,
+    waterTemperature: 0,
+    coolingFlowRate: 0,
+    coolingSystemStatus: 0,
+    coolingPumpStatus: false,
+    minOilTempSetpoint: 30.0,
+    maxOilTempSetpoint: 60.0,
   },
   
   isConnected: false,
@@ -151,6 +163,12 @@ export const useOpcStore = create<OpcStore>((set) => ({
       tankLevel: data['COOLING_OIL_LEVEL_PERCENT_EXECUTION']?.value ?? state.system.tankLevel,
       aquaSensor: data['COOLING_AQUA_SENSOR_EXECUTION']?.value ?? state.system.aquaSensor,
       activePumps: data['TOTAL_ACTIVE_MOTORS']?.value ?? state.system.activePumps,
+      waterTemperature: data['COOLING_WATER_TEMPERATURE_EXECUTION']?.value ?? state.system.waterTemperature,
+      coolingFlowRate: data['COOLING_FLOW_RATE_EXECUTION']?.value ?? state.system.coolingFlowRate,
+      coolingSystemStatus: data['COOLING_SYSTEM_STATUS_EXECUTION']?.value ?? state.system.coolingSystemStatus,
+      coolingPumpStatus: data['COOLING_PUMP_STATUS_EXECUTION']?.value === 1 || state.system.coolingPumpStatus,
+      minOilTempSetpoint: data['COOLING_MIN_OIL_TEMP_SETPOINT']?.value ?? state.system.minOilTempSetpoint,
+      maxOilTempSetpoint: data['COOLING_MAX_OIL_TEMP_SETPOINT']?.value ?? state.system.maxOilTempSetpoint,
     };
     
     return {
@@ -208,6 +226,12 @@ export const useOpcStore = create<OpcStore>((set) => ({
       tankLevel: data['COOLING_OIL_LEVEL_PERCENT_EXECUTION']?.value ?? state.system.tankLevel,
       aquaSensor: data['COOLING_AQUA_SENSOR_EXECUTION']?.value ?? state.system.aquaSensor,
       activePumps: data['TOTAL_ACTIVE_MOTORS']?.value ?? state.system.activePumps,
+      waterTemperature: data['COOLING_WATER_TEMPERATURE_EXECUTION']?.value ?? state.system.waterTemperature,
+      coolingFlowRate: data['COOLING_FLOW_RATE_EXECUTION']?.value ?? state.system.coolingFlowRate,
+      coolingSystemStatus: data['COOLING_SYSTEM_STATUS_EXECUTION']?.value ?? state.system.coolingSystemStatus,
+      coolingPumpStatus: data['COOLING_PUMP_STATUS_EXECUTION']?.value === 1 || state.system.coolingPumpStatus,
+      minOilTempSetpoint: data['COOLING_MIN_OIL_TEMP_SETPOINT']?.value ?? state.system.minOilTempSetpoint,
+      maxOilTempSetpoint: data['COOLING_MAX_OIL_TEMP_SETPOINT']?.value ?? state.system.maxOilTempSetpoint,
     };
     
     console.log('✅ Motors Updated:', {

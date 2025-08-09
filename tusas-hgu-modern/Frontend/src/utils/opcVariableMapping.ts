@@ -162,6 +162,54 @@ export const SYSTEM_VARIABLES: OpcVariableDefinition[] = [
     dataType: 'REAL-Float',
     unit: '%',
     isMotorSpecific: false
+  },
+  {
+    frontendKey: 'waterTemperature',
+    displayName: 'Su sıcaklığı',
+    opcVariableName: 'COOLING_WATER_TEMPERATURE_EXECUTION',
+    dataType: 'REAL-Float',
+    unit: 'C',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'coolingFlowRate',
+    displayName: 'Soğutma debisi',
+    opcVariableName: 'COOLING_FLOW_RATE_EXECUTION',
+    dataType: 'REAL-Float',
+    unit: 'L/Min',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'coolingSystemStatus',
+    displayName: 'Soğutma sistemi durumu',
+    opcVariableName: 'COOLING_SYSTEM_STATUS_EXECUTION',
+    dataType: 'DINT-Int',
+    unit: '',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'coolingPumpStatus',
+    displayName: 'Soğutma pompası durumu',
+    opcVariableName: 'COOLING_PUMP_STATUS_EXECUTION',
+    dataType: 'Bool',
+    unit: '',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'minOilTempSetpoint',
+    displayName: 'Min yağ sıcaklığı setpoint',
+    opcVariableName: 'COOLING_MIN_OIL_TEMP_SETPOINT',
+    dataType: 'REAL-Float',
+    unit: 'C',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'maxOilTempSetpoint',
+    displayName: 'Max yağ sıcaklığı setpoint',
+    opcVariableName: 'COOLING_MAX_OIL_TEMP_SETPOINT',
+    dataType: 'REAL-Float',
+    unit: 'C',
+    isMotorSpecific: false
   }
 ];
 
@@ -182,7 +230,7 @@ export const MOTOR_COMMANDS: OpcVariableDefinition[] = [
 export const PAGE_VARIABLE_SETS = {
   main: {
     name: 'Main Dashboard',
-    systemVariables: ['totalFlow', 'totalPressure', 'oilTemperature', 'tankLevel', 'aquaSensor'],
+    systemVariables: ['totalFlow', 'totalPressure', 'oilTemperature', 'tankLevel', 'aquaSensor', 'waterTemperature', 'coolingFlowRate', 'coolingSystemStatus', 'coolingPumpStatus', 'minOilTempSetpoint', 'maxOilTempSetpoint'],
     motorVariables: ['status', 'enabled', 'pressure', 'flow', 'temperature'], // Basic overview
     motors: [1, 2, 3, 4, 5, 6, 7] // All motors
   },

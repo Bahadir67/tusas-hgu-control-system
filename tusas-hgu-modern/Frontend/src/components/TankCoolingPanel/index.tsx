@@ -17,13 +17,13 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
     tankLevel: system.tankLevel || 0, // From COOLING_OIL_LEVEL_PERCENT_EXECUTION
     tankTemperature: system.oilTemperature || 0, // From COOLING_OIL_TEMPERATURE_EXECUTION
     aquaSensor: system.aquaSensor || 0, // From COOLING_AQUA_SENSOR_EXECUTION
-    waterTemperature: 35.2, // COOLING_WATER_TEMPERATURE_EXECUTION (if available)
-    coolingSystemStatus: 1, // COOLING_SYSTEM_STATUS_EXECUTION (if available)
+    waterTemperature: system.waterTemperature || 0, // From COOLING_WATER_TEMPERATURE_EXECUTION
+    coolingSystemStatus: system.coolingSystemStatus || 0, // From COOLING_SYSTEM_STATUS_EXECUTION
     // Setpoints
-    maxOilTempSetpoint: 60.0, // COOLING_MAX_OIL_TEMP_SETPOINT
-    minOilTempSetpoint: 30.0, // COOLING_MIN_OIL_TEMP_SETPOINT
-    coolingFlowRate: 145.8, // Cooling flow rate (calculated or from system)
-    pumpStatus: true // Cooling pump status
+    maxOilTempSetpoint: system.maxOilTempSetpoint || 60.0, // From COOLING_MAX_OIL_TEMP_SETPOINT
+    minOilTempSetpoint: system.minOilTempSetpoint || 30.0, // From COOLING_MIN_OIL_TEMP_SETPOINT
+    coolingFlowRate: system.coolingFlowRate || 0, // From COOLING_FLOW_RATE_EXECUTION
+    pumpStatus: system.coolingPumpStatus || false // From COOLING_PUMP_STATUS_EXECUTION
   };
 
   const getCoolingStatusInfo = (status: number) => {
