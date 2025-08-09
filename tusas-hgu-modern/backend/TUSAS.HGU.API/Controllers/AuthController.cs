@@ -15,11 +15,13 @@ namespace TUSAS.HGU.API.Controllers
     {
         private readonly AuthService _authService;
         private readonly ILogger<AuthController> _logger;
+        private readonly ILogService _logService;
 
-        public AuthController(AuthService authService, ILogger<AuthController> logger)
+        public AuthController(AuthService authService, ILogger<AuthController> logger, ILogService logService)
         {
             _authService = authService;
             _logger = logger;
+            _logService = logService;
         }
 
         /// <summary>
@@ -55,12 +57,37 @@ namespace TUSAS.HGU.API.Controllers
                 if (result.Success)
                 {
                     _logger.LogInformation("✅ Login successful for user: {Username}", request.Username);
+                    
+                    // Log to database
+                    await _logService.LogAsync(
+                        username: request.Username,
+                        category: LogCategory.AUTH,
+                        action: "LOGIN",
+                        target: "System",
+                        result: LogResult.SUCCESS,
+                        ipAddress: GetClientIpAddress(),
+                        userAgent: GetUserAgent()
+                    );
+                    
                     return Ok(result);
                 }
                 else
                 {
                     _logger.LogWarning("❌ Login failed for user: {Username} - {Message}", 
                         request.Username, result.Message);
+                    
+                    // Log failed attempt to database
+                    await _logService.LogAsync(
+                        username: request.Username,
+                        category: LogCategory.AUTH,
+                        action: "LOGIN_FAILED",
+                        target: "System",
+                        result: LogResult.ERROR,
+                        errorMessage: result.Message,
+                        ipAddress: GetClientIpAddress(),
+                        userAgent: GetUserAgent()
+                    );
+                    
                     return Unauthorized(result);
                 }
             }
@@ -105,11 +132,35 @@ namespace TUSAS.HGU.API.Controllers
                 if (success)
                 {
                     _logger.LogInformation("✅ Logout successful for user: {Username}", username);
+                    
+                    // Log to database
+                    await _logService.LogAsync(
+                        username: username,
+                        category: LogCategory.AUTH,
+                        action: "LOGOUT",
+                        target: "System",
+                        result: LogResult.SUCCESS,
+                        ipAddress: GetClientIpAddress(),
+                        userAgent: GetUserAgent()
+                    );
+                    
                     return Ok(new { success = true, message = "Logout successful" });
                 }
                 else
                 {
                     _logger.LogWarning("❌ Logout failed for user: {Username}", username);
+                    
+                    // Log failed logout to database
+                    await _logService.LogAsync(
+                        username: username,
+                        category: LogCategory.AUTH,
+                        action: "LOGOUT_FAILED",
+                        target: "System",
+                        result: LogResult.ERROR,
+                        ipAddress: GetClientIpAddress(),
+                        userAgent: GetUserAgent()
+                    );
+                    
                     return BadRequest(new { success = false, message = "Logout failed" });
                 }
             }

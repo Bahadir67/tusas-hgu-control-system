@@ -1,117 +1,148 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { logService, SystemLog, LogFilter } from '../../services/logService';
 import './LogsPage.css';
 
-interface LogEntry {
-  id: number;
-  timestamp: string;
-  user: string;
-  action: string;
-  target: string;
-  value: string;
-  result: 'SUCCESS' | 'ERROR' | 'WARNING';
-}
-
 const LogsPage: React.FC = () => {
+  const [logs, setLogs] = useState<SystemLog[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [userFilter, setUserFilter] = useState('All');
-  const [actionFilter, setActionFilter] = useState('All');
+  const [categoryFilter, setCategoryFilter] = useState('All');
   const [resultFilter, setResultFilter] = useState('All');
   const [dateRange, setDateRange] = useState('Today');
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [selectedPassword, setSelectedPassword] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   const logsPerPage = 50;
 
-  // Mock log data
-  const mockLogs: LogEntry[] = [
-    { id: 1, timestamp: '2024-08-07 14:23:45', user: 'Operator1', action: 'CHANGE_SETPOINT', target: 'MOTOR_3_PRESSURE', value: '85', result: 'SUCCESS' },
-    { id: 2, timestamp: '2024-08-07 14:22:12', user: 'Remote', action: 'SYSTEM_ENABLE', target: 'MAIN_PUMP', value: '1', result: 'SUCCESS' },
-    { id: 3, timestamp: '2024-08-07 14:21:33', user: 'Supervisor', action: 'EMERGENCY_STOP', target: 'MOTOR_5', value: '0', result: 'SUCCESS' },
-    { id: 4, timestamp: '2024-08-07 14:20:15', user: 'Operator2', action: 'LEAK_TEST', target: 'MOTOR_2', value: '1', result: 'SUCCESS' },
-    { id: 5, timestamp: '2024-08-07 14:19:28', user: 'System', action: 'AUTO_STOP', target: 'MOTOR_5', value: 'High Temperature', result: 'WARNING' },
-    { id: 6, timestamp: '2024-08-07 14:18:45', user: 'Technician_01', action: 'FILTER_REPLACE', target: 'MOTOR_1_LINE_FILTER', value: 'Completed', result: 'SUCCESS' },
-    { id: 7, timestamp: '2024-08-07 14:17:22', user: 'Operator1', action: 'CALIBRATION', target: 'MOTOR_4_PRESSURE_SENSOR', value: '125.5', result: 'SUCCESS' },
-    { id: 8, timestamp: '2024-08-07 14:16:11', user: 'Remote', action: 'CHANGE_SETPOINT', target: 'MOTOR_6_FLOW', value: '78', result: 'SUCCESS' },
-    { id: 9, timestamp: '2024-08-07 14:15:33', user: 'System', action: 'ALARM_ACKNOWLEDGE', target: 'HIGH_PRESSURE_ALARM', value: 'Motor 3', result: 'SUCCESS' },
-    { id: 10, timestamp: '2024-08-07 14:14:45', user: 'Operator2', action: 'MOTOR_START', target: 'MOTOR_2', value: '1', result: 'SUCCESS' },
-    { id: 11, timestamp: '2024-08-07 14:13:12', user: 'Maintenance', action: 'SERVICE_COMPLETE', target: 'MOTOR_7', value: 'Routine Service', result: 'SUCCESS' },
-    { id: 12, timestamp: '2024-08-07 14:12:28', user: 'Operator1', action: 'RESET_FAULT', target: 'MOTOR_1', value: 'Overcurrent', result: 'SUCCESS' },
-    { id: 13, timestamp: '2024-08-07 14:11:45', user: 'System', action: 'CONNECTION_LOST', target: 'OPC_SERVER', value: 'Timeout', result: 'ERROR' },
-    { id: 14, timestamp: '2024-08-07 14:10:33', user: 'Remote', action: 'SYSTEM_SHUTDOWN', target: 'ALL_MOTORS', value: 'Scheduled', result: 'SUCCESS' },
-    { id: 15, timestamp: '2024-08-07 14:09:22', user: 'Operator2', action: 'TANK_REFILL', target: 'MAIN_TANK', value: '95%', result: 'SUCCESS' },
-    // Add more mock data...
-    { id: 16, timestamp: '2024-08-07 13:58:45', user: 'Operator1', action: 'CHANGE_SETPOINT', target: 'MOTOR_1_PRESSURE', value: '120', result: 'SUCCESS' },
-    { id: 17, timestamp: '2024-08-07 13:57:12', user: 'System', action: 'AUTO_START', target: 'MOTOR_6', value: 'Schedule', result: 'SUCCESS' },
-    { id: 18, timestamp: '2024-08-07 13:56:33', user: 'Technician_02', action: 'SENSOR_CHECK', target: 'MOTOR_3_TEMPERATURE', value: '58.5°C', result: 'SUCCESS' },
-    { id: 19, timestamp: '2024-08-07 13:55:28', user: 'Operator2', action: 'VALVE_OPEN', target: 'MOTOR_4_MAIN_VALVE', value: '1', result: 'SUCCESS' },
-    { id: 20, timestamp: '2024-08-07 13:54:45', user: 'Remote', action: 'PRESSURE_CHECK', target: 'SYSTEM_TOTAL', value: '125.8 bar', result: 'SUCCESS' },
-  ];
+  // Get filter dates based on selected range
+  const getDateFilter = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (dateRange) {
+      case 'Today':
+        return { 
+          startDate: today.toISOString(),
+          endDate: new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString()
+        };
+      case 'Yesterday':
+        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+        return { 
+          startDate: yesterday.toISOString(),
+          endDate: today.toISOString()
+        };
+      case 'This Week':
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        return { 
+          startDate: weekStart.toISOString(),
+          endDate: new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString()
+        };
+      case 'This Month':
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        return { 
+          startDate: monthStart.toISOString(),
+          endDate: new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString()
+        };
+      default:
+        return {};
+    }
+  };
 
-  // Get unique values for filters
-  const uniqueUsers = ['All', ...Array.from(new Set(mockLogs.map(log => log.user)))];
-  const uniqueActions = ['All', ...Array.from(new Set(mockLogs.map(log => log.action)))];
-  const uniqueResults = ['All', ...Array.from(new Set(mockLogs.map(log => log.result)))];
+  // Fetch logs from API
+  useEffect(() => {
+    const fetchLogs = async () => {
+      setLoading(true);
+      try {
+        const dateFilter = getDateFilter();
+        const filter: LogFilter = {
+          ...dateFilter,
+          category: categoryFilter !== 'All' ? categoryFilter : undefined,
+          result: resultFilter !== 'All' ? resultFilter : undefined,
+          searchTerm: searchTerm || undefined,
+          page: currentPage,
+          pageSize: logsPerPage
+        };
 
-  // Filter and search logs
-  const filteredLogs = useMemo(() => {
-    return mockLogs.filter(log => {
-      const matchesSearch = searchTerm === '' || 
-        log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.target.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.value.toLowerCase().includes(searchTerm.toLowerCase());
+        const [logsData, count] = await Promise.all([
+          logService.getLogs(filter),
+          logService.getLogCount(filter)
+        ]);
 
-      const matchesUser = userFilter === 'All' || log.user === userFilter;
-      const matchesAction = actionFilter === 'All' || log.action === actionFilter;
-      const matchesResult = resultFilter === 'All' || log.result === resultFilter;
+        setLogs(logsData);
+        setTotalCount(count);
+      } catch (error) {
+        console.error('Error fetching logs:', error);
+        // Fallback to empty array if API fails
+        setLogs([]);
+        setTotalCount(0);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      // Date range filter (simplified for demo)
-      const matchesDate = true; // In real implementation, filter by actual date
+    fetchLogs();
+    
+    // Auto-refresh every 10 seconds
+    const interval = setInterval(fetchLogs, 10000);
+    return () => clearInterval(interval);
+  }, [categoryFilter, resultFilter, dateRange, searchTerm, currentPage, refreshTrigger]);
 
-      return matchesSearch && matchesUser && matchesAction && matchesResult && matchesDate;
-    });
-  }, [mockLogs, searchTerm, userFilter, actionFilter, resultFilter, dateRange]);
+  // Get unique categories and results
+  const categories = ['All', ...logService.getCategories()];
+  const results = ['All', ...logService.getResultTypes()];
 
-  // Pagination
-  const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
-  const paginatedLogs = filteredLogs.slice(
-    (currentPage - 1) * logsPerPage,
-    currentPage * logsPerPage
-  );
+  // Calculate pagination
+  const totalPages = Math.ceil(totalCount / logsPerPage);
 
   // Export to CSV
-  const handleExportCSV = () => {
-    const headers = ['Timestamp', 'User', 'Action', 'Target', 'Value', 'Result'];
-    const csvContent = [
-      headers.join(','),
-      ...filteredLogs.map(log => [
-        log.timestamp,
-        log.user,
-        log.action,
-        log.target,
-        log.value,
-        log.result
-      ].join(','))
-    ].join('\n');
+  const handleExportCSV = async () => {
+    try {
+      const dateFilter = getDateFilter();
+      const filter: LogFilter = {
+        ...dateFilter,
+        category: categoryFilter !== 'All' ? categoryFilter : undefined,
+        result: resultFilter !== 'All' ? resultFilter : undefined,
+        searchTerm: searchTerm || undefined
+      };
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `system_logs_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const blob = await logService.exportLogs(filter);
+      if (blob) {
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `system_logs_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Error exporting logs:', error);
+      alert('Failed to export logs');
+    }
   };
 
   // Delete logs
-  const handleDeleteLogs = () => {
+  const handleDeleteLogs = async () => {
     if (selectedPassword === 'admin123') {
-      console.log('Deleting logs...');
-      setShowDeleteModal(false);
-      setSelectedPassword('');
-      // In real implementation, call API to delete logs
+      try {
+        const success = await logService.deleteLogs();
+        if (success) {
+          console.log('Logs deleted successfully');
+          setShowDeleteModal(false);
+          setSelectedPassword('');
+          setRefreshTrigger(prev => prev + 1); // Trigger refresh
+        } else {
+          alert('Failed to delete logs');
+        }
+      } catch (error) {
+        console.error('Error deleting logs:', error);
+        alert('Error deleting logs');
+      }
     } else {
       alert('Incorrect password!');
     }
@@ -122,6 +153,7 @@ const LogsPage: React.FC = () => {
       case 'SUCCESS': return '✅';
       case 'ERROR': return '❌';
       case 'WARNING': return '⚠️';
+      case 'INFO': return 'ℹ️';
       default: return '❓';
     }
   };
@@ -131,7 +163,25 @@ const LogsPage: React.FC = () => {
       case 'SUCCESS': return 'result-success';
       case 'ERROR': return 'result-error';
       case 'WARNING': return 'result-warning';
+      case 'INFO': return 'result-info';
       default: return 'result-unknown';
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'AUTH': return '🔐';
+      case 'USER_MGMT': return '👤';
+      case 'CALIBRATION': return '⚖️';
+      case 'SYSTEM': return '⚙️';
+      case 'MAINTENANCE': return '🔧';
+      case 'ALARM': return '🚨';
+      case 'CONFIG': return '⚙️';
+      case 'AUDIT': return '📋';
+      case 'OPC': return '🔌';
+      case 'BACKUP': return '💾';
+      case 'SECURITY': return '🛡️';
+      default: return '📄';
     }
   };
 
@@ -142,17 +192,22 @@ const LogsPage: React.FC = () => {
           <span className="title-icon">📋</span>
           <h2>System Logs</h2>
           <div className="logs-count">
-            Showing {paginatedLogs.length} of {filteredLogs.length} logs
+            {loading ? (
+              <span>Loading...</span>
+            ) : (
+              <span>Showing {logs.length} of {totalCount} logs</span>
+            )}
           </div>
         </div>
 
         <div className="logs-actions">
-          <button className="export-btn" onClick={handleExportCSV}>
+          <button className="export-btn" onClick={handleExportCSV} disabled={loading}>
             📁 Export CSV
           </button>
           <button 
             className="delete-btn" 
             onClick={() => setShowDeleteModal(true)}
+            disabled={loading}
           >
             🗑️ Delete Logs
           </button>
@@ -166,7 +221,10 @@ const LogsPage: React.FC = () => {
             type="text"
             placeholder="Search logs... (user, action, target, value)"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             className="search-input"
           />
           <span className="search-icon">🔍</span>
@@ -177,39 +235,31 @@ const LogsPage: React.FC = () => {
             <label>Date Range</label>
             <select 
               value={dateRange} 
-              onChange={(e) => setDateRange(e.target.value)}
+              onChange={(e) => {
+                setDateRange(e.target.value);
+                setCurrentPage(1);
+              }}
               className="filter-select"
             >
               <option value="Today">Today</option>
               <option value="Yesterday">Yesterday</option>
               <option value="This Week">This Week</option>
               <option value="This Month">This Month</option>
-              <option value="Custom">Custom Range</option>
             </select>
           </div>
 
           <div className="filter-group">
-            <label>User</label>
+            <label>Category</label>
             <select 
-              value={userFilter} 
-              onChange={(e) => setUserFilter(e.target.value)}
+              value={categoryFilter} 
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="filter-select"
             >
-              {uniqueUsers.map(user => (
-                <option key={user} value={user}>{user}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <label>Action Type</label>
-            <select 
-              value={actionFilter} 
-              onChange={(e) => setActionFilter(e.target.value)}
-              className="filter-select"
-            >
-              {uniqueActions.map(action => (
-                <option key={action} value={action}>{action}</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
           </div>
@@ -218,10 +268,13 @@ const LogsPage: React.FC = () => {
             <label>Result</label>
             <select 
               value={resultFilter} 
-              onChange={(e) => setResultFilter(e.target.value)}
+              onChange={(e) => {
+                setResultFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="filter-select"
             >
-              {uniqueResults.map(result => (
+              {results.map(result => (
                 <option key={result} value={result}>{result}</option>
               ))}
             </select>
@@ -231,8 +284,7 @@ const LogsPage: React.FC = () => {
             className="clear-filters-btn"
             onClick={() => {
               setSearchTerm('');
-              setUserFilter('All');
-              setActionFilter('All');
+              setCategoryFilter('All');
               setResultFilter('All');
               setDateRange('Today');
               setCurrentPage(1);
@@ -240,43 +292,68 @@ const LogsPage: React.FC = () => {
           >
             🔄 Clear Filters
           </button>
+
+          <button 
+            className="refresh-btn"
+            onClick={() => setRefreshTrigger(prev => prev + 1)}
+            disabled={loading}
+          >
+            🔄 Refresh
+          </button>
         </div>
       </div>
 
       {/* Logs Table */}
       <div className="logs-table-container">
-        <table className="logs-table">
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>User</th>
-              <th>Action</th>
-              <th>Target</th>
-              <th>Value</th>
-              <th>Result</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedLogs.map(log => (
-              <tr key={log.id} className={`log-row ${getResultClass(log.result)}`}>
-                <td className="timestamp">{log.timestamp}</td>
-                <td className="user">
-                  <span className="user-badge">{log.user}</span>
-                </td>
-                <td className="action">{log.action}</td>
-                <td className="target">{log.target}</td>
-                <td className="value">{log.value}</td>
-                <td className="result">
-                  <span className={`result-badge ${getResultClass(log.result)}`}>
-                    {getResultIcon(log.result)} {log.result}
-                  </span>
-                </td>
+        {loading ? (
+          <div className="loading-container">
+            <div className="loading-spinner">⏳</div>
+            <div>Loading logs...</div>
+          </div>
+        ) : (
+          <table className="logs-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>User</th>
+                <th>Category</th>
+                <th>Action</th>
+                <th>Target</th>
+                <th>Old Value</th>
+                <th>New Value</th>
+                <th>Result</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {logs.map(log => (
+                <tr key={log.id} className={`log-row ${getResultClass(log.result)}`}>
+                  <td className="timestamp">
+                    {new Date(log.timestamp).toLocaleString('tr-TR')}
+                  </td>
+                  <td className="user">
+                    <span className="user-badge">{log.username}</span>
+                  </td>
+                  <td className="category">
+                    <span className="category-badge">
+                      {getCategoryIcon(log.category)} {log.category}
+                    </span>
+                  </td>
+                  <td className="action">{log.action}</td>
+                  <td className="target">{log.target || '-'}</td>
+                  <td className="old-value">{log.oldValue || '-'}</td>
+                  <td className="new-value">{log.newValue || '-'}</td>
+                  <td className="result">
+                    <span className={`result-badge ${getResultClass(log.result)}`}>
+                      {getResultIcon(log.result)} {log.result}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
 
-        {paginatedLogs.length === 0 && (
+        {!loading && logs.length === 0 && (
           <div className="no-logs">
             <span className="no-logs-icon">📋</span>
             <span className="no-logs-text">No logs found matching current filters</span>
@@ -285,7 +362,7 @@ const LogsPage: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {!loading && totalPages > 1 && (
         <div className="pagination">
           <button 
             className="pagination-btn"
@@ -301,7 +378,11 @@ const LogsPage: React.FC = () => {
           
           <div className="pagination-pages">
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              const pageNum = Math.max(1, Math.min(totalPages, currentPage - 2 + i));
+              let pageNum = currentPage - 2 + i;
+              if (pageNum < 1) pageNum = 1 + i;
+              if (pageNum > totalPages) pageNum = totalPages - (4 - i);
+              if (pageNum < 1 || pageNum > totalPages) return null;
+              
               return (
                 <button
                   key={pageNum}
@@ -311,7 +392,7 @@ const LogsPage: React.FC = () => {
                   {pageNum}
                 </button>
               );
-            })}
+            }).filter(Boolean)}
           </div>
           
           <button 

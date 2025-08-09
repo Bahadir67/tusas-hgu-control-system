@@ -28,6 +28,10 @@ var authSettings = new AuthSettings
 builder.Services.AddSingleton(authSettings);
 builder.Services.AddSingleton<AuthService>();
 
+// Register LogService
+var connectionString = $"Data Source={authSettings.DatabasePath}";
+builder.Services.AddSingleton<ILogService>(provider => new LogService(connectionString));
+
 // JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

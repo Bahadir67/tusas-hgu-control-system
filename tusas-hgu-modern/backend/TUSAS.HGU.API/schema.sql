@@ -45,6 +45,26 @@ CREATE TABLE IF NOT EXISTS AuthAuditLog (
     FOREIGN KEY (UserId) REFERENCES Users (Id) ON DELETE SET NULL
 );
 
+-- System logs for all operations
+CREATE TABLE IF NOT EXISTS SystemLogs (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UserId INTEGER,
+    Username TEXT NOT NULL,
+    Category TEXT NOT NULL, -- AUTH, USER_MGMT, CALIBRATION, SYSTEM, MAINTENANCE, ALARM, CONFIG, AUDIT
+    Action TEXT NOT NULL, -- Specific action taken
+    Target TEXT, -- What was affected (e.g., "MOTOR_3", "USER_john", "PRESSURE_SENSOR_1")
+    OldValue TEXT, -- Previous value (for changes)
+    NewValue TEXT, -- New value (for changes)
+    Result TEXT NOT NULL DEFAULT 'SUCCESS', -- SUCCESS, ERROR, WARNING, INFO
+    ErrorMessage TEXT, -- Error details if Result is ERROR
+    IpAddress TEXT,
+    UserAgent TEXT,
+    Duration INTEGER, -- Operation duration in milliseconds
+    Details TEXT, -- JSON string for additional structured data
+    FOREIGN KEY (UserId) REFERENCES Users (Id) ON DELETE SET NULL
+);
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_username ON Users (Username);
 CREATE INDEX IF NOT EXISTS idx_users_active ON Users (IsActive);
@@ -54,6 +74,11 @@ CREATE INDEX IF NOT EXISTS idx_sessions_active ON Sessions (IsActive);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON Sessions (ExpiresAt);
 CREATE INDEX IF NOT EXISTS idx_audit_username ON AuthAuditLog (Username);
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON AuthAuditLog (Timestamp);
+CREATE INDEX IF NOT EXISTS idx_syslogs_timestamp ON SystemLogs (Timestamp);
+CREATE INDEX IF NOT EXISTS idx_syslogs_username ON SystemLogs (Username);
+CREATE INDEX IF NOT EXISTS idx_syslogs_category ON SystemLogs (Category);
+CREATE INDEX IF NOT EXISTS idx_syslogs_action ON SystemLogs (Action);
+CREATE INDEX IF NOT EXISTS idx_syslogs_result ON SystemLogs (Result);
 
 -- Insert default users with hashed passwords
 -- admin/admin123 and developer/dev123
