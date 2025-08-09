@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOpcStore } from '../../store/opcStore';
 import { opcApi } from '../../services/api';
 import './SystemSetpointsModal.css';
@@ -9,9 +9,21 @@ interface SystemSetpointsModalProps {
 
 const SystemSetpointsModal: React.FC<SystemSetpointsModalProps> = ({ onClose }) => {
   const system = useOpcStore((state) => state.system);
+  const fetchPageData = useOpcStore((state) => state.fetchPageData);
   const [flowSetpoint, setFlowSetpoint] = useState(system?.totalFlowSetpoint?.toString() || '450.0');
   const [pressureSetpoint, setPressureSetpoint] = useState(system?.pressureSetpoint?.toString() || '125.0');
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Fetch latest data when modal opens
+  useEffect(() => {
+    fetchPageData('main').catch(console.error);
+  }, [fetchPageData]);
+  
+  // Update form values when system data changes
+  useEffect(() => {
+    setFlowSetpoint(system?.totalFlowSetpoint?.toString() || '450.0');
+    setPressureSetpoint(system?.pressureSetpoint?.toString() || '125.0');
+  }, [system?.totalFlowSetpoint, system?.pressureSetpoint]);
 
   // Operating ranges for validation
   const flowRange = { min: 100, max: 600 };

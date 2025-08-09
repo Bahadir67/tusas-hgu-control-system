@@ -81,6 +81,17 @@ investigate_*.cs
 # System folder (existing PLC project files)
 System/
 
+# Rust/Tauri build artifacts
+**/target/
+**/.tauri/
+**/src-tauri/target/
+**/src-tauri/WixTools/
+
+# C++ build artifacts
+**/out/
+**/build/
+**/cmake-build-*/
+
 # Runtime generated files
 *.cache
 *.dll
@@ -88,3 +99,15 @@ System/
 *.pdb
 *.deps.json
 *.runtimeconfig.json
+*.stackdump
+
+# Backup files
+*.backup
+*.backup-*
+*.broken
+*.old
+
+# Installers
+rustup-init.exe
+*.msi
+*.exe.config

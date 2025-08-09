@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOpcStore } from '../../store/opcStore';
 import { opcApi } from '../../services/api';
 import './CoolingSetpointsModal.css';
@@ -9,21 +9,27 @@ interface CoolingSetpointsModalProps {
 
 const CoolingSetpointsModal: React.FC<CoolingSetpointsModalProps> = ({ onClose }) => {
   const system = useOpcStore((state) => state.system);
+  const fetchPageData = useOpcStore((state) => state.fetchPageData);
   
-  // Mock current data - replace with actual OPC data
+  // Use actual OPC data from store
   const currentData = {
-    tankTemperature: 42.3,
-    waterInOil: 0.08,
-    waterTemperature: 35.2,
-    coolingFlowRate: 145.8,
-    coolingSystemStatus: 1,
-    pumpStatus: true
+    tankTemperature: system.oilTemperature || 0,
+    waterInOil: system.aquaSensor || 0,
+    waterTemperature: 35.2, // Will be added to system store when available
+    coolingFlowRate: 145.8, // Will be added to system store when available
+    coolingSystemStatus: 1, // Will be added to system store when available
+    pumpStatus: true // Will be added to system store when available
   };
   
   // Setpoint states
   const [minTempSetpoint, setMinTempSetpoint] = useState('30.0');
   const [maxTempSetpoint, setMaxTempSetpoint] = useState('60.0');
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Fetch latest data when modal opens
+  useEffect(() => {
+    fetchPageData('main').catch(console.error);
+  }, [fetchPageData]);
 
   // Operating ranges for validation
   const tempRange = { min: 20, max: 80 };

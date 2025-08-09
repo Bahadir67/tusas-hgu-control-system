@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
-// import { useOpcStore } from '../../store/opcStore';
+import { useOpcStore } from '../../store/opcStore';
 import CoolingSetpointsModal from '../CoolingSetpointsModal';
 import './TankCoolingPanel.css';
 
@@ -9,20 +9,20 @@ interface TankCoolingPanelProps {
 }
 
 const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
-  // const system = useOpcStore((state) => state.system);
+  const system = useOpcStore((state) => state.system);
   const [showCoolingModal, setShowCoolingModal] = useState(false);
   
-  // Mock tank & cooling data - replace with actual OPC data
+  // Use actual OPC data from store
   const tankCoolingData = {
-    tankLevel: 78.5, // SYSTEM_TANK_LEVEL_EXECUTION (%)
-    tankTemperature: 42.3, // SYSTEM_TANK_TEMPERATURE_EXECUTION (°C)
-    aquaSensor: 0.08, // COOLING_AQUA_SENSOR_EXECUTION (water in oil %)
-    waterTemperature: 35.2, // COOLING_WATER_TEMPERATURE_EXECUTION (°C)
-    coolingSystemStatus: 1, // COOLING_SYSTEM_STATUS_EXECUTION (0=Off, 1=Normal, 2=Warning, 3=Error)
+    tankLevel: system.tankLevel || 0, // From COOLING_OIL_LEVEL_PERCENT_EXECUTION
+    tankTemperature: system.oilTemperature || 0, // From COOLING_OIL_TEMPERATURE_EXECUTION
+    aquaSensor: system.aquaSensor || 0, // From COOLING_AQUA_SENSOR_EXECUTION
+    waterTemperature: 35.2, // COOLING_WATER_TEMPERATURE_EXECUTION (if available)
+    coolingSystemStatus: 1, // COOLING_SYSTEM_STATUS_EXECUTION (if available)
     // Setpoints
     maxOilTempSetpoint: 60.0, // COOLING_MAX_OIL_TEMP_SETPOINT
     minOilTempSetpoint: 30.0, // COOLING_MIN_OIL_TEMP_SETPOINT
-    coolingFlowRate: 145.8, // Cooling flow rate
+    coolingFlowRate: 145.8, // Cooling flow rate (calculated or from system)
     pumpStatus: true // Cooling pump status
   };
 

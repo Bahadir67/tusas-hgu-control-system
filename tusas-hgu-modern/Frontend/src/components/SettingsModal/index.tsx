@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOpcStore } from '../../store/opcStore';
 import { opcApi } from '../../services/api';
 
@@ -9,10 +9,23 @@ interface SettingsModalProps {
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ motorId, onClose }) => {
   const motor = useOpcStore((state) => state.motors[motorId]);
+  const fetchPageData = useOpcStore((state) => state.fetchPageData);
   const [pressureSetpoint, setPressureSetpoint] = useState(motor.pressureSetpoint.toString());
   const [flowSetpoint, setFlowSetpoint] = useState(motor.flowSetpoint.toString());
   const [targetRpm, setTargetRpm] = useState(motor.targetRpm.toString());
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Fetch latest data when modal opens
+  useEffect(() => {
+    fetchPageData('motors').catch(console.error);
+  }, [fetchPageData]);
+  
+  // Update form values when motor data changes
+  useEffect(() => {
+    setPressureSetpoint(motor.pressureSetpoint.toString());
+    setFlowSetpoint(motor.flowSetpoint.toString());
+    setTargetRpm(motor.targetRpm.toString());
+  }, [motor.pressureSetpoint, motor.flowSetpoint, motor.targetRpm]);
 
   const handleSave = async () => {
     setIsSaving(true);

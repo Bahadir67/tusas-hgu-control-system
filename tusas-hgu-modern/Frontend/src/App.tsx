@@ -9,7 +9,6 @@ import SystemOverviewPanel from './components/SystemOverviewPanel';
 import TankCoolingPanel from './components/TankCoolingPanel';
 import LogsPage from './components/LogsPage';
 import AlarmsPage from './components/AlarmsPage';
-// import SettingsModal from './components/SettingsModal';
 import './styles/industrial-theme.css';
 import './styles/modern-layout.css';
 
