@@ -1,10 +1,51 @@
 using TUSAS.HGU.Core.Services;
+using TUSAS.HGU.Core.Models;
+using TUSAS.HGU.API.Middleware;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+
+// Authentication Configuration
+var authSettings = new AuthSettings
+{
+    JwtSecret = builder.Configuration["Auth:JwtSecret"] ?? "TUSAS_HGU_SuperSecretKey_2024_ForDevelopmentOnly_ChangeInProduction!",
+    JwtIssuer = builder.Configuration["Auth:JwtIssuer"] ?? "TUSAS.HGU.API",
+    JwtAudience = builder.Configuration["Auth:JwtAudience"] ?? "TUSAS.HGU.Client",
+    TokenExpirationMinutes = builder.Configuration.GetValue<int>("Auth:TokenExpirationMinutes", 480), // 8 hours
+    DatabasePath = builder.Configuration["Auth:DatabasePath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "tusas_hgu_auth.db"),
+    RequireHttps = builder.Configuration.GetValue<bool>("Auth:RequireHttps", false),
+    MaxConcurrentSessions = builder.Configuration.GetValue<int>("Auth:MaxConcurrentSessions", 5),
+    EnableAuditLog = builder.Configuration.GetValue<bool>("Auth:EnableAuditLog", true)
+};
+
+// Register authentication services
+builder.Services.AddSingleton(authSettings);
+builder.Services.AddSingleton<AuthService>();
+
+// JWT Authentication
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authSettings.JwtSecret)),
+            ValidateIssuer = true,
+            ValidIssuer = authSettings.JwtIssuer,
+            ValidateAudience = true,
+            ValidAudience = authSettings.JwtAudience,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 // Configure CORS for frontend access
 builder.Services.AddCors(options =>
@@ -78,6 +119,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowTauriApp");
+
+// Authentication middleware - MUST be before UseAuthorization
+app.UseAuthentication();
+app.UseMiddleware<AuthenticationMiddleware>(); // Custom JWT middleware for all OPC endpoints
+app.UseAuthorization();
+
 app.UseHttpsRedirection();
 app.MapControllers();
 

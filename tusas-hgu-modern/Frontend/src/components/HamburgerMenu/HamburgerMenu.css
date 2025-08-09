@@ -394,6 +394,136 @@
   text-align: left;
 }
 
+/*/* Logout Section */
+.menu-logout-section {
+  padding: 16px 24px;
+  background: linear-gradient(135deg,
+    rgba(20, 10, 10, 0.9),
+    rgba(30, 15, 15, 0.85));
+  border-top: 1px solid rgba(255, 50, 50, 0.2);
+}
+
+.logout-divider {
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255, 50, 50, 0.3),
+    rgba(255, 100, 100, 0.2),
+    transparent);
+  margin-bottom: 16px;
+}
+
+.menu-logout-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg,
+    rgba(80, 20, 20, 0.8),
+    rgba(60, 15, 15, 0.7));
+  border: 1px solid rgba(255, 50, 50, 0.3);
+  border-radius: 8px;
+  color: rgba(255, 150, 150, 0.9);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.menu-logout-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255, 0, 0, 0.2),
+    transparent);
+  transition: left 0.5s ease;
+}
+
+.menu-logout-button:hover {
+  background: linear-gradient(135deg,
+    rgba(120, 30, 30, 0.9),
+    rgba(100, 20, 20, 0.8));
+  border-color: rgba(255, 100, 100, 0.5);
+  color: rgba(255, 200, 200, 1);
+  transform: translateY(-1px);
+  box-shadow: 
+    0 4px 16px rgba(255, 0, 0, 0.2),
+    inset 0 0 20px rgba(255, 0, 0, 0.1);
+}
+
+.menu-logout-button:hover::before {
+  left: 100%;
+}
+
+.menu-logout-button:active {
+  transform: translateY(0);
+}
+
+.logout-icon {
+  font-size: 18px;
+  filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.5));
+}
+
+.logout-text {
+  flex: 1;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.logout-warning {
+  font-size: 16px;
+  animation: warningPulse 2s ease-in-out infinite;
+}
+
+@keyframes warningPulse {
+  0%, 100% { 
+    opacity: 0.7; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 1; 
+    transform: scale(1.2);
+  }
+}
+
+.current-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  margin-top: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  font-size: 13px;
+  color: rgba(168, 178, 192, 0.8);
+}
+
+.user-icon {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.user-name {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.user-role {
+  font-size: 11px;
+  color: rgba(168, 178, 192, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* Menu Footer */
 .menu-footer {
   padding: 16px 24px;

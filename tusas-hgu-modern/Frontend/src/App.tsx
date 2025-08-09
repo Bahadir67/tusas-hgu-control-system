@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useOpcStore } from './store/opcStore';
+import { useAuth } from './contexts/AuthContext';
+import { opcApiService } from './services/opcApiService';
 import HamburgerMenu from './components/HamburgerMenu';
 import CompactMotorPanel from './components/CompactMotorPanel';
 import MotorDetailModal from './components/MotorDetailModal';
@@ -12,6 +14,7 @@ import './styles/industrial-theme.css';
 import './styles/modern-layout.css';
 
 function App() {
+  const { token } = useAuth();
   const { 
     system, 
     isConnected, 
@@ -33,6 +36,14 @@ function App() {
   
   // Use store's currentPage directly
   const currentPage = storeCurrentPage as 'main' | 'motors' | 'logs' | 'alarms' | 'stats';
+
+  // Set auth token when it changes
+  useEffect(() => {
+    if (token) {
+      opcApiService.setAuthToken(token);
+      console.log('✅ Auth token set for OPC API service');
+    }
+  }, [token]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -59,8 +70,10 @@ function App() {
     // Initial connection check and data fetch
     const initializeData = async () => {
       try {
-        // Check OPC connection
-        const connectionCheck = await fetch('http://localhost:5000/api/opc/status');
+        // Check OPC connection with auth token
+        const connectionCheck = await fetch('http://localhost:5000/api/opc/status', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
         setConnection(connectionCheck.ok);
         
         // Fetch initial data for current page
@@ -74,7 +87,10 @@ function App() {
       }
     };
 
-    initializeData();
+    // Only initialize if we have a token
+    if (token) {
+      initializeData();
+    }
 
     // Set up periodic data updates (every 2 seconds for page-specific data)
     const interval = setInterval(async () => {
@@ -96,7 +112,7 @@ function App() {
     }, 2000); // 2 second intervals for better performance
 
     return () => clearInterval(interval);
-  }, [currentPage, fetchPageData, setConnection, clearErrors]);  // Re-fetch when page changes
+  }, [currentPage, fetchPageData, setConnection, clearErrors, token]);  // Re-fetch when page changes or token updates
 
   // Navigation functions with data fetching
   const navigateToPage = (page: 'main' | 'motors' | 'logs' | 'alarms' | 'stats') => {

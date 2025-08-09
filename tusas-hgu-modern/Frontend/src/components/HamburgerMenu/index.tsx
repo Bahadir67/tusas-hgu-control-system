@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import LogoutModal from '../LogoutModal';
 import './HamburgerMenu.css';
 
 interface HamburgerMenuProps {
@@ -18,6 +20,38 @@ interface MenuItem {
 
 const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose, onNavigate }) => {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [logoutStage, setLogoutStage] = useState<'initial' | 'final'>('initial');
+  const { logout, user } = useAuth();
+
+  // Handle logout with safety warning modal
+  const handleLogout = () => {
+    setLogoutStage('initial');
+    setShowLogoutModal(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    if (logoutStage === 'initial') {
+      // Move to final warning
+      setLogoutStage('final');
+    } else {
+      // Final confirmation - proceed with logout
+      console.log('⚠️ Stopping all hydraulic systems...');
+      console.log('🛑 System shutdown initiated...');
+      
+      // Simulate system shutdown delay
+      setTimeout(() => {
+        logout();
+        onClose();
+        setShowLogoutModal(false);
+      }, 2000);
+    }
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutModal(false);
+    setLogoutStage('initial');
+  };
 
   const menuItems: MenuItem[] = [
     {
@@ -201,6 +235,27 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose
           ))}
         </div>
 
+        {/* Logout Section - At the bottom */}
+        <div className="menu-logout-section">
+          <div className="logout-divider"></div>
+          <button
+            className="menu-logout-button"
+            onClick={handleLogout}
+            title="Logout from system"
+          >
+            <span className="logout-icon">🔴</span>
+            <span className="logout-text">System Logout</span>
+            <span className="logout-warning">⚠️</span>
+          </button>
+          {user && (
+            <div className="current-user">
+              <span className="user-icon">👤</span>
+              <span className="user-name">{user.username}</span>
+              <span className="user-role">({user.role})</span>
+            </div>
+          )}
+        </div>
+
         <div className="menu-footer">
           <div className="footer-info">
             <div className="footer-version">v2.1.0</div>
@@ -208,6 +263,14 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose
           </div>
         </div>
       </nav>
+
+      {/* Logout Modal */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={handleLogoutCancel}
+        onConfirm={handleLogoutConfirm}
+        stage={logoutStage}
+      />
     </>
   );
 };

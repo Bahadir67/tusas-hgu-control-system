@@ -1,0 +1,681 @@
+/* TUSAŞ HGU Control System - Authentication Styles */
+/* Industrial SCADA Authentication Interface */
+
+/* ========================================
+   LOGIN CONTAINER & LAYOUT
+   ======================================== */
+
+.login-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #0a0f1c 0%, #1a1f2e 50%, #0a0f1c 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+  overflow: hidden;
+  z-index: 9999;
+}
+
+/* Animated Industrial Grid Background */
+.login-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(0, 120, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 120, 255, 0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: grid-move 20s linear infinite;
+  z-index: 1;
+}
+
+@keyframes grid-move {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(50px, 50px); }
+}
+
+/* Industrial Circuit Pattern Overlay */
+.login-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 20%, rgba(0, 120, 255, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(0, 180, 255, 0.05) 0%, transparent 50%);
+  z-index: 2;
+}
+
+/* ========================================
+   LOGIN PANEL
+   ======================================== */
+
+.login-panel {
+  position: relative;
+  z-index: 10;
+  background: rgba(20, 25, 35, 0.95);
+  backdrop-filter: blur(15px);
+  border: 2px solid rgba(0, 120, 255, 0.3);
+  border-radius: 12px;
+  box-shadow: 
+    0 0 30px rgba(0, 120, 255, 0.2),
+    inset 0 0 20px rgba(0, 120, 255, 0.1),
+    0 4px 20px rgba(0, 0, 0, 0.3);
+  padding: 40px;
+  width: 100%;
+  max-width: 420px;
+  animation: login-panel-appear 0.8s ease-out;
+}
+
+@keyframes login-panel-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Metallic Border Effect */
+.login-panel::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  background: linear-gradient(45deg, 
+    rgba(0, 120, 255, 0.3), 
+    rgba(0, 180, 255, 0.5), 
+    rgba(0, 120, 255, 0.3)
+  );
+  border-radius: 12px;
+  z-index: -1;
+  animation: border-pulse 3s ease-in-out infinite;
+}
+
+@keyframes border-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+/* ========================================
+   HEADER SECTION
+   ======================================== */
+
+.login-header {
+  text-align: center;
+  margin-bottom: 35px;
+}
+
+.login-logo {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  background: linear-gradient(45deg, #0078ff, #00b4ff);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: white;
+  font-weight: bold;
+  box-shadow: 
+    0 4px 15px rgba(0, 120, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.1),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+  animation: logo-pulse 2s ease-in-out infinite alternate;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Metallic Logo Effect */
+.login-logo::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, 
+    transparent 30%, 
+    rgba(255, 255, 255, 0.1) 40%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    rgba(255, 255, 255, 0.1) 60%, 
+    transparent 70%
+  );
+  animation: logo-shine 3s ease-in-out infinite;
+}
+
+@keyframes logo-pulse {
+  0% { 
+    box-shadow: 0 4px 15px rgba(0, 120, 255, 0.3),
+                inset 0 2px 4px rgba(255, 255, 255, 0.1),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.2); 
+  }
+  100% { 
+    box-shadow: 0 4px 25px rgba(0, 120, 255, 0.5),
+                inset 0 2px 4px rgba(255, 255, 255, 0.2),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.3); 
+  }
+}
+
+@keyframes logo-shine {
+  0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+  50% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+  100% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+}
+
+.login-title {
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.5px;
+}
+
+.login-subtitle {
+  color: #8fa3b8;
+  font-size: 14px;
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+/* ========================================
+   REAL-TIME CLOCK DISPLAY
+   ======================================== */
+
+.login-clock {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 120, 255, 0.3);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #00ff88;
+  text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+  z-index: 20;
+}
+
+.clock-date {
+  display: block;
+  font-size: 10px;
+  color: #8fa3b8;
+  margin-bottom: 2px;
+}
+
+.clock-time {
+  display: block;
+  font-weight: bold;
+}
+
+/* ========================================
+   FORM ELEMENTS
+   ======================================== */
+
+.login-form {
+  margin-bottom: 25px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.form-label {
+  display: block;
+  color: #a8c1d8;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-input {
+  width: 100%;
+  background: rgba(15, 20, 30, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: #ffffff;
+  font-size: 16px;
+  font-family: inherit;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #0078ff;
+  background: rgba(15, 20, 30, 0.95);
+  box-shadow: 
+    0 0 15px rgba(0, 120, 255, 0.3),
+    inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.form-input.error {
+  border-color: #dc3545;
+  box-shadow: 0 0 15px rgba(220, 53, 69, 0.3);
+}
+
+.form-input::placeholder {
+  color: #5a6b7d;
+}
+
+/* Password Input Wrapper */
+.password-input-wrapper {
+  position: relative;
+}
+
+.password-toggle-button {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #8fa3b8;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.password-toggle-button:hover:not(:disabled) {
+  color: #0078ff;
+  background: rgba(0, 120, 255, 0.1);
+}
+
+.password-toggle-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.password-toggle-icon {
+  display: inline-block;
+}
+
+/* Field Error Messages */
+.field-error {
+  color: #ff6b7a;
+  font-size: 12px;
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  animation: error-fade-in 0.3s ease-out;
+}
+
+@keyframes error-fade-in {
+  0% { opacity: 0; transform: translateY(-10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================================
+   REMEMBER ME CHECKBOX
+   ======================================== */
+
+.remember-me-group {
+  display: flex;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.remember-checkbox {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: transparent;
+  margin-right: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.remember-checkbox:checked {
+  background: linear-gradient(45deg, #0078ff, #00b4ff);
+  border-color: #0078ff;
+  box-shadow: 0 0 10px rgba(0, 120, 255, 0.3);
+}
+
+.remember-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: -2px;
+  left: 1px;
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.remember-label {
+  color: #a8c1d8;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ========================================
+   LOGIN BUTTON
+   ======================================== */
+
+.login-button {
+  width: 100%;
+  background: linear-gradient(45deg, #0078ff, #00b4ff);
+  border: none;
+  border-radius: 8px;
+  padding: 16px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 120, 255, 0.2);
+}
+
+.login-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.1), 
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.login-button:hover:not(:disabled) {
+  background: linear-gradient(45deg, #0066dd, #0099dd);
+  box-shadow: 0 4px 20px rgba(0, 120, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.login-button:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.login-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.login-button:disabled {
+  background: rgba(120, 120, 120, 0.3);
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.login-button .button-text {
+  transition: opacity 0.3s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.login-button.loading .button-text {
+  opacity: 0;
+}
+
+.login-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.login-button.loading .login-spinner {
+  opacity: 1;
+}
+
+@keyframes spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ========================================
+   ERROR MESSAGES
+   ======================================== */
+
+.error-message {
+  background: rgba(220, 53, 69, 0.1);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: #ff6b7a;
+  font-size: 14px;
+  margin-bottom: 20px;
+  animation: error-shake 0.5s ease-in-out;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.error-message::before {
+  content: '⚠️';
+  font-size: 16px;
+}
+
+@keyframes error-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* ========================================
+   STATUS INDICATORS
+   ======================================== */
+
+.connection-status {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #a8c1d8;
+  z-index: 20;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: status-pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.status-indicator.online {
+  background: #28a745;
+  color: #28a745;
+}
+
+.status-indicator.offline {
+  background: #dc3545;
+  color: #dc3545;
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.1); }
+}
+
+/* ========================================
+   FOOTER
+   ======================================== */
+
+.login-footer {
+  text-align: center;
+  color: #5a6b7d;
+  font-size: 12px;
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.login-version {
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #8fa3b8;
+}
+
+.login-copyright {
+  opacity: 0.8;
+}
+
+/* ========================================
+   FORM VALIDATION
+   ======================================== */
+
+.form-help {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.form-validation-message {
+  color: #ffc107;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.form-validation-message::before {
+  content: 'ℹ️';
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 480px) {
+  .login-container {
+    padding: 20px;
+  }
+  
+  .login-panel {
+    padding: 30px 25px;
+    max-width: 100%;
+  }
+  
+  .login-title {
+    font-size: 22px;
+  }
+  
+  .login-logo {
+    width: 70px;
+    height: 70px;
+    font-size: 28px;
+  }
+
+  .login-clock {
+    position: relative;
+    margin-bottom: 20px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .connection-status {
+    position: relative;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+}
+
+/* ========================================
+   ACCESSIBILITY
+   ======================================== */
+
+/* High Contrast Mode for Industrial Environments */
+@media (prefers-contrast: high) {
+  .login-panel {
+    border-width: 3px;
+    border-color: #0078ff;
+  }
+  
+  .form-input {
+    border-width: 2px;
+  }
+  
+  .form-input:focus {
+    border-width: 3px;
+  }
+
+  .login-button {
+    border: 2px solid #ffffff;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .login-container::before {
+    animation: none;
+  }
+  
+  .login-panel {
+    animation: none;
+  }
+  
+  .logo-pulse,
+  .border-pulse,
+  .logo-shine,
+  .status-pulse {
+    animation: none;
+  }
+}
+
+/* Focus Indicators for Keyboard Navigation */
+.form-input:focus,
+.remember-checkbox:focus,
+.login-button:focus,
+.password-toggle-button:focus {
+  outline: 2px solid #0078ff;
+  outline-offset: 2px;
+}
+
+/* Screen Reader Support */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

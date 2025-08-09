@@ -22,9 +22,53 @@ class OpcApiService {
   private baseUrl: string;
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private cacheTimeout = 500; // 500ms cache for rapid requests
+  private authToken: string | null = null;
 
   constructor(baseUrl: string = 'http://localhost:5000/api/Opc') {
     this.baseUrl = baseUrl;
+    
+    // Listen for auth events from middleware
+    window.addEventListener('auth-required', this.handleAuthRequired.bind(this));
+  }
+  
+  // Handle authentication required events
+  private handleAuthRequired(event: CustomEvent): void {
+    console.warn('🔐 Authentication required for OPC operations:', event.detail.message);
+    // The AuthGuard will handle redirecting to login
+  }
+
+  // Set authentication token
+  setAuthToken(token: string | null): void {
+    this.authToken = token;
+    // Clear cache when auth token changes
+    this.cache.clear();
+  }
+
+  // Get authentication headers
+  private getAuthHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (this.authToken) {
+      headers['Authorization'] = `Bearer ${this.authToken}`;
+    }
+
+    return headers;
+  }
+
+  // Handle authentication errors
+  private handleAuthError(response: Response): void {
+    if (response.status === 401) {
+      // Token expired or invalid - clear local token
+      this.authToken = null;
+      this.cache.clear();
+      
+      // Dispatch custom event for auth failure
+      window.dispatchEvent(new CustomEvent('auth-required', {
+        detail: { message: 'Authentication required for OPC operations' }
+      }));
+    }
   }
 
   // Get cached data if available and fresh
@@ -58,9 +102,7 @@ class OpcApiService {
       
       const response = await fetch(`${this.baseUrl}/batch`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({
           variables: variables,
           pageContext: pageKey
@@ -68,6 +110,7 @@ class OpcApiService {
       });
 
       if (!response.ok) {
+        this.handleAuthError(response);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -104,9 +147,7 @@ class OpcApiService {
 
       const response = await fetch(`${this.baseUrl}/batch`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({
           variables: Array.from(allVariables),
           pageContext: 'all'
@@ -114,6 +155,7 @@ class OpcApiService {
       });
 
       if (!response.ok) {
+        this.handleAuthError(response);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -133,9 +175,7 @@ class OpcApiService {
     try {
       const response = await fetch(`${this.baseUrl}/write`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({
           variableName,
           value,
@@ -144,6 +184,7 @@ class OpcApiService {
       });
 
       if (!response.ok) {
+        this.handleAuthError(response);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -165,15 +206,14 @@ class OpcApiService {
     try {
       const response = await fetch(`${this.baseUrl}/batch-write`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({
           operations: writes
         })
       });
 
       if (!response.ok) {
+        this.handleAuthError(response);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -208,9 +248,7 @@ class OpcApiService {
       
       const response = await fetch(`${this.baseUrl}/batch`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({
           variables: leakageVariables,
           pageContext: 'leakage_only'
@@ -218,6 +256,7 @@ class OpcApiService {
       });
 
       if (!response.ok) {
+        this.handleAuthError(response);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -237,8 +276,11 @@ class OpcApiService {
   // Check OPC server connection
   async checkConnection(): Promise<{ connected: boolean; serverInfo?: any }> {
     try {
-      const response = await fetch(`${this.baseUrl}/status`);
+      const response = await fetch(`${this.baseUrl}/status`, {
+        headers: this.getAuthHeaders()
+      });
       if (!response.ok) {
+        this.handleAuthError(response);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       

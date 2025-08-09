@@ -1,0 +1,58 @@
+/* Login Page Override Styles - Fix Input Issues */
+
+/* Override any global pointer-events that might affect login */
+.login-container * {
+  pointer-events: auto !important;
+}
+
+.login-card * {
+  pointer-events: auto !important;
+}
+
+/* Ensure inputs are always interactive */
+.form-input,
+.form-input:focus,
+.form-input:hover,
+.form-input:active {
+  pointer-events: auto !important;
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  position: relative !important;
+  z-index: 100 !important;
+  opacity: 1 !important;
+  cursor: text !important;
+}
+
+/* Ensure buttons are clickable */
+.login-button,
+.quick-btn {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  z-index: 100 !important;
+}
+
+/* Remove any overlay effects that might block inputs */
+.login-container::before,
+.login-container::after,
+.login-card::before,
+.login-card::after,
+.login-bg-pattern {
+  pointer-events: none !important;
+  z-index: -1 !important;
+}
+
+/* Ensure form is interactive */
+.login-form {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+/* Disable any animations that might cause issues */
+@media (prefers-reduced-motion: no-preference) {
+  .login-container *,
+  .login-card * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
