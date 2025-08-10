@@ -199,11 +199,11 @@ namespace TUSAS.HGU.API.Controllers
     {
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        public string Username { get; set; }
+        public string? Username { get; set; }
         public LogCategory? Category { get; set; }
-        public string Action { get; set; }
+        public string? Action { get; set; }
         public LogResult? Result { get; set; }
-        public string SearchTerm { get; set; }
+        public string? SearchTerm { get; set; }
         public int? Page { get; set; }
         public int? PageSize { get; set; }
     }

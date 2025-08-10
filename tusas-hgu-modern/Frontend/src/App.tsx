@@ -7,7 +7,7 @@ import CompactMotorPanel from './components/CompactMotorPanel';
 import MotorDetailModal from './components/MotorDetailModal';
 import SystemOverviewPanel from './components/SystemOverviewPanel';
 import TankCoolingPanel from './components/TankCoolingPanel';
-import LogsPage from './components/LogsPage';
+import { LogsPage } from './components/LogsPage';
 import AlarmsPage from './components/AlarmsPage';
 import './styles/industrial-theme.css';
 import './styles/modern-layout.css';
