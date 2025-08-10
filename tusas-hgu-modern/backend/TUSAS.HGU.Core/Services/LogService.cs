@@ -294,24 +294,42 @@ namespace TUSAS.HGU.Core.Services
 
         private SystemLog MapToSystemLog(SQLiteDataReader reader)
         {
-            return new SystemLog
+            try
             {
-                Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                Timestamp = reader.GetDateTime(reader.GetOrdinal("Timestamp")),
-                UserId = reader.IsDBNull(reader.GetOrdinal("UserId")) ? null : reader.GetInt32(reader.GetOrdinal("UserId")),
-                Username = reader.GetString(reader.GetOrdinal("Username")),
-                Category = reader.GetString(reader.GetOrdinal("Category")),
-                Action = reader.GetString(reader.GetOrdinal("Action")),
-                Target = reader.IsDBNull(reader.GetOrdinal("Target")) ? null : reader.GetString(reader.GetOrdinal("Target")),
-                OldValue = reader.IsDBNull(reader.GetOrdinal("OldValue")) ? null : reader.GetString(reader.GetOrdinal("OldValue")),
-                NewValue = reader.IsDBNull(reader.GetOrdinal("NewValue")) ? null : reader.GetString(reader.GetOrdinal("NewValue")),
-                Result = reader.GetString(reader.GetOrdinal("Result")),
-                ErrorMessage = reader.IsDBNull(reader.GetOrdinal("ErrorMessage")) ? null : reader.GetString(reader.GetOrdinal("ErrorMessage")),
-                IpAddress = reader.IsDBNull(reader.GetOrdinal("IpAddress")) ? null : reader.GetString(reader.GetOrdinal("IpAddress")),
-                UserAgent = reader.IsDBNull(reader.GetOrdinal("UserAgent")) ? null : reader.GetString(reader.GetOrdinal("UserAgent")),
-                Duration = reader.IsDBNull(reader.GetOrdinal("Duration")) ? null : reader.GetInt32(reader.GetOrdinal("Duration")),
-                Details = reader.IsDBNull(reader.GetOrdinal("Details")) ? null : reader.GetString(reader.GetOrdinal("Details"))
-            };
+                return new SystemLog
+                {
+                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                    Timestamp = reader.GetDateTime(reader.GetOrdinal("Timestamp")),
+                    UserId = reader.IsDBNull(reader.GetOrdinal("UserId")) ? null : reader.GetInt32(reader.GetOrdinal("UserId")),
+                    Username = reader.IsDBNull(reader.GetOrdinal("Username")) ? string.Empty : reader.GetString(reader.GetOrdinal("Username")),
+                    Category = reader.IsDBNull(reader.GetOrdinal("Category")) ? string.Empty : reader.GetString(reader.GetOrdinal("Category")),
+                    Action = reader.IsDBNull(reader.GetOrdinal("Action")) ? string.Empty : reader.GetString(reader.GetOrdinal("Action")),
+                    Target = reader.IsDBNull(reader.GetOrdinal("Target")) ? null : reader.GetString(reader.GetOrdinal("Target")),
+                    OldValue = reader.IsDBNull(reader.GetOrdinal("OldValue")) ? null : reader.GetString(reader.GetOrdinal("OldValue")),
+                    NewValue = reader.IsDBNull(reader.GetOrdinal("NewValue")) ? null : reader.GetString(reader.GetOrdinal("NewValue")),
+                    Result = reader.IsDBNull(reader.GetOrdinal("Result")) ? "SUCCESS" : reader.GetString(reader.GetOrdinal("Result")),
+                    ErrorMessage = reader.IsDBNull(reader.GetOrdinal("ErrorMessage")) ? null : reader.GetString(reader.GetOrdinal("ErrorMessage")),
+                    IpAddress = reader.IsDBNull(reader.GetOrdinal("IpAddress")) ? null : reader.GetString(reader.GetOrdinal("IpAddress")),
+                    UserAgent = reader.IsDBNull(reader.GetOrdinal("UserAgent")) ? null : reader.GetString(reader.GetOrdinal("UserAgent")),
+                    Duration = reader.IsDBNull(reader.GetOrdinal("Duration")) ? null : 
+                               (int?)Convert.ToInt32(reader.GetValue(reader.GetOrdinal("Duration"))),
+                    Details = reader.IsDBNull(reader.GetOrdinal("Details")) ? null : reader.GetString(reader.GetOrdinal("Details"))
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"🚨 Error mapping row ID {reader.GetInt32(reader.GetOrdinal("Id"))}: {ex.Message}");
+                // Return a safe default row
+                return new SystemLog
+                {
+                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                    Timestamp = DateTime.Now,
+                    Username = "UNKNOWN",
+                    Category = "SYSTEM",
+                    Action = "ERROR_MAPPING",
+                    Result = "ERROR"
+                };
+            }
         }
     }
 }

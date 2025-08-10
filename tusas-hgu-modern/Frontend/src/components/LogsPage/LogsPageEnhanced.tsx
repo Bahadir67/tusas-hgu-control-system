@@ -37,15 +37,26 @@ const TIME_RANGES = {
   LAST_MONTH: { label: 'Last Month', days: 30 }
 };
 
-// Category configurations
-const CATEGORIES = {
-  AUTH: { color: '#a78bfa', icon: '🔐', label: 'Authentication' },
-  SYSTEM: { color: '#60a5fa', icon: '⚙️', label: 'System' },
-  MOTOR: { color: '#34d399', icon: '⚡', label: 'Motor Control' },
-  AUDIT: { color: '#fbbf24', icon: '📋', label: 'Audit' },
-  ERROR: { color: '#ef4444', icon: '❌', label: 'Error' },
-  OPC: { color: '#06b6d4', icon: '🔌', label: 'OPC' },
-  ALARM: { color: '#f97316', icon: '🚨', label: 'Alarm' }
+// Default category configurations (fallback when API fails)
+const DEFAULT_CATEGORY_CONFIG = {
+  color: '#6b7280',
+  icon: '📄',
+  label: 'Unknown'
+};
+
+// Category color and icon mapping
+const CATEGORY_STYLES = {
+  AUTH: { color: '#a78bfa', icon: '🔐' },
+  USER_MGMT: { color: '#8b5cf6', icon: '👥' },
+  CALIBRATION: { color: '#f59e0b', icon: '🎯' },
+  SYSTEM: { color: '#60a5fa', icon: '⚙️' },
+  MAINTENANCE: { color: '#34d399', icon: '🔧' },
+  ALARM: { color: '#f97316', icon: '🚨' },
+  CONFIG: { color: '#06b6d4', icon: '⚙️' },
+  AUDIT: { color: '#fbbf24', icon: '📋' },
+  OPC: { color: '#10b981', icon: '🔌' },
+  BACKUP: { color: '#6b7280', icon: '💾' },
+  SECURITY: { color: '#ef4444', icon: '🛡️' }
 };
 
 // Action icons
@@ -71,6 +82,8 @@ export const LogsPageEnhanced: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [tableHeight, setTableHeight] = useState<number>(400);
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   
   // Refs for measuring components
   const filtersRef = useRef<HTMLDivElement>(null);
@@ -86,6 +99,40 @@ export const LogsPageEnhanced: React.FC = () => {
   const [selectedResult, setSelectedResult] = useState('ALL');
   const [selectedUser, setSelectedUser] = useState('ALL');
   const [selectedTimeRange, setSelectedTimeRange] = useState('ALL');
+
+  // Fetch categories from API
+  const fetchCategories = useCallback(async () => {
+    setCategoriesLoading(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        console.warn('No auth token for categories');
+        return;
+      }
+
+      const response = await fetch('http://localhost:5000/api/logs/categories', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableCategories(data.data || []);
+        console.log('✅ Categories loaded from API:', data.data);
+      } else {
+        console.warn('Failed to fetch categories, using fallback');
+        // Fallback to hardcoded categories
+        setAvailableCategories(Object.keys(CATEGORY_STYLES));
+      }
+    } catch (error) {
+      console.warn('Categories API error, using fallback:', error);
+      setAvailableCategories(Object.keys(CATEGORY_STYLES));
+    } finally {
+      setCategoriesLoading(false);
+    }
+  }, []);
 
   // Fetch logs
   const fetchLogs = useCallback(async () => {
@@ -212,6 +259,11 @@ export const LogsPageEnhanced: React.FC = () => {
     return () => timers.forEach(timer => clearTimeout(timer));
   }, [calculateTableHeight, error, logs.length]); // Recalculate when error banner or data changes
 
+  // Load categories on mount
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
   // Load logs on mount and filter changes
   useEffect(() => {
     fetchLogs();
@@ -281,10 +333,13 @@ export const LogsPageEnhanced: React.FC = () => {
     return ACTION_ICONS[action] || '📝';
   };
 
-  // Get category config
+  // Get category config (dynamic from API + style mapping)
   const getCategoryConfig = (category: string) => {
-    return CATEGORIES[category as keyof typeof CATEGORIES] || 
-           { color: '#6b7280', icon: '📄', label: category };
+    const style = CATEGORY_STYLES[category as keyof typeof CATEGORY_STYLES] || DEFAULT_CATEGORY_CONFIG;
+    return {
+      ...style,
+      label: category // Use the actual category name from API
+    };
   };
 
   // Get result color
@@ -329,13 +384,19 @@ export const LogsPageEnhanced: React.FC = () => {
               value={selectedCategory} 
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="filter-select"
+              disabled={categoriesLoading}
             >
-              <option value="ALL">All Categories</option>
-              {Object.entries(CATEGORIES).map(([key, config]) => (
-                <option key={key} value={key}>
-                  {config.icon} {config.label}
-                </option>
-              ))}
+              <option value="ALL">
+                {categoriesLoading ? 'Loading...' : 'All Categories'}
+              </option>
+              {availableCategories.map((category) => {
+                const config = getCategoryConfig(category);
+                return (
+                  <option key={category} value={category}>
+                    {config.icon} {config.label}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

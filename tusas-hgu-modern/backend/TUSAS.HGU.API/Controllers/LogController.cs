@@ -175,23 +175,37 @@ namespace TUSAS.HGU.API.Controllers
         {
             var username = User.FindFirst(ClaimTypes.Name)?.Value;
             
-            await _logService.LogAsync(
-                username: username,
-                category: LogCategory.SYSTEM,
-                action: "TEST_LOG",
-                target: "Log System",
-                newValue: "Test log entry created",
-                result: LogResult.SUCCESS,
-                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                userAgent: Request.Headers["User-Agent"].ToString(),
-                details: new Dictionary<string, object>
-                {
-                    { "test", true },
-                    { "timestamp", DateTime.Now }
-                }
-            );
+            // Create multiple test logs for different categories
+            var testLogs = new[]
+            {
+                new { category = LogCategory.MAINTENANCE, action = "PREVENTIVE_MAINTENANCE", target = "Motor 1 Pump System", message = "Scheduled maintenance completed" },
+                new { category = LogCategory.MAINTENANCE, action = "COMPONENT_REPLACEMENT", target = "Valve V-101", message = "Valve seal replaced" },
+                new { category = LogCategory.CALIBRATION, action = "PRESSURE_CALIBRATION", target = "Sensor P-205", message = "Pressure sensor calibrated" },
+                new { category = LogCategory.ALARM, action = "ALARM_TRIGGERED", target = "High Temperature", message = "Temperature exceeded threshold" },
+                new { category = LogCategory.SYSTEM, action = "SYSTEM_STARTUP", target = "Main Controller", message = "System initialization completed" }
+            };
 
-            return Ok(new { success = true, message = "Test log created" });
+            foreach (var testLog in testLogs)
+            {
+                await _logService.LogAsync(
+                    username: username,
+                    category: testLog.category,
+                    action: testLog.action,
+                    target: testLog.target,
+                    newValue: testLog.message,
+                    result: LogResult.SUCCESS,
+                    ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    userAgent: Request.Headers["User-Agent"].ToString(),
+                    details: new Dictionary<string, object>
+                    {
+                        { "test", true },
+                        { "timestamp", DateTime.Now },
+                        { "category_test", testLog.category.ToString() }
+                    }
+                );
+            }
+
+            return Ok(new { success = true, message = $"Created {testLogs.Length} test logs for different categories" });
         }
     }
 
