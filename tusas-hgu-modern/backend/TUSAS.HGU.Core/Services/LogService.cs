@@ -131,35 +131,52 @@ namespace TUSAS.HGU.Core.Services
 
         public async Task<List<SystemLog>> GetLogsAsync(LogFilter filter)
         {
-            var logs = new List<SystemLog>();
-
-            using var connection = new SQLiteConnection(_connectionString);
-            await connection.OpenAsync();
-
-            var query = BuildFilterQuery(filter, false);
-            using var command = new SQLiteCommand(query, connection);
-            AddFilterParameters(command, filter);
-
-            using var reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            try
             {
-                logs.Add(MapToSystemLog((SQLiteDataReader)reader));
-            }
+                var logs = new List<SystemLog>();
 
-            return logs;
+                using var connection = new SQLiteConnection(_connectionString);
+                await connection.OpenAsync();
+
+                var query = BuildFilterQuery(filter, false);
+                using var command = new SQLiteCommand(query, connection);
+                AddFilterParameters(command, filter);
+
+                using var reader = await command.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    logs.Add(MapToSystemLog((SQLiteDataReader)reader));
+                }
+
+                return logs;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"🚨 Error in GetLogsAsync: {ex.Message}");
+                Console.WriteLine($"📊 Filter details: Page={filter.Page}, PageSize={filter.PageSize}");
+                return new List<SystemLog>(); // Boş liste döndür
+            }
         }
 
         public async Task<int> GetLogCountAsync(LogFilter filter)
         {
-            using var connection = new SQLiteConnection(_connectionString);
-            await connection.OpenAsync();
+            try
+            {
+                using var connection = new SQLiteConnection(_connectionString);
+                await connection.OpenAsync();
 
-            var query = BuildFilterQuery(filter, true);
-            using var command = new SQLiteCommand(query, connection);
-            AddFilterParameters(command, filter);
+                var query = BuildFilterQuery(filter, true);
+                using var command = new SQLiteCommand(query, connection);
+                AddFilterParameters(command, filter);
 
-            var result = await command.ExecuteScalarAsync();
-            return Convert.ToInt32(result);
+                var result = await command.ExecuteScalarAsync();
+                return Convert.ToInt32(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"🚨 Error in GetLogCountAsync: {ex.Message}");
+                return 0; // Güvenli varsayılan değer
+            }
         }
 
         public async Task<bool> DeleteLogsAsync(DateTime? beforeDate = null)
@@ -245,7 +262,13 @@ namespace TUSAS.HGU.Core.Services
             if (!countOnly)
             {
                 query += " ORDER BY Timestamp DESC";
-                query += $" LIMIT {filter.PageSize} OFFSET {(filter.Page - 1) * filter.PageSize}";
+                
+                // Güvenlik kontrolü: OFFSET çok büyük olmamalı
+                var offset = (filter.Page - 1) * filter.PageSize;
+                if (offset < 0) offset = 0;
+                if (offset > 100000) offset = 0; // Maksimum 100K kayıt limit
+                
+                query += $" LIMIT {filter.PageSize} OFFSET {offset}";
             }
 
             return query;

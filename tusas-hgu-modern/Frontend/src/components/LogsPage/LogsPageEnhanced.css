@@ -1,0 +1,477 @@
+/* SCADA Log Page - Simple & Practical */
+.logs-page-enhanced {
+  position: fixed; /* SABİT KONUM */
+  top: 220px; /* 50 pixel daha aşağı (170 + 50) */
+  left: 0;
+  right: 0;
+  bottom: 0; /* Tam alta kadar */
+  background: #0a0e27;
+  color: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  padding: 2px;
+  box-sizing: border-box;
+  overflow: hidden; /* SAYFA SCROLL YOK */
+}
+
+/* Filters - Fixed Header */
+.filters-section {
+  background: #0f1428;
+  border: 1px solid #1a1f3a;
+  border-radius: 6px;
+  padding: 8px; /* Daha kompakt */
+  margin-bottom: 4px; /* Daha az margin */
+  flex-shrink: 0;
+  min-height: fit-content;
+  max-height: 150px; /* Daha sıkışık */
+}
+
+.filter-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-group label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.filter-select,
+.filter-input {
+  padding: 12px 16px; /* Daha büyük padding for touch */
+  background: #0a0e27;
+  border: 2px solid #2a3f5f; /* Daha kalın border */
+  border-radius: 8px; /* Daha yuvarlak köşeler */
+  color: #e0e0e0;
+  min-width: 140px; /* Daha geniş minimum */
+  min-height: 44px; /* Apple touch guideline */
+  font-size: 16px; /* Touch device için ideal */
+  line-height: 1.2;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-select:focus,
+.filter-input:focus {
+  border-color: #00d4ff;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.2); /* Touch feedback */
+  transform: scale(1.02); /* Hafif büyüme efekti */
+}
+
+.filter-select:hover,
+.filter-input:hover {
+  border-color: #4a90e2;
+  transform: translateY(-1px); /* Hover efekti */
+  box-shadow: 0 2px 4px rgba(0, 212, 255, 0.1);
+}
+
+.filter-select:active,
+.filter-input:active {
+  transform: scale(0.98); /* Touch feedback */
+}
+
+/* Action Controls */
+.action-controls {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.action-btn {
+  padding: 12px 20px; /* Touch-friendly padding */
+  background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+  color: #0a0e27;
+  border: none;
+  border-radius: 8px; /* Daha yuvarlak */
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 16px; /* Daha büyük font */
+  min-height: 48px; /* Daha büyük touch target */
+  min-width: 100px; /* Minimum genişlik */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  user-select: none; /* Prevent text selection on touch */
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 212, 255, 0.3);
+  background: linear-gradient(135deg, #0099cc 0%, #007299 100%);
+}
+
+.action-btn:active {
+  transform: scale(0.95); /* Touch feedback */
+  box-shadow: 0 2px 4px rgba(0, 212, 255, 0.2);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  pointer-events: none;
+}
+
+/* Table Container - Main Scrollable Area */
+.logs-table-container {
+  background: #0f1428;
+  border: 1px solid #1a1f3a;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* Mevcut alanı doldur */
+  min-height: 0; /* Flexbox shrinking için */
+  /* Height will be set dynamically via React style */
+}
+
+/* Table Body - Scrollable */
+.table-body-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.logs-table-enhanced {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* Table Header - Fixed */
+.logs-table-enhanced thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.logs-table-enhanced th {
+  background: linear-gradient(135deg, #1a1f3a 0%, #0f1428 100%);
+  color: #00d4ff;
+  padding: 10px 8px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  border-bottom: 2px solid #00d4ff;
+  white-space: nowrap;
+}
+
+.logs-table-enhanced tbody tr {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.logs-table-enhanced tbody tr:hover {
+  background: rgba(0, 212, 255, 0.05);
+}
+
+.logs-table-enhanced td {
+  padding: 8px;
+  border-bottom: 1px solid #1a1f3a;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+/* Expand icon */
+.expand-icon {
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+/* Category badge */
+.category-badge {
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* User badge */
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+
+/* Action text */
+.action-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+
+/* Result badge */
+.result-badge {
+  padding: 2px 6px;
+  border-radius: 8px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Expanded row */
+.expanded-row td {
+  background: #0a0e27;
+  padding: 12px;
+}
+
+.expanded-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.detail-value {
+  color: #e0e0e0;
+  font-size: 0.85rem;
+}
+
+.detail-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.detail-item.error .detail-value {
+  color: #ef4444;
+}
+
+/* No logs message */
+.no-logs-message {
+  text-align: center;
+  padding: 40px;
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+/* Pagination - Fixed Footer */
+.pagination-controls {
+  background: #0f1428;
+  border: 1px solid #1a1f3a;
+  border-radius: 6px;
+  padding: 6px 8px; /* Daha kompakt */
+  margin-top: 4px; /* Daha az margin */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px; /* Daha az gap */
+  min-height: 50px; /* Daha kısa */
+  max-height: 65px;
+}
+
+.page-size-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.page-size-select {
+  padding: 10px 12px; /* Touch-friendly */
+  background: #0a0e27;
+  border: 2px solid #2a3f5f;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 16px; /* Bigger font */
+  min-height: 44px; /* Touch target */
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.page-size-select:focus {
+  border-color: #00d4ff;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.2);
+}
+
+.page-size-select:hover {
+  border-color: #4a90e2;
+}
+
+.page-navigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-btn {
+  padding: 12px 16px; /* Touch-friendly */
+  background: linear-gradient(135deg, #1a1f3a 0%, #0f1428 100%);
+  color: #00d4ff;
+  border: 2px solid #2a3f5f;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px; /* Bigger font */
+  min-height: 48px; /* Touch target */
+  min-width: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2a3f5f 0%, #1a1f3a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 212, 255, 0.2);
+}
+
+.page-btn:active:not(:disabled) {
+  transform: scale(0.95); /* Touch feedback */
+}
+
+.page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.page-info {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  margin: 0 8px;
+}
+
+.total-info {
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+/* Error Banner */
+.error-banner {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  color: #ef4444;
+  font-size: 0.85rem;
+}
+
+/* Custom Scrollbar */
+.table-body-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.table-body-container::-webkit-scrollbar-track {
+  background: #1a1f3a;
+  border-radius: 4px;
+}
+
+.table-body-container::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+  border-radius: 4px;
+}
+
+.table-body-container::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #0099cc 0%, #006b8a 100%);
+}
+
+/* Touch & Mobile Responsive */
+@media (max-width: 768px) {
+  .logs-page-enhanced {
+    padding: 4px; /* Smaller padding on mobile */
+  }
+
+  .filter-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px; /* More space on mobile */
+  }
+  
+  .filter-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .filter-select,
+  .filter-input {
+    min-height: 52px; /* Even bigger on mobile */
+    font-size: 18px; /* Prevent zoom on iOS */
+    width: 100%;
+  }
+  
+  .action-controls {
+    margin-left: 0;
+    margin-top: 12px;
+    justify-content: stretch;
+    flex-wrap: wrap;
+  }
+  
+  .action-btn {
+    flex: 1;
+    min-width: 80px;
+    min-height: 52px; /* Bigger on mobile */
+    font-size: 18px;
+  }
+  
+  .pagination-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px;
+  }
+  
+  .page-navigation {
+    justify-content: center;
+    gap: 12px;
+  }
+  
+  .page-btn {
+    min-height: 52px; /* Bigger on mobile */
+    min-width: 70px;
+    font-size: 18px;
+  }
+  
+  .page-size-select {
+    min-height: 52px;
+    font-size: 18px;
+  }
+}
+
+/* Large touch screens (tablets) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .filter-select,
+  .filter-input {
+    min-height: 48px;
+    font-size: 17px;
+  }
+  
+  .action-btn,
+  .page-btn {
+    min-height: 50px;
+    font-size: 17px;
+  }
+}
