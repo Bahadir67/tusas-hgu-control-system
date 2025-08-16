@@ -32,6 +32,9 @@ builder.Services.AddSingleton<AuthService>();
 var connectionString = $"Data Source={authSettings.DatabasePath}";
 builder.Services.AddSingleton<ILogService>(provider => new LogService(connectionString));
 
+// Register AlarmService
+builder.Services.AddSingleton<AlarmService>();
+
 // JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

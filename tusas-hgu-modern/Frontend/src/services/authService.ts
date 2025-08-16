@@ -38,6 +38,20 @@ class AuthService {
         throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`);
       }
 
+      // Store authentication data
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+      }
+      if (data.refreshToken) {
+        localStorage.setItem('auth_refresh_token', data.refreshToken);
+      }
+      if (data.user) {
+        localStorage.setItem('auth_user', JSON.stringify(data.user));
+      }
+      if (data.expiresAt) {
+        localStorage.setItem('auth_expires_at', data.expiresAt);
+      }
+
       return {
         success: true,
         token: data.token,
@@ -58,37 +72,6 @@ class AuthService {
     }
   }
 
-  /**
-   * Logout user and invalidate session
-   */
-  async logout(token: string): Promise<boolean> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-      const response = await fetch(`${this.baseUrl}/logout`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        return data.success === true;
-      }
-
-      return false;
-    } catch (error) {
-      console.warn('Logout request failed:', error);
-      // Return true for local logout even if server logout fails
-      return true;
-    }
-  }
 
   /**
    * Check authentication status
@@ -247,6 +230,41 @@ class AuthService {
 
     const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
     return expiration < fiveMinutesFromNow;
+  }
+
+  /**
+   * Get stored token from localStorage
+   */
+  getToken(): string | null {
+    return localStorage.getItem('auth_token');
+  }
+
+  /**
+   * Get stored user from localStorage
+   */
+  getUser(): User | null {
+    const userData = localStorage.getItem('auth_user');
+    return userData ? JSON.parse(userData) : null;
+  }
+
+  /**
+   * Check if user is authenticated
+   */
+  isAuthenticated(): boolean {
+    const token = this.getToken();
+    if (!token) return false;
+    
+    return !this.isTokenExpiringSoon(token);
+  }
+
+  /**
+   * Logout user and clear stored data
+   */
+  logout(): void {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem('auth_refresh_token');
+    localStorage.removeItem('auth_expires_at');
   }
 }
 

@@ -118,6 +118,20 @@ export const MOTOR_VARIABLES: OpcVariableDefinition[] = [
     dataType: 'REAL-Float',
     unit: 'L/Min',
     isMotorSpecific: true
+  },
+  {
+    frontendKey: 'errorCode',
+    displayName: 'Motor hata kodu',
+    opcVariableName: 'MOTOR_X_ERROR_CODE_EXECUTION',
+    dataType: 'DINT-Int',
+    isMotorSpecific: true
+  },
+  {
+    frontendKey: 'alarmWord',
+    displayName: 'Motor alarm word',
+    opcVariableName: 'MOTOR_X_ALARM_WORD_EXECUTION',
+    dataType: 'DINT-Int',
+    isMotorSpecific: true
   }
 ];
 
@@ -210,6 +224,49 @@ export const SYSTEM_VARIABLES: OpcVariableDefinition[] = [
     dataType: 'REAL-Float',
     unit: 'C',
     isMotorSpecific: false
+  },
+  // System Alarm Variables
+  {
+    frontendKey: 'alarmHighPressure',
+    displayName: 'Yüksek basınç alarmı',
+    opcVariableName: 'ALARM_HIGH_PRESSURE',
+    dataType: 'Bool',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'alarmLowPressure',
+    displayName: 'Düşük basınç alarmı',
+    opcVariableName: 'ALARM_LOW_PRESSURE',
+    dataType: 'Bool',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'alarmHighTemperature',
+    displayName: 'Yüksek sıcaklık alarmı',
+    opcVariableName: 'ALARM_HIGH_TEMPERATURE',
+    dataType: 'Bool',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'alarmLowTankLevel',
+    displayName: 'Düşük tank seviyesi alarmı',
+    opcVariableName: 'ALARM_LOW_TANK_LEVEL',
+    dataType: 'Bool',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'alarmSystemFailure',
+    displayName: 'Sistem arızası alarmı',
+    opcVariableName: 'ALARM_SYSTEM_FAILURE',
+    dataType: 'Bool',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'alarmCommunicationLoss',
+    displayName: 'İletişim kaybı alarmı',
+    opcVariableName: 'ALARM_COMMUNICATION_LOSS',
+    dataType: 'Bool',
+    isMotorSpecific: false
   }
 ];
 
@@ -251,8 +308,8 @@ export const PAGE_VARIABLE_SETS = {
   
   alarms: {
     name: 'Alarms',
-    systemVariables: ['totalFlow', 'totalPressure', 'oilTemperature', 'tankLevel', 'aquaSensor'],
-    motorVariables: ['status', 'temperature', 'lineFilter', 'suctionFilter', 'leak'], // Alarm-related
+    systemVariables: ['totalFlow', 'totalPressure', 'oilTemperature', 'tankLevel', 'aquaSensor', 'waterTemperature', 'coolingSystemStatus', 'coolingPumpStatus', 'alarmHighPressure', 'alarmLowPressure', 'alarmHighTemperature', 'alarmLowTankLevel', 'alarmSystemFailure', 'alarmCommunicationLoss'],
+    motorVariables: ['status', 'temperature', 'lineFilter', 'suctionFilter', 'leak', 'current', 'pressure', 'rpm', 'errorCode', 'alarmWord'], // Comprehensive alarm monitoring with error codes
     motors: [1, 2, 3, 4, 5, 6, 7]
   },
   

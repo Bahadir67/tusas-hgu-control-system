@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useOpcStore } from '../../store/opcStore';
+import { alarmService, BackendAlarmEntry, AlarmSummary } from '../../services/alarmService';
+import { authService } from '../../services/authService';
 import './AlarmsPage.css';
 
 // IEC 62443 compliant alarm severity levels
@@ -65,6 +67,12 @@ const AlarmsPage: React.FC = () => {
   const [alarmHistory, setAlarmHistory] = useState<AlarmEntry[]>([]);
   const [selectedAlarms, setSelectedAlarms] = useState<Set<string>>(new Set());
   const [currentOperator, setCurrentOperator] = useState('OPERATOR_01');
+  
+  // Backend integration state
+  const [backendAlarms, setBackendAlarms] = useState<BackendAlarmEntry[]>([]);
+  const [alarmSummary, setAlarmSummary] = useState<AlarmSummary | null>(null);
+  const [isLoadingAlarms, setIsLoadingAlarms] = useState(false);
+  const [alarmError, setAlarmError] = useState<string | null>(null);
   
   // Advanced filtering state
   const [severityFilter, setSeverityFilter] = useState<'ALL' | AlarmSeverity>('ALL');
@@ -151,7 +159,79 @@ const AlarmsPage: React.FC = () => {
     if (savedOperator) {
       setCurrentOperator(savedOperator);
     }
+
+    // Initial load of backend alarms
+    loadActiveAlarms();
+    loadAlarmSummary();
   }, []);
+
+  // Backend alarm loading functions
+  const loadActiveAlarms = useCallback(async () => {
+    try {
+      setIsLoadingAlarms(true);
+      setAlarmError(null);
+      
+      // Check if user is authenticated before making API calls
+      if (!authService.getToken()) {
+        setAlarmError('Please login to view alarms');
+        setIsLoadingAlarms(false);
+        return;
+      }
+      
+      const alarms = await alarmService.getActiveAlarms({
+        maxResults: itemsPerPage,
+        skip: (currentPage - 1) * itemsPerPage
+      });
+      
+      setBackendAlarms(alarms);
+      
+      // Convert to frontend format and merge with existing history
+      const convertedAlarms = alarms.map(alarm => alarmService.convertToFrontendAlarm(alarm));
+      setAlarmHistory(prev => {
+        const combined = [...convertedAlarms, ...prev];
+        // Remove duplicates by ID
+        const unique = combined.reduce((acc, alarm) => {
+          if (!acc.find(a => a.id === alarm.id)) {
+            acc.push(alarm);
+          }
+          return acc;
+        }, [] as AlarmEntry[]);
+        return unique.slice(0, alarmConfig.maxHistoryEntries);
+      });
+      
+    } catch (error) {
+      console.error('Failed to load active alarms:', error);
+      setAlarmError(error instanceof Error ? error.message : 'Failed to load alarms');
+    } finally {
+      setIsLoadingAlarms(false);
+    }
+  }, [itemsPerPage, currentPage, alarmConfig.maxHistoryEntries]);
+
+  const loadAlarmSummary = useCallback(async () => {
+    try {
+      // Check if user is authenticated before making API calls
+      if (!authService.getToken()) {
+        return;
+      }
+      
+      const summary = await alarmService.getAlarmSummary();
+      setAlarmSummary(summary);
+    } catch (error) {
+      console.error('Failed to load alarm summary:', error);
+    }
+  }, []);
+
+  // Auto-refresh backend alarms
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const interval = setInterval(() => {
+      loadActiveAlarms();
+      loadAlarmSummary();
+    }, refreshInterval);
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, refreshInterval, loadActiveAlarms, loadAlarmSummary]);
 
   // Enhanced professional alarm sound generation
   const playAlarmSound = useCallback((type: 'critical' | 'high' | 'acknowledge' | 'error') => {
@@ -854,8 +934,8 @@ const AlarmsPage: React.FC = () => {
     return stats;
   }, [currentAlarms, alarmHistory, isConnected, lastUpdate]);
 
-  // Professional acknowledgment system with enhanced logging
-  const handleAcknowledge = useCallback((alarm: AlarmEntry, comment?: string) => {
+  // Professional acknowledgment system with backend integration
+  const handleAcknowledge = useCallback(async (alarm: AlarmEntry, comment?: string) => {
     console.log('🛠️ ALARM ACKNOWLEDGMENT:', {
       alarmId: alarm.id,
       operator: currentOperator,
@@ -866,29 +946,47 @@ const AlarmsPage: React.FC = () => {
       description: alarm.description
     });
     
-    playAlarmSound('acknowledge');
-    
-    // Create acknowledged alarm record
-    const acknowledgedAlarm: AlarmEntry = {
-      ...alarm,
-      state: 'ACKNOWLEDGED',
-      acknowledgedBy: currentOperator,
-      acknowledgedAt: new Date()
-    };
-    
-    setAlarmHistory(prev => [...prev, acknowledgedAlarm]);
-    setSelectedAlarms(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(alarm.id);
-      return newSet;
-    });
-    
-    setShowAckModal(false);
-    setAckComment('');
-    
-    // Save to localStorage for persistence
-    localStorage.setItem('currentOperator', currentOperator);
-  }, [currentOperator, playAlarmSound]);
+    try {
+      // Acknowledge alarm via backend API
+      await alarmService.acknowledgeAlarm({
+        alarmId: alarm.id,
+        notes: comment || 'Standard acknowledgment',
+        acknowledgedBy: currentOperator
+      });
+      
+      playAlarmSound('acknowledge');
+      
+      // Update local state
+      const acknowledgedAlarm: AlarmEntry = {
+        ...alarm,
+        state: 'ACKNOWLEDGED',
+        acknowledgedBy: currentOperator,
+        acknowledgedAt: new Date()
+      };
+      
+      setAlarmHistory(prev => [...prev, acknowledgedAlarm]);
+      setSelectedAlarms(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(alarm.id);
+        return newSet;
+      });
+      
+      setShowAckModal(false);
+      setAckComment('');
+      
+      // Refresh alarm data from backend
+      loadActiveAlarms();
+      loadAlarmSummary();
+      
+      // Save to localStorage for persistence
+      localStorage.setItem('currentOperator', currentOperator);
+      
+    } catch (error) {
+      console.error('Failed to acknowledge alarm:', error);
+      setAlarmError(`Failed to acknowledge alarm: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      playAlarmSound('error');
+    }
+  }, [currentOperator, playAlarmSound, loadActiveAlarms, loadAlarmSummary]);
 
   const handleBulkAcknowledge = useCallback((alarms: AlarmEntry[], comment: string) => {
     console.log('🔄 BULK ALARM ACKNOWLEDGMENT:', {
@@ -1112,14 +1210,36 @@ const AlarmsPage: React.FC = () => {
             <span className="isa-badge">ISA-18.2</span>
           </div>
           <div className="status-compact">
-            <div className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`}>
-              {isConnected ? '🟢' : '🔴'}
-            </div>
-            <span className="status-text">{isConnected ? 'ONLINE' : 'OFFLINE'}</span>
+            <span className={`status-text ${isConnected ? 'connected-text' : 'disconnected-text'}`}>
+              {isConnected ? 'ONLINE' : 'OFFLINE'}
+            </span>
             <div className="quality-indicator">{alarmStats.dataQuality}%</div>
+            <div className={`api-activity-led ${isLoadingAlarms ? 'blinking' : alarmError ? 'error' : isConnected ? 'connected' : 'disconnected'}`} 
+                 title={isLoadingAlarms ? 'Loading data...' : alarmError ? 'API Error' : isConnected ? 'Connected' : 'Disconnected'}>
+              {isLoadingAlarms ? '🔄' : alarmError ? '⚠️' : isConnected ? '💚' : '🔴'}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Error Display */}
+      {alarmError && (
+        <div className="alarm-error-banner">
+          <div className="error-content">
+            <span className="error-icon">⚠️</span>
+            <span className="error-message">{alarmError}</span>
+            <button 
+              className="error-dismiss" 
+              onClick={() => setAlarmError(null)}
+              aria-label="Dismiss error"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Loading indicator removed - now using LED in header */}
 
       {/* Enhanced Alarm Summary Dashboard with ISA-18.2 Colors */}
       <div className="alarm-summary-banner">
@@ -1127,10 +1247,10 @@ const AlarmsPage: React.FC = () => {
           <div className="summary-card critical" style={{ borderColor: SEVERITY_COLORS.CRITICAL }}>
             <div className="led-indicator critical" />
             <div className="summary-content">
-              <div className="summary-count">{alarmStats.critical}</div>
+              <div className="summary-count">{alarmSummary?.criticalCount || alarmStats.critical}</div>
               <div className="summary-label">CRITICAL</div>
             </div>
-            {alarmStats.critical > 0 && alarmConfig.flashingEnabled && (
+            {(alarmSummary?.criticalCount || alarmStats.critical) > 0 && alarmConfig.flashingEnabled && (
               <div className="flash-overlay critical" />
             )}
           </div>
@@ -1138,10 +1258,10 @@ const AlarmsPage: React.FC = () => {
           <div className="summary-card high" style={{ borderColor: SEVERITY_COLORS.HIGH }}>
             <div className="led-indicator high" />
             <div className="summary-content">
-              <div className="summary-count">{alarmStats.high}</div>
+              <div className="summary-count">{alarmSummary?.highCount || alarmStats.high}</div>
               <div className="summary-label">HIGH</div>
             </div>
-            {alarmStats.high > 0 && alarmConfig.flashingEnabled && (
+            {(alarmSummary?.highCount || alarmStats.high) > 0 && alarmConfig.flashingEnabled && (
               <div className="flash-overlay high" />
             )}
           </div>
@@ -1149,7 +1269,7 @@ const AlarmsPage: React.FC = () => {
           <div className="summary-card warning" style={{ borderColor: SEVERITY_COLORS.WARNING }}>
             <div className="led-indicator warning" />
             <div className="summary-content">
-              <div className="summary-count">{alarmStats.warning}</div>
+              <div className="summary-count">{alarmSummary?.warningCount || alarmStats.warning}</div>
               <div className="summary-label">WARNING</div>
             </div>
           </div>
@@ -1157,7 +1277,7 @@ const AlarmsPage: React.FC = () => {
           <div className="summary-card info" style={{ borderColor: SEVERITY_COLORS.INFO }}>
             <div className="led-indicator info" />
             <div className="summary-content">
-              <div className="summary-count">{alarmStats.info}</div>
+              <div className="summary-count">{alarmSummary?.infoCount || alarmStats.info}</div>
               <div className="summary-label">INFO</div>
             </div>
           </div>

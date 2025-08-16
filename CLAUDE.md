@@ -111,11 +111,26 @@ C:\projects\
 │
 └── tusas_hgu\                  # 🔄 Frontend (NEW)
     ├── CLAUDE.md               # This file
-    ├── SESSION_PROGRESS.md     # Detailed progress
+    ├── System\PLC\S7-1500\Development\  # ✅ PLC Code Structure
+    │   ├── Function_Blocks\    # All FB files (.scl)
+    │   ├── User_Data_Types\    # All UDT files (.scl)
+    │   ├── Organization_Blocks\ # Main programs (.scl)
+    │   ├── Data_Blocks\        # DB files (.scl)
+    │   └── Tools\              # Utilities & helpers
     ├── .serena/                # Memory storage
     └── hgu-dashboard/          # Tauri app (TO CREATE)
-
 ```
+
+## 🔧 **PLC Code Organization Rule**
+
+**IMPORTANT:** All PLC code files (.scl) MUST be placed in:
+`C:\projects\tusas_hgu\System\PLC\S7-1500\Development\`
+
+- **Function_Blocks\** → FB_*.scl files
+- **User_Data_Types\** → UDT_*.scl files  
+- **Organization_Blocks\** → OB_*.scl, Main_*.scl files
+- **Data_Blocks\** → DB_*.scl files
+- **Tools\** → Utility scripts and helpers
 
 ## 🔧 Development Tips
 

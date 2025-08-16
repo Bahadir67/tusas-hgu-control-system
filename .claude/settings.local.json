@@ -98,8 +98,40 @@
       "Bash(npx tsc:*)",
       "Bash(copy index.tsx.broken index.tsx)",
       "Bash(node:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "mcp__serena__switch_modes",
+      "Bash(for file in *.scl)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(done)",
+      "mcp__serena__think_about_task_adherence",
+      "Bash(tree:*)",
+      "Bash(mkdir:*)",
+      "Bash(copy:*)",
+      "Bash(npx @byterover/cipher ask \"Bu projede 6x75kW Load Sensing hydraulic motorlu bir HGU control sistemi geliştiriyoruz. TIA Portal V17 SCL ile PLC programladık ve C# .NET 9 ile OPC UA + InfluxDB backend yaptık. Tauri frontend yapacağız. Bu bilgiyi hatırla.\")",
+      "WebFetch(domain:docs.byterover.dev)",
+      "Bash(where claude)",
+      "Bash(dir:*)",
+      "Bash(npx @byterover/cipher:*)",
+      "Bash(claude:*)",
+      "Bash(npx:*)",
+      "Bash(git clone:*)",
+      "Bash(npm install)",
+      "Bash(PYTHONPATH=src python -m mcp_memory_service --help)",
+      "Bash(PYTHONPATH=src MCP_STORAGE_BACKEND=sqlite_vec python src/mcp_memory_service/mcp_server.py)",
+      "Bash(MCP_STORAGE_BACKEND=sqlite_vec MCP_DATA_DIR=\"C:\\Users\\Bahadira-NB3\\.claude\\mcp-memory-data\" python scripts/run_memory_server.py)",
+      "Bash(PYTHONPATH=src MCP_STORAGE_BACKEND=sqlite_vec MCP_DATA_DIR=\"C:\\Users\\Bahadira-NB3\\.claude\\mcp-memory-data\" python scripts/run_memory_server.py)",
+      "Bash(setx:*)",
+      "Bash(pip uninstall:*)",
+      "mcp__serena__think_about_whether_you_are_done",
+      "mcp__memory__create_entities",
+      "mcp__memory__add_observations"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "C:\\Users\\Bahadira-NB3\\.claude\\mcp-memory-service",
+      "C:\\c\\Users\\Bahadira-NB3\\.claude",
+      "C:\\c\\projects"
+    ]
   }
 }

@@ -11,12 +11,14 @@ namespace TUSAS.HGU.API.Controllers
     {
         private readonly WorkstationOpcUaClient _opcClient;
         private readonly InfluxDbService _influxDbService;
+        private readonly AlarmService _alarmService;
         private readonly ILogger<OpcController> _logger;
 
-        public OpcController(WorkstationOpcUaClient opcClient, InfluxDbService influxDbService, ILogger<OpcController> logger)
+        public OpcController(WorkstationOpcUaClient opcClient, InfluxDbService influxDbService, AlarmService alarmService, ILogger<OpcController> logger)
         {
             _opcClient = opcClient;
             _influxDbService = influxDbService;
+            _alarmService = alarmService;
             _logger = logger;
         }
 
@@ -253,6 +255,20 @@ namespace TUSAS.HGU.API.Controllers
                     request.Variables?.Count ?? 0, 
                     response.Variables.Count(v => v.Value.Quality == "Good"),
                     request.PageContext ?? "unknown");
+
+                // Process alarms with OPC data
+                try 
+                {
+                    var opcDataForAlarms = collection.Variables.ToDictionary(
+                        v => v.DisplayName, 
+                        v => new DataValue(v.Value ?? 0)
+                    );
+                    _alarmService.ProcessAlarms(opcDataForAlarms);
+                }
+                catch (Exception alarmEx)
+                {
+                    _logger.LogError(alarmEx, "Error processing alarms during batch read");
+                }
 
                 return Ok(response);
             }

@@ -1,13 +1,5 @@
 {
   "mcpServers": {
-    "sequential-thinking": {
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "@modelcontextprotocol/server-sequential-thinking"
-      ],
-      "env": {}
-    },
     "context7": {
       "type": "stdio", 
       "command": "npx",
@@ -29,6 +21,14 @@
         "DEBUG",
         "--project",
         "C:\\projects\\tusas_hgu_otomasyon"
+      ],
+      "env": {}
+    },
+    "memory": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-memory"
       ],
       "env": {}
     }
