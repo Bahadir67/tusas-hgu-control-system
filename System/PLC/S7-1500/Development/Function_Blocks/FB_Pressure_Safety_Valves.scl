@@ -51,7 +51,6 @@ VAR
     TCP_Send : TSEND_C;                       // TCP send function block
     Connect_Param : TCON_IP_v4;               // Connection parameters
     Connection_Request : Bool := FALSE;        // Connection request flag
-    Connection_Established : Bool := FALSE;    // Connection status
     Last_Enable : Bool := FALSE;              // Previous enable state
     
     // Send buffers (2 frames to send)
@@ -141,11 +140,6 @@ IF Enable AND NOT Last_Enable THEN
     Watchdog_Error := FALSE;
     Emergency_Stop_Required := FALSE;
     Error_Counter := 0;
-    
-    // Reset DB status flags on enable
-    "DB_HGU_Execution_V17".PRESSURE_VALVES_COMMUNICATION_OK := FALSE;
-    "DB_HGU_Execution_V17".PRESSURE_VALVES_CONNECTION_ESTABLISHED := FALSE;
-    "DB_HGU_Execution_V17".PRESSURE_VALVES_TCP_ERROR := FALSE;
 END_IF;
 
 Last_Enable := Enable;
@@ -156,19 +150,32 @@ Last_Enable := Enable;
 IF Enable THEN
     
     // =============================================================================
-    // COMMUNICATION STATUS MONITORING (Error logic moved to Error Manager)
+    // CRITICAL WATCHDOG SYSTEM (250ms timeout for safety valves)
     // =============================================================================
     Watchdog_Timer(IN := NOT Communication_OK, PT := Watchdog_Timeout);
     
-    // Report status to DB for Error Manager processing
-    "DB_HGU_Execution_V17".PRESSURE_VALVES_COMMUNICATION_OK := Communication_OK;
-    "DB_HGU_Execution_V17".PRESSURE_VALVES_CONNECTION_ESTABLISHED := Connection_Established;
-    
-    // Simple status flags (Error Manager handles logic)
-    Watchdog_Error := Watchdog_Timer.Q;  // Simple timeout flag
-    Emergency_Stop_Required := Watchdog_Timer.Q;  // Emergency required when watchdog timeout
+    // CRITICAL: 250ms watchdog error handling
     IF Watchdog_Timer.Q THEN
-        Error_Code := 1; // Watchdog timeout
+        Watchdog_Error := TRUE;
+        Emergency_Stop_Required := TRUE;
+        Error_Code := 1; // Watchdog timeout - CRITICAL!
+        Communication_OK := FALSE;
+        Watchdog_Counter := Watchdog_Counter + 1;
+    ELSE
+        // Only clear errors if we have active communication
+        IF Communication_OK THEN
+            Watchdog_Error := FALSE;
+            Emergency_Stop_Required := FALSE;
+            Error_Code := 0; // Clear error when communication restored
+        END_IF;
+    END_IF;
+    
+    // Communication status changed - reset watchdog counter
+    IF Communication_OK <> Last_Communication_OK THEN
+        IF Communication_OK THEN
+            Watchdog_Counter := 0; // Reset counter on successful communication
+        END_IF;
+        Last_Communication_OK := Communication_OK;
     END_IF;
     
     // =============================================================================
@@ -261,9 +268,6 @@ IF Enable THEN
                Error_Counter := Error_Counter + 1;
            END_IF;
            
-           // Report TCP error status to DB for Error Manager
-           "DB_HGU_Execution_V17".PRESSURE_VALVES_TCP_ERROR := (TCP_Receive.ERROR OR TCP_Send.ERROR);
-           
         2: // Connected and running
            // Send control with timing
            Send_Timer(IN := TRUE, PT := T#100ms); // 100ms send cycle
@@ -314,9 +318,6 @@ IF Enable THEN
            Frame_Received := TCP_Receive.DONE;
            Connection_Established := NOT TCP_Receive.ERROR AND NOT TCP_Send.ERROR;
            Communication_OK := Connection_Established;
-           
-           // Report TCP error status to DB for Error Manager
-           "DB_HGU_Execution_V17".PRESSURE_VALVES_TCP_ERROR := (TCP_Receive.ERROR OR TCP_Send.ERROR);
            
            IF TCP_Receive.ERROR OR TCP_Send.ERROR THEN
                State := 3;
@@ -395,7 +396,10 @@ IF Enable THEN
                "DB_HGU_Execution_V17".BYPASS_VLV_7_STATUS := DWORD_TO_USINT((Status_DWord AND 16#0C000000) / 67108864);
         END_CASE;
         
-        // Reset status flags on successful communication
+        // CRITICAL: Reset watchdog timer and safety flags on successful communication
+        Watchdog_Timer(IN := FALSE, PT := Watchdog_Timeout);  // Reset watchdog timer
+        Watchdog_Error := FALSE;
+        Emergency_Stop_Required := FALSE;
         Error_Code := 0; // Clear errors on successful communication
     END_IF;
     
@@ -450,15 +454,10 @@ ELSE
     "DB_HGU_Execution_V17".BYPASS_VLV_6_STATUS := 0;
     "DB_HGU_Execution_V17".BYPASS_VLV_7_STATUS := 0;
     
-    // Reset status flags in disabled state
+    // Reset status flags
     Watchdog_Error := FALSE;
     Emergency_Stop_Required := FALSE;
     Error_Code := 0;
-    
-    // Reset DB status flags
-    "DB_HGU_Execution_V17".PRESSURE_VALVES_COMMUNICATION_OK := FALSE;
-    "DB_HGU_Execution_V17".PRESSURE_VALVES_CONNECTION_ESTABLISHED := FALSE;
-    "DB_HGU_Execution_V17".PRESSURE_VALVES_TCP_ERROR := FALSE;
     
     // Stop timers
     Watchdog_Timer(IN := FALSE, PT := Watchdog_Timeout);
