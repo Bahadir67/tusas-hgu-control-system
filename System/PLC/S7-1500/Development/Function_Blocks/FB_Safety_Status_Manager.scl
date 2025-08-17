@@ -115,7 +115,6 @@ IF Enable THEN
         
         // Write to DB
         "DB_HGU_Execution_V17".STATUS_WORD := Status_Word_Temp;
-        "DB_HGU_Execution_V17".SAFETY_STATUS_PROCESSING_ACTIVE := Processing_Active;
         
         Processing_Timer(IN := FALSE, PT := T#100ms);
     END_IF;
@@ -131,7 +130,6 @@ ELSE
     
     // Reset Status Word only (other errors handled by Error Manager)
     "DB_HGU_Execution_V17".STATUS_WORD := WORD#0;
-    "DB_HGU_Execution_V17".SAFETY_STATUS_PROCESSING_ACTIVE := FALSE;
     
 END_IF;
 

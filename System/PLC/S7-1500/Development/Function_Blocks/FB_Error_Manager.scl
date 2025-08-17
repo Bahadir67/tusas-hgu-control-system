@@ -624,6 +624,7 @@ ELSE
     // Reset Safety and Motor error processing (moved from Safety_Status_Manager)
     "DB_HGU_Execution_V17".SAFETY_ERROR_WORD := WORD#0;
     "DB_HGU_Execution_V17".MOTOR_ERROR_WORD := WORD#0;
+    "DB_HGU_Execution_V17".STATUS_WORD := WORD#0;
     "DB_HGU_Execution_V17".CRITICAL_SAFETY_ERROR := FALSE;
     "DB_HGU_Execution_V17".ANY_MOTOR_ERROR := FALSE;
     "DB_HGU_Execution_V17".SAFETY_ERROR_CODE := USINT#0;
