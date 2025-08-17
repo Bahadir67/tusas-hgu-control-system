@@ -1,0 +1,240 @@
+FUNCTION_BLOCK "FB_Safety_Motor_Error_Processing"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : '1.0'
+// =============================================================================
+// TUSAŞ HGU Safety and Motor Error Processing V17
+// Purpose: Centralized Safety Error Word and Motor Error Word processing
+// Features: Emergency Stop processing, Motor thermal fault processing
+// 
+// SAFETY ERROR WORD (16 bits):
+// Bit 0-5:  Emergency Stop signals (6 signals)
+// Bit 6-9:  Protection system errors (Phase protection, Safety relay, etc.)
+//
+// MOTOR ERROR WORD (16 bits):
+// Bit 0-8:  Motor MKS thermal faults (9 motors: 1-6, CoilTube, Circ, Particle)
+// =============================================================================
+
+VAR_INPUT
+    Enable : Bool := FALSE;                    // Enable error processing
+END_VAR
+
+VAR_OUTPUT
+    // Safety status
+    Emergency_Stop_Active : Bool := FALSE;     // Any emergency stop active
+    Safety_Error_Count : USInt := 0;           // Number of active safety errors
+    
+    // Motor status
+    Motor_Thermal_Error : Bool := FALSE;       // Any motor thermal error
+    Motor_Error_Count : USInt := 0;            // Number of active motor errors
+    
+    // Processing status
+    Processing_Active : Bool := FALSE;         // Processing active status
+END_VAR
+
+VAR
+    // Safety Error Word processing
+    Safety_Word_Raw : Word := 0;
+    
+    // Motor Error Word processing
+    Motor_Word_Raw : Word := 0;
+    
+    // Processing control
+    Processing_Timer : TON;
+    Init_Complete : Bool := FALSE;
+    
+    i : USInt; // Loop counter
+END_VAR
+
+VAR_TEMP
+    Temp_DWord : DWord;
+    Temp_Bool : Bool;
+END_VAR
+
+BEGIN
+
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
+IF NOT Init_Complete THEN
+    Emergency_Stop_Active := FALSE;
+    Motor_Thermal_Error := FALSE;
+    Safety_Error_Count := 0;
+    Motor_Error_Count := 0;
+    Safety_Word_Raw := 0;
+    Motor_Word_Raw := 0;
+    Processing_Active := FALSE;
+    
+    Processing_Timer(IN := FALSE, PT := T#100ms);
+    Init_Complete := TRUE;
+END_IF;
+
+// =============================================================================
+// MAIN PROCESSING LOGIC
+// =============================================================================
+IF Enable THEN
+    Processing_Active := TRUE;
+    
+    // Process every 100ms
+    Processing_Timer(IN := TRUE, PT := T#100ms);
+    
+    IF Processing_Timer.Q THEN
+        
+        // =============================================================================
+        // BUILD SAFETY ERROR WORD (16 bits)
+        // =============================================================================
+        Safety_Word_Raw := WORD#0;
+        Safety_Error_Count := USINT#0;
+        
+        // Emergency Stop signals (Bits 0-5)
+        IF "EmergencyStopPlcStatus" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000000000001;  // Bit 0
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "EmergencyStopGpStatus" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000000000010;  // Bit 1
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "EmergencyStopUnit1" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000000000100;  // Bit 2
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "EmergencyStopUnit2" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000000001000;  // Bit 3
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "EmergencyStopUnit3" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000000010000;  // Bit 4
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "EmergencyStopUnit4" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000000100000;  // Bit 5
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        // Protection system errors (Bits 6-9) - Inverted logic for OK signals
+        IF NOT "PhaseProtectionOk" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000001000000;  // Bit 6
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF NOT "SafetyRelayOk" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000010000000;  // Bit 7
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "MainSwitchAlarm" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000100000000;  // Bit 8
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "ToroidalLeakageFuse" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000001000000000;  // Bit 9
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        // Write to DB
+        "DB_HGU_Execution_V17".SAFETY_ERROR_WORD := Safety_Word_Raw;
+        
+        // =============================================================================
+        // BUILD MOTOR ERROR WORD (16 bits)
+        // =============================================================================
+        Motor_Word_Raw := WORD#0;
+        Motor_Error_Count := USINT#0;
+        
+        // Motor MKS thermal faults (Bits 0-8)
+        IF "Motor1MpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000000000001;  // Bit 0
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "Motor2MpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000000000010;  // Bit 1
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "Motor3MpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000000000100;  // Bit 2
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "Motor4MpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000000001000;  // Bit 3
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "Motor5MpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000000010000;  // Bit 4
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "Motor6MpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000000100000;  // Bit 5
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "CoilTubeMpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000001000000;  // Bit 6
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "CircMpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000010000000;  // Bit 7
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "ParticleMpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000100000000;  // Bit 8
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        // Write to DB
+        "DB_HGU_Execution_V17".MOTOR_ERROR_WORD := Motor_Word_Raw;
+        
+        // =============================================================================
+        // STATUS EVALUATION
+        // =============================================================================
+        
+        // Check Emergency Stop status (any of 6 stops active)
+        Emergency_Stop_Active := (Safety_Error_Count > USINT#0);
+        
+        // Check Motor Thermal Error status (any of 9 motors has thermal fault)
+        Motor_Thermal_Error := (Motor_Error_Count > USINT#0);
+        
+        // Update DB status variables
+        "DB_HGU_Execution_V17".CRITICAL_SAFETY_ERROR := Emergency_Stop_Active;
+        "DB_HGU_Execution_V17".ANY_MOTOR_ERROR := Motor_Thermal_Error;
+        "DB_HGU_Execution_V17".SAFETY_ERROR_CODE := Safety_Error_Count;
+        
+        Processing_Timer(IN := FALSE, PT := T#100ms);
+    END_IF;
+    
+ELSE
+    // =============================================================================
+    // DISABLED STATE
+    // =============================================================================
+    Emergency_Stop_Active := FALSE;
+    Motor_Thermal_Error := FALSE;
+    Safety_Error_Count := 0;
+    Motor_Error_Count := 0;
+    Processing_Active := FALSE;
+    
+    Safety_Word_Raw := 0;
+    Motor_Word_Raw := 0;
+    
+    Processing_Timer(IN := FALSE, PT := T#100ms);
+    
+    // Reset DB outputs
+    "DB_HGU_Execution_V17".SAFETY_ERROR_WORD := WORD#0;
+    "DB_HGU_Execution_V17".MOTOR_ERROR_WORD := WORD#0;
+    "DB_HGU_Execution_V17".CRITICAL_SAFETY_ERROR := FALSE;
+    "DB_HGU_Execution_V17".ANY_MOTOR_ERROR := FALSE;
+    "DB_HGU_Execution_V17".SAFETY_ERROR_CODE := USINT#0;
+    
+END_IF;
+
+END_FUNCTION_BLOCK
