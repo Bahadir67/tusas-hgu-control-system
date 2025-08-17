@@ -545,7 +545,7 @@ VERSION : 3.0
       // =============================================================================
       SAFETY_ERROR_WORD : Word := 0;                // Safety Error Word (16 bits) - Emergency stops, protection failures
       MOTOR_ERROR_WORD : Word := 0;                 // Motor Error Word (16 bits) - Motor thermal faults
-      STATUS_WORD : Word := 0;                      // Status Word (16 bits) - Operational status signals
+      MCC_STATUS_WORD : Word := 0;                  // MCC Status Word (16 bits) - Motor Control Center operational status
       
       // Safety Status Summary
       CRITICAL_SAFETY_ERROR : Bool := FALSE;        // Any emergency stop or protection failure

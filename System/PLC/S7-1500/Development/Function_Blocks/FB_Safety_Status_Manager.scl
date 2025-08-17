@@ -114,7 +114,7 @@ IF Enable THEN
         END_IF;
         
         // Write to DB
-        "DB_HGU_Execution_V17".STATUS_WORD := Status_Word_Temp;
+        "DB_HGU_Execution_V17".MCC_STATUS_WORD := Status_Word_Temp;
         
         Processing_Timer(IN := FALSE, PT := T#100ms);
     END_IF;
@@ -128,8 +128,8 @@ ELSE
     
     Processing_Timer(IN := FALSE, PT := T#100ms);
     
-    // Reset Status Word only (other errors handled by Error Manager)
-    "DB_HGU_Execution_V17".STATUS_WORD := WORD#0;
+    // Reset MCC Status Word only (other errors handled by Error Manager)
+    "DB_HGU_Execution_V17".MCC_STATUS_WORD := WORD#0;
     
 END_IF;
 
