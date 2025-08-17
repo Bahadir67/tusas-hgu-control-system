@@ -541,6 +541,18 @@ VERSION : 3.0
       TOTAL_FILTER_ERRORS : USInt := 0;             // Total filter errors
       
       // =============================================================================
+      // SAFETY AND STATUS WORDS
+      // =============================================================================
+      SAFETY_ERROR_WORD : Word := 0;                // Safety Error Word (16 bits) - Emergency stops, protection failures
+      MOTOR_ERROR_WORD : Word := 0;                 // Motor Error Word (16 bits) - Motor thermal faults
+      STATUS_WORD : Word := 0;                      // Status Word (16 bits) - Operational status signals
+      
+      // Safety Status Summary
+      CRITICAL_SAFETY_ERROR : Bool := FALSE;        // Any emergency stop or protection failure
+      ANY_MOTOR_ERROR : Bool := FALSE;              // Any motor thermal error active
+      SAFETY_ERROR_CODE : USInt := 0;               // Safety error priority code
+      
+      // =============================================================================
       // TANK LEVEL SWITCHES (Digital Inputs)
       // =============================================================================
       TANK_MIN_LEVEL : Bool := FALSE;               // Tank minimum level switch
