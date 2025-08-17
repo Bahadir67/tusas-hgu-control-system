@@ -10,381 +10,286 @@ VERSION : 3.0
 // =============================================================================
    VAR 
       // =============================================================================
-      // SYSTEM CONTROL AND STATUS - INTEGRATED ARCHITECTURE
+      // UI MONITORING VARIABLES - ORGANIZED BY PRIORITY AND UPDATE FREQUENCY
       // =============================================================================
+      
+      // =============================================================================
+      // CRITICAL SAFETY & SYSTEM STATUS (Priority 5) - 500ms Update
+      // =============================================================================
+      SYSTEM_STATUS : Int := 0;                     // System status (0=Init, 1=Ready, 2=Running, 3=Error)
+      SYSTEM_SAFETY_STATUS : Int := 0;              // Safety status (0=Unknown, 1=Safe, 2=Safety Error)
+      EMERGENCY_STOP : Bool := FALSE;               // Emergency stop status
+      SYSTEM_ERROR : Bool := FALSE;                 // Any system error active
+      CRITICAL_SAFETY_ERROR : Bool := FALSE;        // Any emergency stop or protection failure
       SYSTEM_ENABLE : Bool := FALSE;                // Master system enable
       SYSTEM_READY : Bool := FALSE;                 // All subsystems ready
-      SYSTEM_ERROR : Bool := FALSE;                 // Any system error active
-      EMERGENCY_STOP : Bool := FALSE;               // Emergency stop status
-      RESET_ERRORS : Bool := FALSE;                 // Reset all errors command
-      DEBUG_MODE : Bool := FALSE;                   // Debug mode enable
-      
-      // System Performance Monitoring
-      SYSTEM_CYCLE_COUNTER : UDInt := 0;            // System cycle counter
-      SYSTEM_SCAN_TIME : UDInt := 0;                // Current scan time (ms)
-      LAST_UPDATE_TIME : DTL;                       // Last system update time
       
       // =============================================================================
-      // SYSTEM SETPOINTS AND TOTALS
+      // SYSTEM PERFORMANCE MONITORING (Priority 4) - 1000ms Update
+      // =============================================================================
+      TOTAL_SYSTEM_FLOW : Real := 0.0;              // Total system flow rate (L/min)
+      TOTAL_SYSTEM_PRESSURE : Real := 0.0;          // Average system pressure (bar)
+      SYSTEM_PRESSURE_AVERAGE : Real := 0.0;        // System pressure average (bar)
+      ACTIVE_MOTOR_COUNT : USInt := 0;              // Currently active motors
+      SYSTEM_ACTIVE_PUMPS : Int := 0;               // Active pumps count
+      SYSTEM_EFFICIENCY : Real := 0.0;              // Overall system efficiency (%)
+      
+      // =============================================================================
+      // SYSTEM SETPOINTS (User Adjustable) - 2000ms Update
       // =============================================================================
       SYSTEM_PRESSURE_SETPOINT : Real := 280.0;     // System pressure setpoint (bar) - UI adjustable
       SYSTEM_FLOW_SETPOINT : Real := 180.0;         // System flow setpoint (L/min) - UI adjustable
-      TOTAL_SYSTEM_FLOW : Real := 0.0;              // Total system flow rate (L/min)
-      TOTAL_SYSTEM_PRESSURE : Real := 0.0;          // Average system pressure (bar)
-      ACTIVE_MOTOR_COUNT : USInt := 0;              // Currently active motors
-      SYSTEM_EFFICIENCY : Real := 0.0;              // Overall system efficiency (%)
-      SYSTEM_STATUS : Int := 0;                     // System status (0=Init, 1=Ready, 2=Running, 3=Error)
-      SYSTEM_SAFETY_STATUS : Int := 0;              // Safety status (0=Unknown, 1=Safe, 2=Safety Error)
-      SYSTEM_PRESSURE_AVERAGE : Real := 0.0;        // System pressure average (bar)
-      SYSTEM_ACTIVE_PUMPS : Int := 0;               // Active pumps count
       
       // =============================================================================
-      // PUMP #1 VARIABLES (Pressure & Flow Control)
+      // SYSTEM CONTROL COMMANDS (User Actions) - Immediate Update
       // =============================================================================
-      PUMP_1_PRESSURE_SETPOINT : Real := 280.0;     // Pump 1 Pressure Setpoint (Bar) - Load Sensing coordinated
-      PUMP_1_PRESSURE_ACTUAL : Real := 0.0;         // Pump 1 Actual Pressure (Bar) - Sensor feedback
-      PUMP_1_FLOW_SETPOINT : Real := 30.0;          // Pump 1 Flow Setpoint (L/min) - User adjustable
-      PUMP_1_FLOW_ACTUAL : Real := 0.0;             // Pump 1 Actual Flow (L/min) - Calculated value
-      PUMP_1_LEAK_RATE : Real := 0.0;               // Pump 1 Leak Rate (L/min) - Diagnostic value
-      PUMP_1_ENABLED : Bool := FALSE;               // Pump 1 Enable Control (PID enable)
+      RESET_ERRORS : Bool := FALSE;                 // Reset all errors command
+      DEBUG_MODE : Bool := FALSE;                   // Debug mode enable
+      WEAR_LEVELING_ENABLE : Bool := TRUE;          // Wear leveling algorithm enable/disable
+      PRESSURE_SAFETY_VALVES_ENABLE : Bool := FALSE; // Enable pressure safety valves controller
       
       // =============================================================================
-      // MOTOR #1 VARIABLES (Electrical Parameters)
+      // MOTOR STATUS MONITORING (Priority 4) - 500ms Update
       // =============================================================================
-      MOTOR_1_RPM_SETPOINT : Real := 1000.0;        // Motor 1 Target RPM - VFD setpoint
+      MOTOR_1_STATUS : USInt := 0;                  // Motor 1 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_1_ERROR_CODE : USInt := 0;              // Motor 1 Error code - Diagnostic information
+      MOTOR_2_STATUS : USInt := 0;                  // Motor 2 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_2_ERROR_CODE : USInt := 0;              // Motor 2 Error code - Diagnostic information
+      MOTOR_3_STATUS : USInt := 0;                  // Motor 3 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_3_ERROR_CODE : USInt := 0;              // Motor 3 Error code - Diagnostic information
+      MOTOR_4_STATUS : USInt := 0;                  // Motor 4 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_4_ERROR_CODE : USInt := 0;              // Motor 4 Error code - Diagnostic information
+      MOTOR_5_STATUS : USInt := 0;                  // Motor 5 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_5_ERROR_CODE : USInt := 0;              // Motor 5 Error code - Diagnostic information
+      MOTOR_6_STATUS : USInt := 0;                  // Motor 6 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_6_ERROR_CODE : USInt := 0;              // Motor 6 Error code - Diagnostic information
+      MOTOR_7_STATUS : USInt := 0;                  // Motor 7 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
+      MOTOR_7_ERROR_CODE : USInt := 0;              // Motor 7 Error code - Diagnostic information
+      
+      // =============================================================================
+      // MOTOR PERFORMANCE MONITORING (Priority 4) - 1000ms Update
+      // =============================================================================
       MOTOR_1_RPM_ACTUAL : Real := 0.0;             // Motor 1 Actual RPM - Encoder feedback
       MOTOR_1_CURRENT_A : Real := 0.0;              // Motor 1 Current (A) - Electrical measurement
       MOTOR_1_TEMPERATURE_C : Real := 25.0;         // Motor 1 Temperature (°C) - Thermal monitoring
+      MOTOR_2_RPM_ACTUAL : Real := 0.0;             // Motor 2 Actual RPM - Encoder feedback
+      MOTOR_2_CURRENT_A : Real := 0.0;              // Motor 2 Current (A) - Electrical measurement
+      MOTOR_2_TEMPERATURE_C : Real := 25.0;         // Motor 2 Temperature (°C) - Thermal monitoring
+      MOTOR_3_RPM_ACTUAL : Real := 0.0;             // Motor 3 Actual RPM - Encoder feedback
+      MOTOR_3_CURRENT_A : Real := 0.0;              // Motor 3 Current (A) - Electrical measurement
+      MOTOR_3_TEMPERATURE_C : Real := 25.0;         // Motor 3 Temperature (°C) - Thermal monitoring
+      MOTOR_4_RPM_ACTUAL : Real := 0.0;             // Motor 4 Actual RPM - Encoder feedback
+      MOTOR_4_CURRENT_A : Real := 0.0;              // Motor 4 Current (A) - Electrical measurement
+      MOTOR_4_TEMPERATURE_C : Real := 25.0;         // Motor 4 Temperature (°C) - Thermal monitoring
+      MOTOR_5_RPM_ACTUAL : Real := 0.0;             // Motor 5 Actual RPM - Encoder feedback
+      MOTOR_5_CURRENT_A : Real := 0.0;              // Motor 5 Current (A) - Electrical measurement
+      MOTOR_5_TEMPERATURE_C : Real := 25.0;         // Motor 5 Temperature (°C) - Thermal monitoring
+      MOTOR_6_RPM_ACTUAL : Real := 0.0;             // Motor 6 Actual RPM - Encoder feedback
+      MOTOR_6_CURRENT_A : Real := 0.0;              // Motor 6 Current (A) - Electrical measurement
+      MOTOR_6_TEMPERATURE_C : Real := 25.0;         // Motor 6 Temperature (°C) - Thermal monitoring
+      MOTOR_7_RPM_ACTUAL : Real := 0.0;             // Motor 7 Actual RPM - Fixed at 1500 RPM
+      MOTOR_7_CURRENT_A : Real := 0.0;              // Motor 7 Current (A) - Electrical measurement
+      MOTOR_7_TEMPERATURE_C : Real := 25.0;         // Motor 7 Temperature (°C) - Thermal monitoring
+      
+      // =============================================================================
+      // PUMP PERFORMANCE MONITORING (Priority 4) - 1000ms Update
+      // =============================================================================
+      PUMP_1_PRESSURE_ACTUAL : Real := 0.0;         // Pump 1 Actual Pressure (Bar) - Sensor feedback
+      PUMP_1_FLOW_ACTUAL : Real := 0.0;             // Pump 1 Actual Flow (L/min) - Calculated value
+      PUMP_1_LEAK_RATE : Real := 0.0;               // Pump 1 Leak Rate (L/min) - Diagnostic value
+      PUMP_2_PRESSURE_ACTUAL : Real := 0.0;         // Pump 2 Actual Pressure (Bar) - Sensor feedback
+      PUMP_2_FLOW_ACTUAL : Real := 0.0;             // Pump 2 Actual Flow (L/min) - Calculated value
+      PUMP_2_LEAK_RATE : Real := 0.0;               // Pump 2 Leak Rate (L/min) - Diagnostic value
+      PUMP_3_PRESSURE_ACTUAL : Real := 0.0;         // Pump 3 Actual Pressure (Bar) - Sensor feedback
+      PUMP_3_FLOW_ACTUAL : Real := 0.0;             // Pump 3 Actual Flow (L/min) - Calculated value
+      PUMP_3_LEAK_RATE : Real := 0.0;               // Pump 3 Leak Rate (L/min) - Diagnostic value
+      PUMP_4_PRESSURE_ACTUAL : Real := 0.0;         // Pump 4 Actual Pressure (Bar) - Sensor feedback
+      PUMP_4_FLOW_ACTUAL : Real := 0.0;             // Pump 4 Actual Flow (L/min) - Calculated value
+      PUMP_4_LEAK_RATE : Real := 0.0;               // Pump 4 Leak Rate (L/min) - Diagnostic value
+      PUMP_5_PRESSURE_ACTUAL : Real := 0.0;         // Pump 5 Actual Pressure (Bar) - Sensor feedback
+      PUMP_5_FLOW_ACTUAL : Real := 0.0;             // Pump 5 Actual Flow (L/min) - Calculated value
+      PUMP_5_LEAK_RATE : Real := 0.0;               // Pump 5 Leak Rate (L/min) - Diagnostic value
+      PUMP_6_PRESSURE_ACTUAL : Real := 0.0;         // Pump 6 Actual Pressure (Bar) - Sensor feedback
+      PUMP_6_FLOW_ACTUAL : Real := 0.0;             // Pump 6 Actual Flow (L/min) - Calculated value
+      PUMP_6_LEAK_RATE : Real := 0.0;               // Pump 6 Leak Rate (L/min) - Diagnostic value
+      PUMP_7_PRESSURE_ACTUAL : Real := 0.0;         // Pump 7 Actual Pressure (Bar) - Sensor feedback
+      PUMP_7_FLOW_ACTUAL : Real := 0.0;             // Pump 7 Actual Flow (L/min) - Fixed at 34 L/min
+      PUMP_7_LEAK_RATE : Real := 0.0;               // Pump 7 Leak Rate (L/min) - Diagnostic value
+      
+      // =============================================================================
+      // MOTOR & PUMP SETPOINTS (User Adjustable) - 2000ms Update
+      // =============================================================================
+      MOTOR_1_RPM_SETPOINT : Real := 1000.0;        // Motor 1 Target RPM - VFD setpoint
+      MOTOR_2_RPM_SETPOINT : Real := 1000.0;        // Motor 2 Target RPM - VFD setpoint
+      MOTOR_3_RPM_SETPOINT : Real := 1000.0;        // Motor 3 Target RPM - VFD setpoint
+      MOTOR_4_RPM_SETPOINT : Real := 1000.0;        // Motor 4 Target RPM - VFD setpoint
+      MOTOR_5_RPM_SETPOINT : Real := 1000.0;        // Motor 5 Target RPM - VFD setpoint
+      MOTOR_6_RPM_SETPOINT : Real := 1000.0;        // Motor 6 Target RPM - VFD setpoint
+      MOTOR_7_RPM_SETPOINT : Real := 1500.0;        // Motor 7 Target RPM - Fixed displacement
+      
+      PUMP_1_PRESSURE_SETPOINT : Real := 280.0;     // Pump 1 Pressure Setpoint (Bar) - Load Sensing coordinated
+      PUMP_1_FLOW_SETPOINT : Real := 30.0;          // Pump 1 Flow Setpoint (L/min) - User adjustable
+      PUMP_2_PRESSURE_SETPOINT : Real := 280.0;     // Pump 2 Pressure Setpoint (Bar) - Load Sensing coordinated
+      PUMP_2_FLOW_SETPOINT : Real := 30.0;          // Pump 2 Flow Setpoint (L/min) - User adjustable
+      PUMP_3_PRESSURE_SETPOINT : Real := 280.0;     // Pump 3 Pressure Setpoint (Bar) - Load Sensing coordinated
+      PUMP_3_FLOW_SETPOINT : Real := 30.0;          // Pump 3 Flow Setpoint (L/min) - User adjustable
+      PUMP_4_PRESSURE_SETPOINT : Real := 280.0;     // Pump 4 Pressure Setpoint (Bar) - Load Sensing coordinated
+      PUMP_4_FLOW_SETPOINT : Real := 30.0;          // Pump 4 Flow Setpoint (L/min) - User adjustable
+      PUMP_5_PRESSURE_SETPOINT : Real := 280.0;     // Pump 5 Pressure Setpoint (Bar) - Load Sensing coordinated
+      PUMP_5_FLOW_SETPOINT : Real := 30.0;          // Pump 5 Flow Setpoint (L/min) - User adjustable
+      PUMP_6_PRESSURE_SETPOINT : Real := 280.0;     // Pump 6 Pressure Setpoint (Bar) - Load Sensing coordinated
+      PUMP_6_FLOW_SETPOINT : Real := 30.0;          // Pump 6 Flow Setpoint (L/min) - User adjustable
+      PUMP_7_PRESSURE_SETPOINT : Real := 280.0;     // Pump 7 Pressure Setpoint (Bar) - Load Sensing coordinated
+      PUMP_7_FLOW_SETPOINT : Real := 34.0;          // Pump 7 Flow Setpoint (L/min) - Fixed displacement
+      
+      // =============================================================================
+      // MOTOR & PUMP CONTROL COMMANDS (User Actions) - Immediate Update
+      // =============================================================================
       MOTOR_1_ENABLE : Bool := FALSE;               // Motor 1 Enable Control
-      MOTOR_1_STATUS : USInt := 0;                  // Motor 1 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_1_ERROR_CODE : USInt := 0;              // Motor 1 Error code - Diagnostic information
       MOTOR_1_START_CMD : Bool := FALSE;            // Motor 1 Start Command
       MOTOR_1_STOP_CMD : Bool := FALSE;             // Motor 1 Stop Command
       MOTOR_1_RESET_CMD : Bool := FALSE;            // Motor 1 Reset Command
+      MOTOR_2_ENABLE : Bool := FALSE;               // Motor 2 Enable Control
+      MOTOR_2_START_CMD : Bool := FALSE;            // Motor 2 Start Command
+      MOTOR_2_STOP_CMD : Bool := FALSE;             // Motor 2 Stop Command
+      MOTOR_2_RESET_CMD : Bool := FALSE;            // Motor 2 Reset Command
+      MOTOR_3_ENABLE : Bool := FALSE;               // Motor 3 Enable Control
+      MOTOR_3_START_CMD : Bool := FALSE;            // Motor 3 Start Command
+      MOTOR_3_STOP_CMD : Bool := FALSE;             // Motor 3 Stop Command
+      MOTOR_3_RESET_CMD : Bool := FALSE;            // Motor 3 Reset Command
+      MOTOR_4_ENABLE : Bool := FALSE;               // Motor 4 Enable Control
+      MOTOR_4_START_CMD : Bool := FALSE;            // Motor 4 Start Command
+      MOTOR_4_STOP_CMD : Bool := FALSE;             // Motor 4 Stop Command
+      MOTOR_4_RESET_CMD : Bool := FALSE;            // Motor 4 Reset Command
+      MOTOR_5_ENABLE : Bool := FALSE;               // Motor 5 Enable Control
+      MOTOR_5_START_CMD : Bool := FALSE;            // Motor 5 Start Command
+      MOTOR_5_STOP_CMD : Bool := FALSE;             // Motor 5 Stop Command
+      MOTOR_5_RESET_CMD : Bool := FALSE;            // Motor 5 Reset Command
+      MOTOR_6_ENABLE : Bool := FALSE;               // Motor 6 Enable Control
+      MOTOR_6_START_CMD : Bool := FALSE;            // Motor 6 Start Command
+      MOTOR_6_STOP_CMD : Bool := FALSE;             // Motor 6 Stop Command
+      MOTOR_6_RESET_CMD : Bool := FALSE;            // Motor 6 Reset Command
+      MOTOR_7_ENABLE : Bool := FALSE;               // Motor 7 Enable Control
+      MOTOR_7_START_CMD : Bool := FALSE;            // Motor 7 Start Command
+      MOTOR_7_STOP_CMD : Bool := FALSE;             // Motor 7 Stop Command
+      MOTOR_7_RESET_CMD : Bool := FALSE;            // Motor 7 Reset Command
+      
+      PUMP_1_ENABLED : Bool := FALSE;               // Pump 1 Enable Control (PID enable)
+      PUMP_2_ENABLED : Bool := FALSE;               // Pump 2 Enable Control (PID enable)
+      PUMP_3_ENABLED : Bool := FALSE;               // Pump 3 Enable Control (PID enable)
+      PUMP_4_ENABLED : Bool := FALSE;               // Pump 4 Enable Control (PID enable)
+      PUMP_5_ENABLED : Bool := FALSE;               // Pump 5 Enable Control (PID enable)
+      PUMP_6_ENABLED : Bool := FALSE;               // Pump 6 Enable Control (PID enable)
+      PUMP_7_ENABLED : Bool := FALSE;               // Pump 7 Enable Control (PID enable)
+      
+      // =============================================================================
+      // MOTOR FEEDBACK ACKNOWLEDGMENTS (Read-Only) - 500ms Update
+      // =============================================================================
       MOTOR_1_START_ACK : Bool := FALSE;            // Motor 1 Start Acknowledgment
       MOTOR_1_STOP_ACK : Bool := FALSE;             // Motor 1 Stop Acknowledgment
       MOTOR_1_RESET_ACK : Bool := FALSE;            // Motor 1 Reset Acknowledgment
+      MOTOR_2_START_ACK : Bool := FALSE;            // Motor 2 Start Acknowledgment
+      MOTOR_2_STOP_ACK : Bool := FALSE;             // Motor 2 Stop Acknowledgment
+      MOTOR_2_RESET_ACK : Bool := FALSE;            // Motor 2 Reset Acknowledgment
+      MOTOR_3_START_ACK : Bool := FALSE;            // Motor 3 Start Acknowledgment
+      MOTOR_3_STOP_ACK : Bool := FALSE;             // Motor 3 Stop Acknowledgment
+      MOTOR_3_RESET_ACK : Bool := FALSE;            // Motor 3 Reset Acknowledgment
+      MOTOR_4_START_ACK : Bool := FALSE;            // Motor 4 Start Acknowledgment
+      MOTOR_4_STOP_ACK : Bool := FALSE;             // Motor 4 Stop Acknowledgment
+      MOTOR_4_RESET_ACK : Bool := FALSE;            // Motor 4 Reset Acknowledgment
+      MOTOR_5_START_ACK : Bool := FALSE;            // Motor 5 Start Acknowledgment
+      MOTOR_5_STOP_ACK : Bool := FALSE;             // Motor 5 Stop Acknowledgment
+      MOTOR_5_RESET_ACK : Bool := FALSE;            // Motor 5 Reset Acknowledgment
+      MOTOR_6_START_ACK : Bool := FALSE;            // Motor 6 Start Acknowledgment
+      MOTOR_6_STOP_ACK : Bool := FALSE;             // Motor 6 Stop Acknowledgment
+      MOTOR_6_RESET_ACK : Bool := FALSE;            // Motor 6 Reset Acknowledgment
       
       // G120C FREE Telegram Variables - REMOVED
       // Physical I/O mapping done via TAG Table (M1_Control_Word, M1_Status_Word, etc.)
       
       // =============================================================================
-      // PROPORTIONAL RELIEF VALVE #1 VARIABLES (Pressure Control)
+      // VALVE MONITORING (Priority 3) - 1000ms Update
       // =============================================================================
       PROP_REL_VLV_1_SETPOINT : UInt := 0;          // Prop Relief Valve 1 Setpoint (0-10000) - Control output
       PROP_REL_VLV_1_FEEDBACK_CURRENT : UInt := 0;  // Prop Relief Valve 1 Feedback Current (0-3000 mA)
       PROP_REL_VLV_1_STATUS : USInt := 1;           // Prop Relief Valve 1 Status (0=Undefined, 1=Normal, 2=Short, 3=Overcurrent, 4=Open)
-      BYPASS_VLV_1 : Bool := FALSE;                 // Bypass Valve 1 Command (TRUE=Enable proportional)
-      BYPASS_VLV_1_STATUS : USInt := 1;             // Bypass Valve 1 Status (0-3)
-      PUMP_1_LINE_FILTER_STATUS : USInt := 2;       // Pump 1 Line Filter - Pompa çıkışında (0=Error, 1=Warning, 2=OK)
-      PUMP_1_SUCTION_FILTER_STATUS : USInt := 1;    // Pump 1 Suction Filter - Pompa girişinde (0=Error, 1=OK)
-      PUMP_1_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 1 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
-      
-      // =============================================================================
-      // PUMP #2 VARIABLES (Pressure & Flow Control)
-      // =============================================================================
-      PUMP_2_PRESSURE_SETPOINT : Real := 280.0;     // Pump 2 Pressure Setpoint (Bar) - Load Sensing coordinated
-      PUMP_2_PRESSURE_ACTUAL : Real := 0.0;         // Pump 2 Actual Pressure (Bar) - Sensor feedback
-      PUMP_2_FLOW_SETPOINT : Real := 30.0;          // Pump 2 Flow Setpoint (L/min) - User adjustable
-      PUMP_2_FLOW_ACTUAL : Real := 0.0;             // Pump 2 Actual Flow (L/min) - Calculated value
-      PUMP_2_LEAK_RATE : Real := 0.0;               // Pump 2 Leak Rate (L/min) - Diagnostic value
-      PUMP_2_ENABLED : Bool := FALSE;               // Pump 2 Enable Control (PID enable)
-      
-      // =============================================================================
-      // MOTOR #2 VARIABLES (Electrical Parameters)
-      // =============================================================================
-      MOTOR_2_RPM_SETPOINT : Real := 1000.0;        // Motor 2 Target RPM - VFD setpoint
-      MOTOR_2_RPM_ACTUAL : Real := 0.0;             // Motor 2 Actual RPM - Encoder feedback
-      MOTOR_2_CURRENT_A : Real := 0.0;              // Motor 2 Current (A) - Electrical measurement
-      MOTOR_2_TEMPERATURE_C : Real := 25.0;         // Motor 2 Temperature (°C) - Thermal monitoring
-      MOTOR_2_ENABLE : Bool := FALSE;               // Motor 2 Enable Control
-      MOTOR_2_STATUS : USInt := 0;                  // Motor 2 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_2_ERROR_CODE : USInt := 0;              // Motor 2 Error code - Diagnostic information
-      MOTOR_2_START_CMD : Bool := FALSE;            // Motor 2 Start Command
-      MOTOR_2_STOP_CMD : Bool := FALSE;             // Motor 2 Stop Command
-      MOTOR_2_RESET_CMD : Bool := FALSE;            // Motor 2 Reset Command
-      MOTOR_2_START_ACK : Bool := FALSE;            // Motor 2 Start Acknowledgment
-      MOTOR_2_STOP_ACK : Bool := FALSE;             // Motor 2 Stop Acknowledgment
-      MOTOR_2_RESET_ACK : Bool := FALSE;            // Motor 2 Reset Acknowledgment
-      
-      // G120C FREE Telegram Variables - REMOVED (Use M2_* TAGs)
-      
-      // =============================================================================
-      // PROPORTIONAL RELIEF VALVE #2 VARIABLES (Pressure Control)
-      // =============================================================================
       PROP_REL_VLV_2_SETPOINT : UInt := 0;          // Prop Relief Valve 2 Setpoint (0-10000) - Control output
       PROP_REL_VLV_2_FEEDBACK_CURRENT : UInt := 0;  // Prop Relief Valve 2 Feedback Current (0-3000 mA)
       PROP_REL_VLV_2_STATUS : USInt := 1;           // Prop Relief Valve 2 Status (0=Undefined, 1=Normal, 2=Short, 3=Overcurrent, 4=Open)
-      BYPASS_VLV_2 : Bool := FALSE;                 // Bypass Valve 2 Command (TRUE=Enable proportional)
-      BYPASS_VLV_2_STATUS : USInt := 1;             // Bypass Valve 2 Status (0-3)
-      PUMP_2_LINE_FILTER_STATUS : USInt := 2;       // Pump 2 Line Filter - Pompa çıkışında (0=Error, 1=Warning, 2=OK)
-      PUMP_2_SUCTION_FILTER_STATUS : USInt := 1;    // Pump 2 Suction Filter - Pompa girişinde (0=Error, 1=OK)
-      PUMP_2_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 2 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
-      
-      // =============================================================================
-      // PUMP #3 VARIABLES (Pressure & Flow Control)
-      // =============================================================================
-      PUMP_3_PRESSURE_SETPOINT : Real := 280.0;     // Pump 3 Pressure Setpoint (Bar) - Load Sensing coordinated
-      PUMP_3_PRESSURE_ACTUAL : Real := 0.0;         // Pump 3 Actual Pressure (Bar) - Sensor feedback
-      PUMP_3_FLOW_SETPOINT : Real := 30.0;          // Pump 3 Flow Setpoint (L/min) - User adjustable
-      PUMP_3_FLOW_ACTUAL : Real := 0.0;             // Pump 3 Actual Flow (L/min) - Calculated value
-      PUMP_3_LEAK_RATE : Real := 0.0;               // Pump 3 Leak Rate (L/min) - Diagnostic value
-      PUMP_3_ENABLED : Bool := FALSE;               // Pump 3 Enable Control (PID enable)
-      
-      // =============================================================================
-      // MOTOR #3 VARIABLES (Electrical Parameters)
-      // =============================================================================
-      MOTOR_3_RPM_SETPOINT : Real := 1000.0;        // Motor 3 Target RPM - VFD setpoint
-      MOTOR_3_RPM_ACTUAL : Real := 0.0;             // Motor 3 Actual RPM - Encoder feedback
-      MOTOR_3_CURRENT_A : Real := 0.0;              // Motor 3 Current (A) - Electrical measurement
-      MOTOR_3_TEMPERATURE_C : Real := 25.0;         // Motor 3 Temperature (°C) - Thermal monitoring
-      MOTOR_3_ENABLE : Bool := FALSE;               // Motor 3 Enable Control
-      MOTOR_3_STATUS : USInt := 0;                  // Motor 3 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_3_ERROR_CODE : USInt := 0;              // Motor 3 Error code - Diagnostic information
-      MOTOR_3_START_CMD : Bool := FALSE;            // Motor 3 Start Command
-      MOTOR_3_STOP_CMD : Bool := FALSE;             // Motor 3 Stop Command
-      MOTOR_3_RESET_CMD : Bool := FALSE;            // Motor 3 Reset Command
-      MOTOR_3_START_ACK : Bool := FALSE;            // Motor 3 Start Acknowledgment
-      MOTOR_3_STOP_ACK : Bool := FALSE;             // Motor 3 Stop Acknowledgment
-      MOTOR_3_RESET_ACK : Bool := FALSE;            // Motor 3 Reset Acknowledgment
-      
-      // G120C FREE Telegram Variables - REMOVED (Use M5)
-      MOTOR_3_CONTROL_WORD : Word;                    // 140 : Word;        // Motor 3 Control Word (PZD[0] Send)
-      MOTOR_3_RPM_SETPOINT_WORD : Int;              // 142 : Int;    // Motor 3 RPM Setpoint Word (PZD[1] Send)
-      MOTOR_3_RESERVED_1 : Word;                    // 144 : Word;          // Motor 3 Reserved PZD[2] Send
-      MOTOR_3_RESERVED_2 : Word;                    // 146 : Word;          // Motor 3 Reserved PZD[3] Send
-      MOTOR_3_RESERVED_3 : Word;                    // 148 : Word;          // Motor 3 Reserved PZD[4] Send
-      MOTOR_3_RESERVED_4 : Word;                    // 150 : Word;          // Motor 3 Reserved PZD[5] Send
-      
-      MOTOR_3_STATUS_WORD : Word;                   // 140 : Word;         // Motor 3 Status Word (PZD[0] Receive)
-      MOTOR_3_RPM_ACTUAL_WORD : Int;                // 142 : Int;      // Motor 3 RPM Actual Word (PZD[1] Receive)
-      MOTOR_3_CURRENT_WORD : Int;                   // 144 : Int;         // Motor 3 Current Word (PZD[2] Receive)
-      MOTOR_3_TEMPERATURE_WORD : Int;               // 146 : Int;     // Motor 3 Temperature Word (PZD[3] Receive)
-      MOTOR_3_ERROR_WORD : Word;                   // 148 : Word;          // Motor 3 Error/Warning Word (PZD[4] Receive)
-      MOTOR_3_DIAGNOSTIC_WORD : Word;                   // 150 : Word;     // Motor 3 Diagnostic Word (PZD[5] Receive)
-      
-      // =============================================================================
-      // PROPORTIONAL RELIEF VALVE #3 VARIABLES (Pressure Control)
-      // =============================================================================
       PROP_REL_VLV_3_SETPOINT : UInt := 0;          // Prop Relief Valve 3 Setpoint (0-10000) - Control output
       PROP_REL_VLV_3_FEEDBACK_CURRENT : UInt := 0;  // Prop Relief Valve 3 Feedback Current (0-3000 mA)
       PROP_REL_VLV_3_STATUS : USInt := 1;           // Prop Relief Valve 3 Status (0=Undefined, 1=Normal, 2=Short, 3=Overcurrent, 4=Open)
-      BYPASS_VLV_3 : Bool := FALSE;                 // Bypass Valve 3 Command (TRUE=Enable proportional)
-      BYPASS_VLV_3_STATUS : USInt := 1;             // Bypass Valve 3 Status (0-3)
-      PUMP_3_LINE_FILTER_STATUS : USInt := 2;       // Pump 3 Line Filter - Pompa çıkışında (0=Error, 1=Warning, 2=OK)
-      PUMP_3_SUCTION_FILTER_STATUS : USInt := 1;    // Pump 3 Suction Filter - Pompa girişinde (0=Error, 1=OK)
-      PUMP_3_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 3 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
-      
-      // =============================================================================
-      // PUMP #4 VARIABLES (Pressure & Flow Control)
-      // =============================================================================
-      PUMP_4_PRESSURE_SETPOINT : Real := 280.0;     // Pump 4 Pressure Setpoint (Bar) - Load Sensing coordinated
-      PUMP_4_PRESSURE_ACTUAL : Real := 0.0;         // Pump 4 Actual Pressure (Bar) - Sensor feedback
-      PUMP_4_FLOW_SETPOINT : Real := 30.0;          // Pump 4 Flow Setpoint (L/min) - User adjustable
-      PUMP_4_FLOW_ACTUAL : Real := 0.0;             // Pump 4 Actual Flow (L/min) - Calculated value
-      PUMP_4_LEAK_RATE : Real := 0.0;               // Pump 4 Leak Rate (L/min) - Diagnostic value
-      PUMP_4_ENABLED : Bool := FALSE;               // Pump 4 Enable Control (PID enable)
-      
-      // =============================================================================
-      // MOTOR #4 VARIABLES (Electrical Parameters)
-      // =============================================================================
-      MOTOR_4_RPM_SETPOINT : Real := 1000.0;        // Motor 4 Target RPM - VFD setpoint
-      MOTOR_4_RPM_ACTUAL : Real := 0.0;             // Motor 4 Actual RPM - Encoder feedback
-      MOTOR_4_CURRENT_A : Real := 0.0;              // Motor 4 Current (A) - Electrical measurement
-      MOTOR_4_TEMPERATURE_C : Real := 25.0;         // Motor 4 Temperature (°C) - Thermal monitoring
-      MOTOR_4_ENABLE : Bool := FALSE;               // Motor 4 Enable Control
-      MOTOR_4_STATUS : USInt := 0;                  // Motor 4 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_4_ERROR_CODE : USInt := 0;              // Motor 4 Error code - Diagnostic information
-      MOTOR_4_START_CMD : Bool := FALSE;            // Motor 4 Start Command
-      MOTOR_4_STOP_CMD : Bool := FALSE;             // Motor 4 Stop Command
-      MOTOR_4_RESET_CMD : Bool := FALSE;            // Motor 4 Reset Command
-      MOTOR_4_START_ACK : Bool := FALSE;            // Motor 4 Start Acknowledgment
-      MOTOR_4_STOP_ACK : Bool := FALSE;             // Motor 4 Stop Acknowledgment
-      MOTOR_4_RESET_ACK : Bool := FALSE;            // Motor 4 Reset Acknowledgment
-      
-      // G120C FREE Telegram Variables - REMOVED (Use M6)
-      MOTOR_4_CONTROL_WORD : Word;                    // 160 : Word;        // Motor 4 Control Word (PZD[0] Send)
-      MOTOR_4_RPM_SETPOINT_WORD : Int;              // 162 : Int;    // Motor 4 RPM Setpoint Word (PZD[1] Send)
-      MOTOR_4_RESERVED_1 : Word;                    // 164 : Word;          // Motor 4 Reserved PZD[2] Send
-      MOTOR_4_RESERVED_2 : Word;                    // 166 : Word;          // Motor 4 Reserved PZD[3] Send
-      MOTOR_4_RESERVED_3 : Word;                    // 168 : Word;          // Motor 4 Reserved PZD[4] Send
-      MOTOR_4_RESERVED_4 : Word;                    // 170 : Word;          // Motor 4 Reserved PZD[5] Send
-      
-      MOTOR_4_STATUS_WORD : Word;                   // 160 : Word;         // Motor 4 Status Word (PZD[0] Receive)
-      MOTOR_4_RPM_ACTUAL_WORD : Int;                // 162 : Int;      // Motor 4 RPM Actual Word (PZD[1] Receive)
-      MOTOR_4_CURRENT_WORD : Int;                   // 164 : Int;         // Motor 4 Current Word (PZD[2] Receive)
-      MOTOR_4_TEMPERATURE_WORD : Int;               // 166 : Int;     // Motor 4 Temperature Word (PZD[3] Receive)
-      MOTOR_4_ERROR_WORD : Word;                   // 168 : Word;          // Motor 4 Error/Warning Word (PZD[4] Receive)
-      MOTOR_4_DIAGNOSTIC_WORD : Word;                   // 170 : Word;     // Motor 4 Diagnostic Word (PZD[5] Receive)
-      
-      // =============================================================================
-      // PROPORTIONAL RELIEF VALVE #4 VARIABLES (Pressure Control)
-      // =============================================================================
       PROP_REL_VLV_4_SETPOINT : UInt := 0;          // Prop Relief Valve 4 Setpoint (0-10000) - Control output
       PROP_REL_VLV_4_FEEDBACK_CURRENT : UInt := 0;  // Prop Relief Valve 4 Feedback Current (0-3000 mA)
       PROP_REL_VLV_4_STATUS : USInt := 1;           // Prop Relief Valve 4 Status (0=Undefined, 1=Normal, 2=Short, 3=Overcurrent, 4=Open)
-      BYPASS_VLV_4 : Bool := FALSE;                 // Bypass Valve 4 Command (TRUE=Enable proportional)
-      BYPASS_VLV_4_STATUS : USInt := 1;             // Bypass Valve 4 Status (0-3)
-      PUMP_4_LINE_FILTER_STATUS : USInt := 2;       // Pump 4 Line Filter - Pompa çıkışında (0=Error, 1=Warning, 2=OK)
-      PUMP_4_SUCTION_FILTER_STATUS : USInt := 1;    // Pump 4 Suction Filter - Pompa girişinde (0=Error, 1=OK)
-      PUMP_4_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 4 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
-      
-      // =============================================================================
-      // PUMP #5 VARIABLES (Pressure & Flow Control)
-      // =============================================================================
-      PUMP_5_PRESSURE_SETPOINT : Real := 280.0;     // Pump 5 Pressure Setpoint (Bar) - Load Sensing coordinated
-      PUMP_5_PRESSURE_ACTUAL : Real := 0.0;         // Pump 5 Actual Pressure (Bar) - Sensor feedback
-      PUMP_5_FLOW_SETPOINT : Real := 30.0;          // Pump 5 Flow Setpoint (L/min) - User adjustable
-      PUMP_5_FLOW_ACTUAL : Real := 0.0;             // Pump 5 Actual Flow (L/min) - Calculated value
-      PUMP_5_LEAK_RATE : Real := 0.0;               // Pump 5 Leak Rate (L/min) - Diagnostic value
-      PUMP_5_ENABLED : Bool := FALSE;               // Pump 5 Enable Control (PID enable)
-      
-      // =============================================================================
-      // MOTOR #5 VARIABLES (Electrical Parameters)
-      // =============================================================================
-      MOTOR_5_RPM_SETPOINT : Real := 1000.0;        // Motor 5 Target RPM - VFD setpoint
-      MOTOR_5_RPM_ACTUAL : Real := 0.0;             // Motor 5 Actual RPM - Encoder feedback
-      MOTOR_5_CURRENT_A : Real := 0.0;              // Motor 5 Current (A) - Electrical measurement
-      MOTOR_5_TEMPERATURE_C : Real := 25.0;         // Motor 5 Temperature (°C) - Thermal monitoring
-      MOTOR_5_ENABLE : Bool := FALSE;               // Motor 5 Enable Control
-      MOTOR_5_STATUS : USInt := 0;                  // Motor 5 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_5_ERROR_CODE : USInt := 0;              // Motor 5 Error code - Diagnostic information
-      MOTOR_5_START_CMD : Bool := FALSE;            // Motor 5 Start Command
-      MOTOR_5_STOP_CMD : Bool := FALSE;             // Motor 5 Stop Command
-      MOTOR_5_RESET_CMD : Bool := FALSE;            // Motor 5 Reset Command
-      MOTOR_5_START_ACK : Bool := FALSE;            // Motor 5 Start Acknowledgment
-      MOTOR_5_STOP_ACK : Bool := FALSE;             // Motor 5 Stop Acknowledgment
-      MOTOR_5_RESET_ACK : Bool := FALSE;            // Motor 5 Reset Acknowledgment
-      
-      // G120C FREE Telegram Variables - REMOVED (Use M7)
-      MOTOR_5_CONTROL_WORD : Word;                    // 180 : Word;        // Motor 5 Control Word (PZD[0] Send)
-      MOTOR_5_RPM_SETPOINT_WORD : Int;              // 182 : Int;    // Motor 5 RPM Setpoint Word (PZD[1] Send)
-      MOTOR_5_RESERVED_1 : Word;                    // 184 : Word;          // Motor 5 Reserved PZD[2] Send
-      MOTOR_5_RESERVED_2 : Word;                    // 186 : Word;          // Motor 5 Reserved PZD[3] Send
-      MOTOR_5_RESERVED_3 : Word;                    // 188 : Word;          // Motor 5 Reserved PZD[4] Send
-      MOTOR_5_RESERVED_4 : Word;                    // 190 : Word;          // Motor 5 Reserved PZD[5] Send
-      
-      MOTOR_5_STATUS_WORD : Word;                   // 180 : Word;         // Motor 5 Status Word (PZD[0] Receive)
-      MOTOR_5_RPM_ACTUAL_WORD : Int;                // 182 : Int;      // Motor 5 RPM Actual Word (PZD[1] Receive)
-      MOTOR_5_CURRENT_WORD : Int;                   // 184 : Int;         // Motor 5 Current Word (PZD[2] Receive)
-      MOTOR_5_TEMPERATURE_WORD : Int;               // 186 : Int;     // Motor 5 Temperature Word (PZD[3] Receive)
-      MOTOR_5_ERROR_WORD : Word;                   // 188 : Word;          // Motor 5 Error/Warning Word (PZD[4] Receive)
-      MOTOR_5_DIAGNOSTIC_WORD : Word;                   // 190 : Word;     // Motor 5 Diagnostic Word (PZD[5] Receive)
-      
-      // =============================================================================
-      // PROPORTIONAL RELIEF VALVE #5 VARIABLES (Pressure Control)
-      // =============================================================================
       PROP_REL_VLV_5_SETPOINT : UInt := 0;          // Prop Relief Valve 5 Setpoint (0-10000) - Control output
       PROP_REL_VLV_5_FEEDBACK_CURRENT : UInt := 0;  // Prop Relief Valve 5 Feedback Current (0-3000 mA)
       PROP_REL_VLV_5_STATUS : USInt := 1;           // Prop Relief Valve 5 Status (0=Undefined, 1=Normal, 2=Short, 3=Overcurrent, 4=Open)
-      BYPASS_VLV_5 : Bool := FALSE;                 // Bypass Valve 5 Command (TRUE=Enable proportional)
-      BYPASS_VLV_5_STATUS : USInt := 1;             // Bypass Valve 5 Status (0-3)
-      PUMP_5_LINE_FILTER_STATUS : USInt := 2;       // Pump 5 Line Filter - Pompa çıkışında (0=Error, 1=Warning, 2=OK)
-      PUMP_5_SUCTION_FILTER_STATUS : USInt := 1;    // Pump 5 Suction Filter - Pompa girişinde (0=Error, 1=OK)
-      PUMP_5_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 5 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
-      
-      // =============================================================================
-      // PUMP #6 VARIABLES (Pressure & Flow Control)
-      // =============================================================================
-      PUMP_6_PRESSURE_SETPOINT : Real := 280.0;     // Pump 6 Pressure Setpoint (Bar) - Load Sensing coordinated
-      PUMP_6_PRESSURE_ACTUAL : Real := 0.0;         // Pump 6 Actual Pressure (Bar) - Sensor feedback
-      PUMP_6_FLOW_SETPOINT : Real := 30.0;          // Pump 6 Flow Setpoint (L/min) - User adjustable
-      PUMP_6_FLOW_ACTUAL : Real := 0.0;             // Pump 6 Actual Flow (L/min) - Calculated value
-      PUMP_6_LEAK_RATE : Real := 0.0;               // Pump 6 Leak Rate (L/min) - Diagnostic value
-      PUMP_6_ENABLED : Bool := FALSE;               // Pump 6 Enable Control (PID enable)
-      
-      // =============================================================================
-      // MOTOR #6 VARIABLES (Electrical Parameters)
-      // =============================================================================
-      MOTOR_6_RPM_SETPOINT : Real := 1000.0;        // Motor 6 Target RPM - VFD setpoint
-      MOTOR_6_RPM_ACTUAL : Real := 0.0;             // Motor 6 Actual RPM - Encoder feedback
-      MOTOR_6_CURRENT_A : Real := 0.0;              // Motor 6 Current (A) - Electrical measurement
-      MOTOR_6_TEMPERATURE_C : Real := 25.0;         // Motor 6 Temperature (°C) - Thermal monitoring
-      MOTOR_6_ENABLE : Bool := FALSE;               // Motor 6 Enable Control
-      MOTOR_6_STATUS : USInt := 0;                  // Motor 6 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_6_ERROR_CODE : USInt := 0;              // Motor 6 Error code - Diagnostic information
-      MOTOR_6_START_CMD : Bool := FALSE;            // Motor 6 Start Command
-      MOTOR_6_STOP_CMD : Bool := FALSE;             // Motor 6 Stop Command
-      MOTOR_6_RESET_CMD : Bool := FALSE;            // Motor 6 Reset Command
-      MOTOR_6_START_ACK : Bool := FALSE;            // Motor 6 Start Acknowledgment
-      MOTOR_6_STOP_ACK : Bool := FALSE;             // Motor 6 Stop Acknowledgment
-      MOTOR_6_RESET_ACK : Bool := FALSE;            // Motor 6 Reset Acknowledgment
-      
-      // G120C FREE Telegram Variables - REMOVED (Use M8)
-      MOTOR_6_CONTROL_WORD : Word;                    // 200 : Word;        // Motor 6 Control Word (PZD[0] Send)
-      MOTOR_6_RPM_SETPOINT_WORD : Int;              // 202 : Int;    // Motor 6 RPM Setpoint Word (PZD[1] Send)
-      MOTOR_6_RESERVED_1 : Word;                    // 204 : Word;          // Motor 6 Reserved PZD[2] Send
-      MOTOR_6_RESERVED_2 : Word;                    // 206 : Word;          // Motor 6 Reserved PZD[3] Send
-      MOTOR_6_RESERVED_3 : Word;                    // 208 : Word;          // Motor 6 Reserved PZD[4] Send
-      MOTOR_6_RESERVED_4 : Word;                    // 210 : Word;          // Motor 6 Reserved PZD[5] Send
-      
-      MOTOR_6_STATUS_WORD : Word;                   // 200 : Word;         // Motor 6 Status Word (PZD[0] Receive)
-      MOTOR_6_RPM_ACTUAL_WORD : Int;                // 202 : Int;      // Motor 6 RPM Actual Word (PZD[1] Receive)
-      MOTOR_6_CURRENT_WORD : Int;                   // 204 : Int;         // Motor 6 Current Word (PZD[2] Receive)
-      MOTOR_6_TEMPERATURE_WORD : Int;               // 206 : Int;     // Motor 6 Temperature Word (PZD[3] Receive)
-      MOTOR_6_ERROR_WORD : Word;                   // 208 : Word;          // Motor 6 Error/Warning Word (PZD[4] Receive)
-      MOTOR_6_DIAGNOSTIC_WORD : Word;                   // 210 : Word;     // Motor 6 Diagnostic Word (PZD[5] Receive)
-      
-      // =============================================================================
-      // PROPORTIONAL RELIEF VALVE #6 VARIABLES (Pressure Control)
-      // =============================================================================
       PROP_REL_VLV_6_SETPOINT : UInt := 0;          // Prop Relief Valve 6 Setpoint (0-10000) - Control output
       PROP_REL_VLV_6_FEEDBACK_CURRENT : UInt := 0;  // Prop Relief Valve 6 Feedback Current (0-3000 mA)
       PROP_REL_VLV_6_STATUS : USInt := 1;           // Prop Relief Valve 6 Status (0=Undefined, 1=Normal, 2=Short, 3=Overcurrent, 4=Open)
-      BYPASS_VLV_6 : Bool := FALSE;                 // Bypass Valve 6 Command (TRUE=Enable proportional)
-      BYPASS_VLV_6_STATUS : USInt := 1;             // Bypass Valve 6 Status (0-3)
-      PUMP_6_LINE_FILTER_STATUS : USInt := 2;       // Pump 6 Line Filter - Pompa çıkışında (0=Error, 1=Warning, 2=OK)
-      PUMP_6_SUCTION_FILTER_STATUS : USInt := 1;    // Pump 6 Suction Filter - Pompa girişinde (0=Error, 1=OK)
-      PUMP_6_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 6 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
-      
-      // =============================================================================
-      // PUMP #7 VARIABLES (Fixed Displacement Motor - 1500 RPM, 34 L/min)
-      // =============================================================================
-      PUMP_7_PRESSURE_SETPOINT : Real := 280.0;     // Pump 7 Pressure Setpoint (Bar) - Load Sensing coordinated
-      PUMP_7_PRESSURE_ACTUAL : Real := 0.0;         // Pump 7 Actual Pressure (Bar) - Sensor feedback
-      PUMP_7_FLOW_SETPOINT : Real := 34.0;          // Pump 7 Flow Setpoint (L/min) - Fixed displacement
-      PUMP_7_FLOW_ACTUAL : Real := 0.0;             // Pump 7 Actual Flow (L/min) - Fixed at 34 L/min
-      PUMP_7_LEAK_RATE : Real := 0.0;               // Pump 7 Leak Rate (L/min) - Diagnostic value
-      PUMP_7_ENABLED : Bool := FALSE;               // Pump 7 Enable Control (PID enable)
-      
-      // =============================================================================
-      // MOTOR #7 VARIABLES (Fixed Displacement - 1500 RPM)
-      // =============================================================================
-      MOTOR_7_RPM_SETPOINT : Real := 1500.0;        // Motor 7 Target RPM - Fixed displacement
-      MOTOR_7_RPM_ACTUAL : Real := 0.0;             // Motor 7 Actual RPM - Fixed at 1500 RPM
-      MOTOR_7_CURRENT_A : Real := 0.0;              // Motor 7 Current (A) - Electrical measurement
-      MOTOR_7_TEMPERATURE_C : Real := 25.0;         // Motor 7 Temperature (°C) - Thermal monitoring
-      MOTOR_7_ENABLE : Bool := FALSE;               // Motor 7 Enable Control
-      MOTOR_7_STATUS : USInt := 0;                  // Motor 7 Status (0=Offline, 1=Ready, 2=Running, 3=Error)
-      MOTOR_7_ERROR_CODE : USInt := 0;              // Motor 7 Error code - Diagnostic information
-      MOTOR_7_START_CMD : Bool := FALSE;            // Motor 7 Start Command
-      MOTOR_7_STOP_CMD : Bool := FALSE;             // Motor 7 Stop Command
-      MOTOR_7_RESET_CMD : Bool := FALSE;            // Motor 7 Reset Command
-      
-      // =============================================================================
-      // PROPORTIONAL RELIEF VALVE #7 VARIABLES (Pressure Control)
-      // =============================================================================
       PROP_REL_VLV_7_SETPOINT : UInt := 0;          // Prop Relief Valve 7 Setpoint (0-10000) - Control output
       PROP_REL_VLV_7_FEEDBACK_CURRENT : UInt := 0;  // Prop Relief Valve 7 Feedback Current (0-3000 mA)
       PROP_REL_VLV_7_STATUS : USInt := 1;           // Prop Relief Valve 7 Status (0=Undefined, 1=Normal, 2=Short, 3=Overcurrent, 4=Open)
+      
+      BYPASS_VLV_1 : Bool := FALSE;                 // Bypass Valve 1 Command (TRUE=Enable proportional)
+      BYPASS_VLV_1_STATUS : USInt := 1;             // Bypass Valve 1 Status (0-3)
+      BYPASS_VLV_2 : Bool := FALSE;                 // Bypass Valve 2 Command (TRUE=Enable proportional)
+      BYPASS_VLV_2_STATUS : USInt := 1;             // Bypass Valve 2 Status (0-3)
+      BYPASS_VLV_3 : Bool := FALSE;                 // Bypass Valve 3 Command (TRUE=Enable proportional)
+      BYPASS_VLV_3_STATUS : USInt := 1;             // Bypass Valve 3 Status (0-3)
+      BYPASS_VLV_4 : Bool := FALSE;                 // Bypass Valve 4 Command (TRUE=Enable proportional)
+      BYPASS_VLV_4_STATUS : USInt := 1;             // Bypass Valve 4 Status (0-3)
+      BYPASS_VLV_5 : Bool := FALSE;                 // Bypass Valve 5 Command (TRUE=Enable proportional)
+      BYPASS_VLV_5_STATUS : USInt := 1;             // Bypass Valve 5 Status (0-3)
+      BYPASS_VLV_6 : Bool := FALSE;                 // Bypass Valve 6 Command (TRUE=Enable proportional)
+      BYPASS_VLV_6_STATUS : USInt := 1;             // Bypass Valve 6 Status (0-3)
       BYPASS_VLV_7 : Bool := FALSE;                 // Bypass Valve 7 Command (TRUE=Enable proportional)
       BYPASS_VLV_7_STATUS : USInt := 1;             // Bypass Valve 7 Status (0-3)
+      
+      // =============================================================================
+      // HSM PRESSURE MONITORING (Priority 3) - 1000ms Update
+      // =============================================================================
+      HSM_1_PRESSURE_ACTUAL : Real := 0.0;          // HSM 1 Pressure Transmitter (0-400 bar)
+      HSM_2_PRESSURE_ACTUAL : Real := 0.0;          // HSM 2 Pressure Transmitter (0-400 bar)
+      HSM_3_PRESSURE_ACTUAL : Real := 0.0;          // HSM 3 Pressure Transmitter (0-400 bar)
+      HSM_4_PRESSURE_ACTUAL : Real := 0.0;          // HSM 4 Pressure Transmitter (0-400 bar)
+      HSM_5_PRESSURE_ACTUAL : Real := 0.0;          // HSM 5 Pressure Transmitter (0-400 bar)
+      HSM_6_PRESSURE_ACTUAL : Real := 0.0;          // HSM 6 Pressure Transmitter (0-400 bar)
+      HSM_7_PRESSURE_ACTUAL : Real := 0.0;          // HSM 7 Pressure Transmitter (0-400 bar)
+      
+      // =============================================================================
+      // SYSTEM SENSOR MONITORING (Priority 2) - 2000ms Update
+      // =============================================================================
+      SYSTEM_TEMPERATURE : Real := 25.0;            // Main system temperature sensor (-10 to +80°C)
+      TANK_LEVEL_PERCENT : Real := 0.0;             // Continuous level sensor (0-100%)
+      AQUA_SENSOR_LEVEL : Real := 0.0;              // Aqua sensor level (0-100%)
+      CHILLER_INLET_TEMPERATURE : Real := 25.0;     // Chiller inlet temperature (-10 to +80°C)
+      CHILLER_OUTLET_TEMPERATURE : Real := 25.0;    // Chiller outlet temperature (-10 to +80°C)
+      
+      // Digital sensor status
+      TANK_MIN_LEVEL : Bool := FALSE;               // Tank minimum level switch
+      TANK_MAX_LEVEL : Bool := FALSE;               // Tank maximum level switch
+      CHILLER_WATER_FLOW_STATUS : Bool := FALSE;    // Chiller water flow sensor OK
+      
+      // =============================================================================
+      // FILTER STATUS MONITORING (Priority 2) - 2000ms Update
+      // =============================================================================
+      PUMP_1_LINE_FILTER_STATUS : USInt := 2;       // Pump 1 Line Filter - Pompa çıkışında (0=Error, 1=Warning, 2=OK)
+      PUMP_1_SUCTION_FILTER_STATUS : USInt := 1;    // Pump 1 Suction Filter - Pompa girişinde (0=Error, 1=OK)
+      PUMP_2_LINE_FILTER_STATUS : USInt := 2;       // Pump 2 Line Filter - Pompa çıkışında (0=Error, 1=Warning, 2=OK)
+      PUMP_2_SUCTION_FILTER_STATUS : USInt := 1;    // Pump 2 Suction Filter - Pompa girişinde (0=Error, 1=OK)
+      PUMP_3_LINE_FILTER_STATUS : USInt := 2;       // Pump 3 Line Filter - Pompa çıkışında (0=Error, 1=Warning, 2=OK)
+      PUMP_3_SUCTION_FILTER_STATUS : USInt := 1;    // Pump 3 Suction Filter - Pompa girişinde (0=Error, 1=OK)
+      PUMP_4_LINE_FILTER_STATUS : USInt := 2;       // Pump 4 Line Filter - Pompa çıkışında (0=Error, 1=Warning, 2=OK)
+      PUMP_4_SUCTION_FILTER_STATUS : USInt := 1;    // Pump 4 Suction Filter - Pompa girişinde (0=Error, 1=OK)
+      PUMP_5_LINE_FILTER_STATUS : USInt := 2;       // Pump 5 Line Filter - Pompa çıkışında (0=Error, 1=Warning, 2=OK)
+      PUMP_5_SUCTION_FILTER_STATUS : USInt := 1;    // Pump 5 Suction Filter - Pompa girişinde (0=Error, 1=OK)
+      PUMP_6_LINE_FILTER_STATUS : USInt := 2;       // Pump 6 Line Filter - Pompa çıkışında (0=Error, 1=Warning, 2=OK)
+      PUMP_6_SUCTION_FILTER_STATUS : USInt := 1;    // Pump 6 Suction Filter - Pompa girişinde (0=Error, 1=OK)
       PUMP_7_LINE_FILTER_STATUS : USInt := 2;       // Pump 7 Line Filter - Pompa çıkışında (0=Error, 1=Warning, 2=OK)
       PUMP_7_SUCTION_FILTER_STATUS : USInt := 1;    // Pump 7 Suction Filter - Pompa girişinde (0=Error, 1=OK)
-      PUMP_7_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 7 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
       
-      // =============================================================================
-      // PRESSURE SAFETY VALVES COMMUNICATION STATUS
-      // =============================================================================
-      PRESSURE_SAFETY_VALVES_ENABLE : Bool := FALSE;    // Enable pressure safety valves controller
-      PRESSURE_SAFETY_VALVES_COMM_OK : Bool := FALSE;   // Communication status with valve controller
-      PRESSURE_SAFETY_VALVES_ERROR : Bool := FALSE;     // Pressure safety valves system error
-      PRESSURE_SAFETY_VALVES_WATCHDOG_ERROR : Bool := FALSE; // Watchdog timeout error (CRITICAL)
-      PRESSURE_SAFETY_VALVES_EMERGENCY_STOP : Bool := FALSE; // Emergency stop required (CRITICAL)
-      
-      // =============================================================================
-      // LINE FILTER EXECUTION VARIABLES (Filter Status Control)
-      // =============================================================================
       LINE_FILTER_1_EXECUTION : USInt := 2;         // Motor 1 Line Filter (0=Error, 1=Warning, 2=OK)
       LINE_FILTER_2_EXECUTION : USInt := 2;         // Motor 2 Line Filter (0=Error, 1=Warning, 2=OK)
       LINE_FILTER_3_EXECUTION : USInt := 2;         // Motor 3 Line Filter (0=Error, 1=Warning, 2=OK)
@@ -393,9 +298,6 @@ VERSION : 3.0
       LINE_FILTER_6_EXECUTION : USInt := 2;         // Motor 6 Line Filter (0=Error, 1=Warning, 2=OK)
       LINE_FILTER_7_EXECUTION : USInt := 2;         // Motor 7 Line Filter (0=Error, 1=Warning, 2=OK)
       
-      // =============================================================================
-      // SUCTION FILTER EXECUTION VARIABLES (Filter Status Control)
-      // =============================================================================
       SUCTION_FILTER_1_EXECUTION : USInt := 1;      // Motor 1 Suction Filter (0=Error, 1=OK)
       SUCTION_FILTER_2_EXECUTION : USInt := 1;      // Motor 2 Suction Filter (0=Error, 1=OK)
       SUCTION_FILTER_3_EXECUTION : USInt := 1;      // Motor 3 Suction Filter (0=Error, 1=OK)
@@ -404,8 +306,40 @@ VERSION : 3.0
       SUCTION_FILTER_6_EXECUTION : USInt := 1;      // Motor 6 Suction Filter (0=Error, 1=OK)
       SUCTION_FILTER_7_EXECUTION : USInt := 1;      // Motor 7 Suction Filter (0=Error, 1=OK)
       
+      SUCTION_FILTER_1_STATUS : Bool := FALSE;      // Suction filter 1 OK
+      SUCTION_FILTER_2_STATUS : Bool := FALSE;      // Suction filter 2 OK
+      SUCTION_FILTER_3_STATUS : Bool := FALSE;      // Suction filter 3 OK
+      SUCTION_FILTER_4_STATUS : Bool := FALSE;      // Suction filter 4 OK
+      SUCTION_FILTER_5_STATUS : Bool := FALSE;      // Suction filter 5 OK
+      SUCTION_FILTER_6_STATUS : Bool := FALSE;      // Suction filter 6 OK
+      SUCTION_FILTER_7_STATUS : Bool := FALSE;      // Suction filter 7 OK
+      
       // =============================================================================
-      // FLOW CONTROL VARIABLES (Debi Metre Feedback)
+      // MANUAL VALVE STATUS (Priority 1) - 5000ms Update
+      // =============================================================================
+      PUMP_1_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 1 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
+      PUMP_2_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 2 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
+      PUMP_3_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 3 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
+      PUMP_4_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 4 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
+      PUMP_5_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 5 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
+      PUMP_6_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 6 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
+      PUMP_7_MANUAL_VALVE_STATUS : USInt := 1;      // Pump 7 Manual Valve - Tank-Pompa arası (0=Kapalı, 1=Açık)
+      
+      // =============================================================================
+      // COMMUNICATION STATUS MONITORING (Priority 2) - 2000ms Update
+      // =============================================================================
+      CAN_COMMUNICATION_ACTIVE : Bool := FALSE;     // CAN communication status
+      CAN_TCP_CONNECTED : Bool := FALSE;            // TCP connection status
+      CAN_TCP_IP_ADDRESS : String[15] := '192.168.100.21';  // Gateway IP
+      CAN_TCP_PORT : UInt := 502;                   // Gateway port
+      CAN_ACTIVE_DEVICE_COUNT : USInt := 0;         // Number of responding devices
+      CAN_SYSTEM_ERROR : Bool := FALSE;             // CAN communication error
+      
+      PRESSURE_SAFETY_VALVES_ENABLE : Bool := FALSE;    // Enable pressure safety valves controller
+      PRESSURE_SAFETY_VALVES_COMM_OK : Bool := FALSE;   // Communication status with valve controller
+      
+      // =============================================================================
+      // FLOW CONTROL & PERFORMANCE DATA (Priority 2) - 2000ms Update
       // =============================================================================
       PUMP_1_FLOW_METER_VALUE : Real := 0.0;        // Motor 1 Flow Meter Reading (L/min)
       PUMP_1_FLOW_ERROR : Real := 0.0;              // Motor 1 Flow Error (L/min)
@@ -442,9 +376,8 @@ VERSION : 3.0
       PUMP_7_DISPLACEMENT : Real := 34.0;           // Motor 7 Fixed Flow (L/min @ 1500 RPM)
       
       // =============================================================================
-      // MOTOR WEAR LEVELING VARIABLES (Motors 1-6 Only)
+      // MAINTENANCE TRACKING DATA (Priority 1) - 5000ms Update
       // =============================================================================
-      WEAR_LEVELING_ENABLE : Bool := TRUE;          // Wear leveling algorithm enable/disable
       DEFAULT_MAINTENANCE_HOURS : Real := 1000.0;   // Default maintenance period (hours)
       
       MOTOR_1_OPERATING_HOURS : Real := 0.0;        // Motor 1 Total operating hours
@@ -490,146 +423,150 @@ VERSION : 3.0
       MOTOR_7_LAST_MAINTENANCE_DATE : DTL;          // Motor 7 Last maintenance date
       
       // =============================================================================
-      // VALVE RESPONSE TIME SETTINGS (Configurable)
+      // CONFIGURATION & SYSTEM VARIABLES (Priority 1) - 5000ms Update
       // =============================================================================
       VALVE_RESPONSE_TIME : Time := T#40ms;         // Global valve response time (configurable)
       VALVE_RESPONSE_AUTO : Bool := FALSE;          // Automatic response time adjustment
       VALVE_RESPONSE_MIN : Time := T#20ms;          // Minimum response time limit
       VALVE_RESPONSE_MAX : Time := T#500ms;         // Maximum response time limit
       
+      ANALOG_PROCESSING_ACTIVE : Bool := FALSE;     // Analog input processing active
+      ANALOG_SENSORS_OK_COUNT : USInt := 0;         // Number of sensors OK
+      DIGITAL_INPUT_PROCESSING_ACTIVE : Bool := FALSE; // Digital input processing active
+      
+      MCC_STATUS_WORD : Word := 0;                  // MCC Status Word (16 bits) - Motor Control Center operational status
+      
       // =============================================================================
-      // AT ADDRESSING TEST VARIABLES - REMOVE AFTER TESTING
+      // DEBUG & TESTING VARIABLES (Priority 0) - 10000ms Update
       // =============================================================================
       AT_TEST_OUTPUT : Word;                    // 90 : Word := 16#1234;    // Test output word
       AT_TEST_INPUT : Word;                   // 90 : Word;                // Test input word
       AT_TEST_NORMAL : Word := 16#ABCD;             // Normal variable for comparison
       
       // =============================================================================
-      // HSM PRESSURE TRANSMITTERS (0-400 bar, 4-20mA Analog Inputs)
+      // G120C DRIVE COMMUNICATION VARIABLES (Debug/Testing Only)
       // =============================================================================
-      HSM_1_PRESSURE_ACTUAL : Real := 0.0;          // HSM 1 Pressure Transmitter (0-400 bar)
-      HSM_2_PRESSURE_ACTUAL : Real := 0.0;          // HSM 2 Pressure Transmitter (0-400 bar)
-      HSM_3_PRESSURE_ACTUAL : Real := 0.0;          // HSM 3 Pressure Transmitter (0-400 bar)
-      HSM_4_PRESSURE_ACTUAL : Real := 0.0;          // HSM 4 Pressure Transmitter (0-400 bar)
-      HSM_5_PRESSURE_ACTUAL : Real := 0.0;          // HSM 5 Pressure Transmitter (0-400 bar)
-      HSM_6_PRESSURE_ACTUAL : Real := 0.0;          // HSM 6 Pressure Transmitter (0-400 bar)
-      HSM_7_PRESSURE_ACTUAL : Real := 0.0;          // HSM 7 Pressure Transmitter (0-400 bar)
+      MOTOR_3_CONTROL_WORD : Word;                    // Motor 3 Control Word (PZD[0] Send)
+      MOTOR_3_RPM_SETPOINT_WORD : Int;              // Motor 3 RPM Setpoint Word (PZD[1] Send)
+      MOTOR_3_RESERVED_1 : Word;                    // Motor 3 Reserved PZD[2] Send
+      MOTOR_3_RESERVED_2 : Word;                    // Motor 3 Reserved PZD[3] Send
+      MOTOR_3_RESERVED_3 : Word;                    // Motor 3 Reserved PZD[4] Send
+      MOTOR_3_RESERVED_4 : Word;                    // Motor 3 Reserved PZD[5] Send
+      
+      MOTOR_3_STATUS_WORD : Word;                   // Motor 3 Status Word (PZD[0] Receive)
+      MOTOR_3_RPM_ACTUAL_WORD : Int;                // Motor 3 RPM Actual Word (PZD[1] Receive)
+      MOTOR_3_CURRENT_WORD : Int;                   // Motor 3 Current Word (PZD[2] Receive)
+      MOTOR_3_TEMPERATURE_WORD : Int;               // Motor 3 Temperature Word (PZD[3] Receive)
+      MOTOR_3_ERROR_WORD : Word;                   // Motor 3 Error/Warning Word (PZD[4] Receive)
+      MOTOR_3_DIAGNOSTIC_WORD : Word;                   // Motor 3 Diagnostic Word (PZD[5] Receive)
+      
+      MOTOR_4_CONTROL_WORD : Word;                    // Motor 4 Control Word (PZD[0] Send)
+      MOTOR_4_RPM_SETPOINT_WORD : Int;              // Motor 4 RPM Setpoint Word (PZD[1] Send)
+      MOTOR_4_RESERVED_1 : Word;                    // Motor 4 Reserved PZD[2] Send
+      MOTOR_4_RESERVED_2 : Word;                    // Motor 4 Reserved PZD[3] Send
+      MOTOR_4_RESERVED_3 : Word;                    // Motor 4 Reserved PZD[4] Send
+      MOTOR_4_RESERVED_4 : Word;                    // Motor 4 Reserved PZD[5] Send
+      
+      MOTOR_4_STATUS_WORD : Word;                   // Motor 4 Status Word (PZD[0] Receive)
+      MOTOR_4_RPM_ACTUAL_WORD : Int;                // Motor 4 RPM Actual Word (PZD[1] Receive)
+      MOTOR_4_CURRENT_WORD : Int;                   // Motor 4 Current Word (PZD[2] Receive)
+      MOTOR_4_TEMPERATURE_WORD : Int;               // Motor 4 Temperature Word (PZD[3] Receive)
+      MOTOR_4_ERROR_WORD : Word;                   // Motor 4 Error/Warning Word (PZD[4] Receive)
+      MOTOR_4_DIAGNOSTIC_WORD : Word;                   // Motor 4 Diagnostic Word (PZD[5] Receive)
+      
+      MOTOR_5_CONTROL_WORD : Word;                    // Motor 5 Control Word (PZD[0] Send)
+      MOTOR_5_RPM_SETPOINT_WORD : Int;              // Motor 5 RPM Setpoint Word (PZD[1] Send)
+      MOTOR_5_RESERVED_1 : Word;                    // Motor 5 Reserved PZD[2] Send
+      MOTOR_5_RESERVED_2 : Word;                    // Motor 5 Reserved PZD[3] Send
+      MOTOR_5_RESERVED_3 : Word;                    // Motor 5 Reserved PZD[4] Send
+      MOTOR_5_RESERVED_4 : Word;                    // Motor 5 Reserved PZD[5] Send
+      
+      MOTOR_5_STATUS_WORD : Word;                   // Motor 5 Status Word (PZD[0] Receive)
+      MOTOR_5_RPM_ACTUAL_WORD : Int;                // Motor 5 RPM Actual Word (PZD[1] Receive)
+      MOTOR_5_CURRENT_WORD : Int;                   // Motor 5 Current Word (PZD[2] Receive)
+      MOTOR_5_TEMPERATURE_WORD : Int;               // Motor 5 Temperature Word (PZD[3] Receive)
+      MOTOR_5_ERROR_WORD : Word;                   // Motor 5 Error/Warning Word (PZD[4] Receive)
+      MOTOR_5_DIAGNOSTIC_WORD : Word;                   // Motor 5 Diagnostic Word (PZD[5] Receive)
+      
+      MOTOR_6_CONTROL_WORD : Word;                    // Motor 6 Control Word (PZD[0] Send)
+      MOTOR_6_RPM_SETPOINT_WORD : Int;              // Motor 6 RPM Setpoint Word (PZD[1] Send)
+      MOTOR_6_RESERVED_1 : Word;                    // Motor 6 Reserved PZD[2] Send
+      MOTOR_6_RESERVED_2 : Word;                    // Motor 6 Reserved PZD[3] Send
+      MOTOR_6_RESERVED_3 : Word;                    // Motor 6 Reserved PZD[4] Send
+      MOTOR_6_RESERVED_4 : Word;                    // Motor 6 Reserved PZD[5] Send
+      
+      MOTOR_6_STATUS_WORD : Word;                   // Motor 6 Status Word (PZD[0] Receive)
+      MOTOR_6_RPM_ACTUAL_WORD : Int;                // Motor 6 RPM Actual Word (PZD[1] Receive)
+      MOTOR_6_CURRENT_WORD : Int;                   // Motor 6 Current Word (PZD[2] Receive)
+      MOTOR_6_TEMPERATURE_WORD : Int;               // Motor 6 Temperature Word (PZD[3] Receive)
+      MOTOR_6_ERROR_WORD : Word;                   // Motor 6 Error/Warning Word (PZD[4] Receive)
+      MOTOR_6_DIAGNOSTIC_WORD : Word;                   // Motor 6 Diagnostic Word (PZD[5] Receive)
+      
       
       // =============================================================================
-      // SYSTEM TEMPERATURE AND LEVEL SENSORS (4-20mA Analog Inputs)
+      // ERRORS-WARNINGS VARIABLES (OPC Fault Namespace Mapping)
       // =============================================================================
-      SYSTEM_TEMPERATURE : Real := 25.0;            // Main system temperature sensor (-10 to +80°C)
-      TANK_LEVEL_PERCENT : Real := 0.0;             // Continuous level sensor (0-100%)
-      AQUA_SENSOR_LEVEL : Real := 0.0;              // Aqua sensor level (0-100%)
-      CHILLER_INLET_TEMPERATURE : Real := 25.0;     // Chiller inlet temperature (-10 to +80°C)
-      CHILLER_OUTLET_TEMPERATURE : Real := 25.0;    // Chiller outlet temperature (-10 to +80°C)
+      // Core Error Analysis Variables (Moved from various sections above)
+      CRITICAL_SAFETY_ERROR : Bool := FALSE;        // Any emergency stop or protection failure
+      ANY_MOTOR_ERROR : Bool := FALSE;              // Any motor thermal error active
+      SAFETY_ERROR_WORD : Word := 0;                // Safety Error Word (16 bits) - Emergency stops, protection failures
+      MOTOR_ERROR_WORD : Word := 0;                 // Motor Error Word (16 bits) - Motor thermal faults
+      SAFETY_ERROR_CODE : USInt := 0;               // Safety error priority code
       
-      // =============================================================================
-      // ANALOG INPUT PROCESSING STATUS
-      // =============================================================================
-      ANALOG_PROCESSING_ACTIVE : Bool := FALSE;     // Analog input processing active
-      ANALOG_SENSORS_OK_COUNT : USInt := 0;         // Number of sensors OK
-      ANALOG_SENSORS_ERROR_COUNT : USInt := 0;      // Number of sensors in error
-      ANALOG_PROCESSING_ERROR : Bool := FALSE;      // Analog processing error status
-      
-      // Analog sensor error details (from FB_Error_Manager)
+      // Analog Sensor Error Analysis
       ANALOG_SENSOR_ERROR : Bool := FALSE;          // Any analog sensor error active
       ANALOG_ERROR_WORD : Word := 0;                // Analog Error Word (16 bits) - Individual sensor errors
       ANALOG_ERROR_CODE : USInt := 0;               // Current analog sensor error code (1-19)
+      ANALOG_PROCESSING_ERROR : Bool := FALSE;      // Analog processing error status
+      ANALOG_SENSORS_ERROR_COUNT : USInt := 0;      // Number of sensors in error
       
-      // =============================================================================
-      // DIGITAL INPUT PROCESSING STATUS
-      // =============================================================================
-      DIGITAL_INPUT_PROCESSING_ACTIVE : Bool := FALSE; // Digital input processing active
-      DIGITAL_INPUT_ERROR_STATUS : Bool := FALSE;   // Digital input error status
-      TOTAL_FILTER_WARNINGS : USInt := 0;           // Total filter warnings
-      TOTAL_FILTER_ERRORS : USInt := 0;             // Total filter errors
-      
-      // =============================================================================
-      // SAFETY AND STATUS WORDS
-      // =============================================================================
-      SAFETY_ERROR_WORD : Word := 0;                // Safety Error Word (16 bits) - Emergency stops, protection failures
-      MOTOR_ERROR_WORD : Word := 0;                 // Motor Error Word (16 bits) - Motor thermal faults
-      MCC_STATUS_WORD : Word := 0;                  // MCC Status Word (16 bits) - Motor Control Center operational status
-      
-      // Safety Status Summary
-      CRITICAL_SAFETY_ERROR : Bool := FALSE;        // Any emergency stop or protection failure
-      ANY_MOTOR_ERROR : Bool := FALSE;              // Any motor thermal error active
-      SAFETY_ERROR_CODE : USInt := 0;               // Safety error priority code
-      
-      // System Error Summary (from FB_Error_Manager)
+      // System Error Summary
       SYSTEM_ERROR_ACTIVE : Bool := FALSE;          // Overall system error status (Emergency + Motor + Analog + Dual Controller)
       
-      // Dual Controller Error Summary (from FB_Error_Manager via FB_Dual_Controller)
+      // Dual Controller Error Summary
       DUAL_CONTROLLER_ERROR : Bool := FALSE;        // Any dual controller error active (Flow or Pressure)
       FLOW_CONTROLLER_ERROR : Bool := FALSE;        // Flow controller errors (Error codes 11-14)
       PRESSURE_CONTROLLER_ERROR : Bool := FALSE;    // Pressure controller errors (Error codes 21-24)
       
-      // Flowmeter Communication Error Summary (from FB_Error_Manager via FB_Flowmeter_CANOPEN)
+      // Flowmeter Communication Error Summary
       FLOWMETER_COMMUNICATION_ERROR : Bool := FALSE; // Flowmeter communication error active
       FLOWMETER_WATCHDOG_ERROR : Bool := FALSE;     // Any flowmeter watchdog timeout error
       
-      // G120C Drive Error Summary (from FB_Error_Manager via FB_G120C_Drive instances)
+      // G120C Drive Error Summary
       G120C_MOTOR_FAULT : Bool := FALSE;            // Any G120C motor fault active (Status = 3)
       G120C_COMMUNICATION_ERROR : Bool := FALSE;    // Any G120C communication error active
       G120C_SAFETY_ERROR : Bool := FALSE;           // Any G120C safety error active
       G120C_PARAMETER_ERROR : Bool := FALSE;        // Any G120C parameter error active
       
-      // Pressure Safety Valve Error Summary (from FB_Error_Manager via FB_Pressure_Safety_Valves)
+      // Pressure Safety Valve Error Summary
       VALVE_WATCHDOG_ERROR : Bool := FALSE;         // CRITICAL: 250ms valve watchdog timeout
       VALVE_EMERGENCY_STOP_REQUIRED : Bool := FALSE; // CRITICAL: Emergency stop required by valve controller
       VALVE_COMMUNICATION_ERROR : Bool := FALSE;    // Valve controller communication error
+      PRESSURE_SAFETY_VALVES_ERROR : Bool := FALSE;     // Pressure safety valves system error
+      PRESSURE_SAFETY_VALVES_WATCHDOG_ERROR : Bool := FALSE; // Watchdog timeout error (CRITICAL)
+      PRESSURE_SAFETY_VALVES_EMERGENCY_STOP : Bool := FALSE; // Emergency stop required (CRITICAL)
       
-      // Digital Input and Filter Error Summary (from FB_Error_Manager via FB_Digital_Input_Processing)
+      // Digital Input and Filter Error Summary
       DIGITAL_INPUT_ERROR : Bool := FALSE;          // Any digital input error active
+      DIGITAL_INPUT_ERROR_STATUS : Bool := FALSE;   // Digital input error status
       FILTER_ERROR : Bool := FALSE;                 // Any motor filter error active (1-7)
+      TOTAL_FILTER_WARNINGS : USInt := 0;           // Total filter warnings
+      TOTAL_FILTER_ERRORS : USInt := 0;             // Total filter errors
       TANK_LEVEL_ERROR : Bool := FALSE;             // Tank level error (low level)
       CHILLER_FLOW_ERROR : Bool := FALSE;           // Chiller water flow error
       
-      // Motor Selection Error Summary (from FB_Error_Manager via FB_Motor_Selection)
+      // Motor Selection Error Summary
       MOTOR_SELECTION_ERROR : Bool := FALSE;        // Motor selection algorithm error
       INSUFFICIENT_MOTOR_CAPACITY : Bool := FALSE;  // Insufficient motor flow capacity
       INSUFFICIENT_AVAILABLE_MOTORS : Bool := FALSE; // Not enough motors available
       
-      // MCC (Motor Control Center) Error Summary (from FB_Error_Manager via FB_Safety_Status_Manager)
+      // MCC (Motor Control Center) Error Summary
       MCC_ERROR_STATUS : Bool := FALSE;             // Any MCC command-feedback error active
       PARTICLE_CONTACTOR_ERROR : Bool := FALSE;     // Particle contactor command-feedback mismatch error
       CIRC_CONTACTOR_ERROR : Bool := FALSE;         // Circulation contactor command-feedback mismatch error
       CIRC_SOFTSTARTER_ERROR : Bool := FALSE;       // Circulation soft starter command-feedback mismatch error
       COILTUBE_CONTACTOR_ERROR : Bool := FALSE;     // CoilTube contactor command-feedback mismatch error
       COILTUBE_SOFTSTARTER_ERROR : Bool := FALSE;   // CoilTube soft starter command-feedback mismatch error
-      
-      // =============================================================================
-      // TANK LEVEL SWITCHES (Digital Inputs)
-      // =============================================================================
-      TANK_MIN_LEVEL : Bool := FALSE;               // Tank minimum level switch
-      TANK_MAX_LEVEL : Bool := FALSE;               // Tank maximum level switch
-      
-      // =============================================================================
-      // CHILLER WATER FLOW SENSOR (Digital Input)
-      // =============================================================================
-      CHILLER_WATER_FLOW_STATUS : Bool := FALSE;    // Chiller water flow sensor OK
-      
-      // =============================================================================
-      // SUCTION FILTER STATUS (Digital Inputs)
-      // =============================================================================
-      SUCTION_FILTER_1_STATUS : Bool := FALSE;      // Suction filter 1 OK
-      SUCTION_FILTER_2_STATUS : Bool := FALSE;      // Suction filter 2 OK
-      SUCTION_FILTER_3_STATUS : Bool := FALSE;      // Suction filter 3 OK
-      SUCTION_FILTER_4_STATUS : Bool := FALSE;      // Suction filter 4 OK
-      SUCTION_FILTER_5_STATUS : Bool := FALSE;      // Suction filter 5 OK
-      SUCTION_FILTER_6_STATUS : Bool := FALSE;      // Suction filter 6 OK
-      SUCTION_FILTER_7_STATUS : Bool := FALSE;      // Suction filter 7 OK
-      
-      // =============================================================================
-      // CAN COMMUNICATION STATUS
-      // =============================================================================
-      CAN_COMMUNICATION_ACTIVE : Bool := FALSE;     // CAN communication status
-      CAN_TCP_CONNECTED : Bool := FALSE;            // TCP connection status
-      CAN_TCP_IP_ADDRESS : String[15] := '192.168.100.21';  // Gateway IP
-      CAN_TCP_PORT : UInt := 502;                   // Gateway port
-      CAN_ACTIVE_DEVICE_COUNT : USInt := 0;         // Number of responding devices
-      CAN_SYSTEM_ERROR : Bool := FALSE;             // CAN communication error
 
    END_VAR
 
