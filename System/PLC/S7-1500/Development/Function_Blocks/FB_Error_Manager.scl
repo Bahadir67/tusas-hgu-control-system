@@ -3,28 +3,56 @@ FUNCTION_BLOCK "FB_Error_Manager"
 VERSION : '1.0'
 // =============================================================================
 // TUSAŞ HGU System-Wide Error Manager V17
+// =============================================================================
 // Purpose: Centralized error and warning collection from all Function Blocks
 // Features: Priority-based error management, alarm categorization, system status
 // 
 // ERROR PRIORITY LEVELS:
-// 0 = System OK
-// 1 = Info/Status (Blue)    - System information
-// 2 = Warning (Yellow)      - Non-critical warnings
-// 3 = Error (Orange)        - Operational errors
-// 4 = Critical (Red)        - Safety critical errors
-// 5 = Emergency (Flashing Red) - Emergency stop required
+// ─────────────────────────────────────────────────────────────────────────────
+// Priority 0: System OK
+// Priority 1: Info/Status (Blue)       - System information, maintenance due
+// Priority 2: Warning (Yellow)         - Non-critical warnings, filter alerts
+// Priority 3: Error (Orange)           - Operational errors, sensor faults
+// Priority 4: Critical (Red)           - Safety critical errors, motor faults
+// Priority 5: Emergency (Flashing Red) - Emergency stop required, valve critical
 //
-// ERROR CATEGORIES:
+// ERROR CATEGORIES & INTEGRATION SOURCES:
+// ─────────────────────────────────────────────────────────────────────────────
 // A. Safety Critical (Priority 4-5)
-//    - Emergency stops, protection failures, critical communication timeouts
-// B. Communication (Priority 3-4)
-//    - TCP communication failures, watchdog timeouts
-// C. Hardware Faults (Priority 3)
-//    - Motor thermal faults, sensor errors, drive faults
-// D. Process Warnings (Priority 2)
-//    - Filter warnings, pressure deviations, flow limits
-// E. System Status (Priority 1)
-//    - Operational status, maintenance due, statistics
+//    Source: FB_Safety_Motor_Error_Processing → DB_HGU_Execution_V17
+//    - Emergency stops, protection failures, motor thermal faults
+//
+// B. Sensor Monitoring (Priority 1-3)  
+//    Source: FB_Analog_Input_Processing → DB_HGU_Execution_V17
+//    - 19 analog sensors (temperature, pressure, level, flow)
+//
+// C. Control Systems (Priority 2-3)
+//    Source: FB_Dual_Controller instances → DB_System_Coordinator_Instance
+//    - Flow controller errors (codes 11-14), Pressure controller errors (21-24)
+//
+// D. Communication (Priority 2-3)
+//    Source: FB_Flowmeter_CANOPEN → DB_HGU_Execution_V17 (CAN variables)
+//    - CAN communication, device watchdog timeouts
+//
+// E. Drive Systems (Priority 2-4)  
+//    Source: FB_G120C_Drive instances → DB_HGU_Execution_V17 (Motor status variables)
+//    - Motor faults, communication errors, safety errors
+//
+// F. Safety Valves (Priority 4-5)
+//    Source: FB_Pressure_Safety_Valves instance → Instance access needed
+//    - 250ms watchdog timeout, emergency stop requirements
+//
+// G. Digital I/O & Filters (Priority 1-2)
+//    Source: FB_Digital_Input_Processing instance → Instance access needed  
+//    - Filter errors, tank level, chiller flow monitoring
+//
+// H. Motor Selection (Priority 1-2)
+//    Source: FB_Motor_Selection instance → Instance access needed
+//    - Capacity errors, insufficient motors available
+//
+// I. MCC Command-Feedback (Priority 2)
+//    Source: FB_Safety_Status_Manager instance → Instance access needed
+//    - DO command vs feedback mismatch detection (5 pairs)
 // =============================================================================
 
 VAR_INPUT
@@ -32,105 +60,120 @@ VAR_INPUT
 END_VAR
 
 VAR_OUTPUT
-    // Basic status
-    Emergency_Stop_Active : Bool := FALSE;     // Any emergency stop active
-    Motor_Thermal_Error : Bool := FALSE;       // Any motor thermal error
+    // ═════════════════════════════════════════════════════════════════════════════
+    // SAFETY CRITICAL OUTPUTS (Priority 4-5)
+    // ═════════════════════════════════════════════════════════════════════════════
+    Emergency_Stop_Active : Bool := FALSE;          // Any emergency stop active
+    Motor_Thermal_Error : Bool := FALSE;            // Any motor thermal error
+    Valve_Watchdog_Error : Bool := FALSE;           // CRITICAL: 250ms valve watchdog timeout
+    Valve_Emergency_Stop_Required : Bool := FALSE;  // CRITICAL: Emergency stop required
     
-    // Analog sensor errors (from FB_Analog_Input_Processing)
-    Analog_Sensor_Error : Bool := FALSE;       // Any analog sensor error active
-    Temperature_Sensor_Error : Bool := FALSE;  // Temperature sensors (1, 18, 19)
-    Level_Sensor_Error : Bool := FALSE;        // Level sensor (2) - ContinuousLevelSensor
-    Aqua_Sensor_Error : Bool := FALSE;         // Aqua sensor (3) - AquaSensor
-    Pump_Pressure_Error : Bool := FALSE;       // Pump pressure sensors (4-10)
-    HSM_Pressure_Error : Bool := FALSE;        // HSM pressure sensors (11-17)
+    // ═════════════════════════════════════════════════════════════════════════════
+    // SENSOR MONITORING OUTPUTS (Priority 1-3)
+    // ═════════════════════════════════════════════════════════════════════════════
+    Analog_Sensor_Error : Bool := FALSE;            // Any analog sensor error active
+    Temperature_Sensor_Error : Bool := FALSE;       // Temperature sensors (1, 18, 19)
+    Level_Sensor_Error : Bool := FALSE;             // Level sensor (2) - ContinuousLevelSensor
+    Aqua_Sensor_Error : Bool := FALSE;              // Aqua sensor (3) - AquaSensor
+    Pump_Pressure_Error : Bool := FALSE;            // Pump pressure sensors (4-10)
+    HSM_Pressure_Error : Bool := FALSE;             // HSM pressure sensors (11-17)
     
-    // Control system errors (from FB_Dual_Controller instances)
-    Dual_Controller_Error : Bool := FALSE;     // Any dual controller error active
-    Flow_Controller_Error : Bool := FALSE;     // Flow controller errors (11-14)
-    Pressure_Controller_Error : Bool := FALSE; // Pressure controller errors (21-24)
+    // ═════════════════════════════════════════════════════════════════════════════
+    // CONTROL SYSTEM OUTPUTS (Priority 2-3)
+    // ═════════════════════════════════════════════════════════════════════════════
+    Dual_Controller_Error : Bool := FALSE;          // Any dual controller error active
+    Flow_Controller_Error : Bool := FALSE;          // Flow controller errors (11-14)
+    Pressure_Controller_Error : Bool := FALSE;      // Pressure controller errors (21-24)
     
-    // Communication system errors (from FB_Flowmeter_CANOPEN)
-    Flowmeter_Communication_Error : Bool := FALSE; // Flowmeter communication error active
-    Flowmeter_Watchdog_Error : Bool := FALSE;   // Any flowmeter watchdog timeout
+    // ═════════════════════════════════════════════════════════════════════════════
+    // COMMUNICATION OUTPUTS (Priority 2-3)
+    // ═════════════════════════════════════════════════════════════════════════════
+    Flowmeter_Communication_Error : Bool := FALSE;  // Flowmeter communication error active
+    Flowmeter_Watchdog_Error : Bool := FALSE;       // Any flowmeter watchdog timeout
+    G120C_Communication_Error : Bool := FALSE;      // Any G120C communication error
+    Valve_Communication_Error : Bool := FALSE;      // Valve controller communication error
     
-    // Drive system errors (from FB_G120C_Drive instances)
-    G120C_Motor_Fault : Bool := FALSE;         // Any G120C motor fault active
-    G120C_Communication_Error : Bool := FALSE;  // Any G120C communication error
-    G120C_Safety_Error : Bool := FALSE;        // Any G120C safety error
-    G120C_Parameter_Error : Bool := FALSE;     // Any G120C parameter error
+    // ═════════════════════════════════════════════════════════════════════════════
+    // DRIVE SYSTEM OUTPUTS (Priority 2-4)
+    // ═════════════════════════════════════════════════════════════════════════════
+    G120C_Motor_Fault : Bool := FALSE;              // Any G120C motor fault active
+    G120C_Safety_Error : Bool := FALSE;             // Any G120C safety error
+    G120C_Parameter_Error : Bool := FALSE;          // Any G120C parameter error
     
-    // Pressure safety valve system errors (from FB_Pressure_Safety_Valves)
-    Valve_Watchdog_Error : Bool := FALSE;      // CRITICAL: 250ms valve watchdog timeout
-    Valve_Emergency_Stop_Required : Bool := FALSE; // CRITICAL: Emergency stop required by valve controller
-    Valve_Communication_Error : Bool := FALSE; // Valve controller communication error
+    // ═════════════════════════════════════════════════════════════════════════════
+    // FILTER & DIGITAL I/O OUTPUTS (Priority 1-2)
+    // ═════════════════════════════════════════════════════════════════════════════
+    Digital_Input_Error : Bool := FALSE;            // Any digital input error active
+    Filter_Error : Bool := FALSE;                   // Any motor filter error active (1-7)
+    Tank_Level_Error : Bool := FALSE;               // Tank level error (low level)
+    Chiller_Flow_Error : Bool := FALSE;             // Chiller water flow error
     
-    // Digital input and filter system errors (from FB_Digital_Input_Processing)
-    Digital_Input_Error : Bool := FALSE;       // Any digital input error active
-    Filter_Error : Bool := FALSE;              // Any motor filter error active (1-7)
-    Tank_Level_Error : Bool := FALSE;          // Tank level error (low level)
-    Chiller_Flow_Error : Bool := FALSE;        // Chiller water flow error
+    // ═════════════════════════════════════════════════════════════════════════════
+    // MOTOR SELECTION OUTPUTS (Priority 1-2)
+    // ═════════════════════════════════════════════════════════════════════════════
+    Motor_Selection_Error : Bool := FALSE;          // Motor selection algorithm error
+    Insufficient_Motor_Capacity : Bool := FALSE;    // Insufficient motor flow capacity
+    Insufficient_Available_Motors : Bool := FALSE;  // Not enough motors available
     
-    // Motor selection system errors (from FB_Motor_Selection)
-    Motor_Selection_Error : Bool := FALSE;     // Motor selection algorithm error
-    Insufficient_Motor_Capacity : Bool := FALSE; // Insufficient motor flow capacity
-    Insufficient_Available_Motors : Bool := FALSE; // Not enough motors available
+    // ═════════════════════════════════════════════════════════════════════════════
+    // MCC COMMAND-FEEDBACK OUTPUTS (Priority 2)
+    // ═════════════════════════════════════════════════════════════════════════════
+    MCC_Error_Status : Bool := FALSE;               // Any MCC command-feedback error active
+    Particle_Contactor_Error : Bool := FALSE;       // Particle contactor mismatch error
+    Circ_Contactor_Error : Bool := FALSE;           // Circulation contactor mismatch error
+    Circ_SoftStarter_Error : Bool := FALSE;         // Circulation soft starter mismatch error
+    CoilTube_Contactor_Error : Bool := FALSE;       // CoilTube contactor mismatch error
+    CoilTube_SoftStarter_Error : Bool := FALSE;     // CoilTube soft starter mismatch error
     
-    // MCC (Motor Control Center) DO command-feedback errors (from FB_Safety_Status_Manager)
-    MCC_Error_Status : Bool := FALSE;          // Any MCC command-feedback error active
-    Particle_Contactor_Error : Bool := FALSE;  // Particle contactor mismatch error
-    Circ_Contactor_Error : Bool := FALSE;      // Circulation contactor mismatch error
-    Circ_SoftStarter_Error : Bool := FALSE;    // Circulation soft starter mismatch error
-    CoilTube_Contactor_Error : Bool := FALSE;  // CoilTube contactor mismatch error
-    CoilTube_SoftStarter_Error : Bool := FALSE; // CoilTube soft starter mismatch error
+    // ═════════════════════════════════════════════════════════════════════════════
+    // SYSTEM STATUS OUTPUTS
+    // ═════════════════════════════════════════════════════════════════════════════
+    System_Error_Active : Bool := FALSE;            // Any system error active
+    Total_Active_Errors : USInt := 0;               // Total number of active errors
     
-    // System status
-    System_Error_Active : Bool := FALSE;       // Any system error active
-    Total_Active_Errors : USInt := 0;          // Total number of active errors
-    
-    // Legacy compatibility outputs (for existing code that references these)
-    Emergency_Stop_Required : Bool := FALSE;   // Emergency stop required (alias for Emergency_Stop_Active)
-    Master_Error_Code : USInt := 0;            // Master error code (highest priority active error)
-    Current_Error_Priority : USInt := 0;       // Current error priority level (0-5)
+    // ═════════════════════════════════════════════════════════════════════════════
+    // LEGACY COMPATIBILITY OUTPUTS (for existing code)
+    // ═════════════════════════════════════════════════════════════════════════════
+    Emergency_Stop_Required : Bool := FALSE;        // Emergency stop required (alias)
+    Master_Error_Code : USInt := 0;                 // Master error code (highest priority)
+    Current_Error_Priority : USInt := 0;            // Current error priority level (0-5)
 END_VAR
 
 VAR
-    // Analog sensor error processing (simplified - read from DB)
-    Analog_Error_Word : Word := 0;             // Copy of ANALOG_ERROR_WORD from DB
-    Current_Analog_Error_Code : USInt := 0;    // Copy of ANALOG_ERROR_CODE from DB
-    
-    // Dual controller error processing (read from System Coordinator)
+    // ═════════════════════════════════════════════════════════════════════════════
+    // ERROR CODE TRACKING VARIABLES (for priority-based master error code)
+    // ═════════════════════════════════════════════════════════════════════════════
+    Current_Analog_Error_Code : USInt := 0;             // Copy of ANALOG_ERROR_CODE from DB
     Current_Dual_Controller_Error_Code : USInt := 0;    // Current dual controller error code
-    
-    // Flowmeter error processing (read from FB_Flowmeter_CANOPEN instance)
     Current_Flowmeter_Error_Code : USInt := 0;          // Current flowmeter error code
-    Flowmeter_Watchdog_Count : USInt := 0;              // Number of active watchdog errors
-    
-    // G120C Drive error processing (read from 6 motor instances)
     Current_G120C_Error_Code : USInt := 0;              // Current G120C error code (highest priority)
     Current_G120C_Warning_Code : USInt := 0;            // Current G120C warning code
-    G120C_Fault_Count : USInt := 0;                     // Number of motors in fault
-    
-    // Pressure safety valve error processing (read from FB_Pressure_Safety_Valves instance)
     Current_Valve_Error_Code : USInt := 0;              // Current valve controller error code
-    Valve_Controller_OK : Bool := FALSE;                // Valve controller communication status
-    
-    // Digital input and filter error processing (read from FB_Digital_Input_Processing instance)
     Current_Filter_Error_Code : USInt := 0;             // Current filter error code
-    Total_Filter_Error_Count : USInt := 0;              // Total active filter errors
-    
-    // Motor selection error processing (read from FB_Motor_Selection instances)
     Current_Motor_Selection_Error_Code : USInt := 0;    // Current motor selection error code
-    Motor_Selection_Error_Count : USInt := 0;           // Number of motor selection errors
-    
-    // MCC (Motor Control Center) error processing (read from FB_Safety_Status_Manager instance)
     Current_MCC_Error_Code : USInt := 0;                // Current MCC error code (1-5)
+    
+    // ═════════════════════════════════════════════════════════════════════════════
+    // ERROR COUNT TRACKING VARIABLES (for statistics and diagnostics)
+    // ═════════════════════════════════════════════════════════════════════════════
+    Flowmeter_Watchdog_Count : USInt := 0;              // Number of active watchdog errors
+    G120C_Fault_Count : USInt := 0;                     // Number of motors in fault
+    Total_Filter_Error_Count : USInt := 0;              // Total active filter errors
+    Motor_Selection_Error_Count : USInt := 0;           // Number of motor selection errors
     Total_MCC_Error_Count : USInt := 0;                 // Total number of active MCC errors
     
-    // Processing control
-    Processing_Timer : TON;
-    Init_Complete : Bool := FALSE;
+    // ═════════════════════════════════════════════════════════════════════════════
+    // STATUS TRACKING VARIABLES (for communication and system status)
+    // ═════════════════════════════════════════════════════════════════════════════
+    Analog_Error_Word : Word := 0;                      // Copy of ANALOG_ERROR_WORD from DB
+    Valve_Controller_OK : Bool := FALSE;                // Valve controller communication status
     
-    i : USInt; // Loop counter
+    // ═════════════════════════════════════════════════════════════════════════════
+    // PROCESSING CONTROL VARIABLES
+    // ═════════════════════════════════════════════════════════════════════════════
+    Processing_Timer : TON;                             // 100ms processing cycle timer
+    Init_Complete : Bool := FALSE;                      // Initialization complete flag
+    i : USInt;                                          // Loop counter for motor checks
 END_VAR
 
 VAR_TEMP
@@ -140,32 +183,52 @@ END_VAR
 
 BEGIN
 
-// =============================================================================
+// ═════════════════════════════════════════════════════════════════════════════
 // INITIALIZATION
-// =============================================================================
+// ═════════════════════════════════════════════════════════════════════════════
 IF NOT Init_Complete THEN
+    // Initialize safety critical outputs
     Emergency_Stop_Active := FALSE;
     Motor_Thermal_Error := FALSE;
+    Valve_Watchdog_Error := FALSE;
+    Valve_Emergency_Stop_Required := FALSE;
+    
+    // Initialize sensor monitoring outputs
     Analog_Sensor_Error := FALSE;
-    System_Error_Active := FALSE;
-    Total_Active_Errors := 0;
+    Temperature_Sensor_Error := FALSE;
+    Level_Sensor_Error := FALSE;
+    Aqua_Sensor_Error := FALSE;
+    Pump_Pressure_Error := FALSE;
+    HSM_Pressure_Error := FALSE;
     
-    // Legacy compatibility outputs
-    Emergency_Stop_Required := FALSE;
-    Master_Error_Code := 0;
-    Current_Error_Priority := 0;
+    // Initialize control system outputs
+    Dual_Controller_Error := FALSE;
+    Flow_Controller_Error := FALSE;
+    Pressure_Controller_Error := FALSE;
     
-    // Flowmeter error initialization
+    // Initialize communication outputs
     Flowmeter_Communication_Error := FALSE;
     Flowmeter_Watchdog_Error := FALSE;
-    
-    // G120C Drive error initialization
-    G120C_Motor_Fault := FALSE;
     G120C_Communication_Error := FALSE;
+    Valve_Communication_Error := FALSE;
+    
+    // Initialize drive system outputs
+    G120C_Motor_Fault := FALSE;
     G120C_Safety_Error := FALSE;
     G120C_Parameter_Error := FALSE;
     
-    // MCC error initialization
+    // Initialize filter & digital I/O outputs
+    Digital_Input_Error := FALSE;
+    Filter_Error := FALSE;
+    Tank_Level_Error := FALSE;
+    Chiller_Flow_Error := FALSE;
+    
+    // Initialize motor selection outputs
+    Motor_Selection_Error := FALSE;
+    Insufficient_Motor_Capacity := FALSE;
+    Insufficient_Available_Motors := FALSE;
+    
+    // Initialize MCC command-feedback outputs
     MCC_Error_Status := FALSE;
     Particle_Contactor_Error := FALSE;
     Circ_Contactor_Error := FALSE;
@@ -173,42 +236,51 @@ IF NOT Init_Complete THEN
     CoilTube_Contactor_Error := FALSE;
     CoilTube_SoftStarter_Error := FALSE;
     
+    // Initialize system status outputs
+    System_Error_Active := FALSE;
+    Total_Active_Errors := 0;
+    
+    // Initialize legacy compatibility outputs
+    Emergency_Stop_Required := FALSE;
+    Master_Error_Code := 0;
+    Current_Error_Priority := 0;
+    
+    // Initialize processing timer
     Processing_Timer(IN := FALSE, PT := T#100ms);
     Init_Complete := TRUE;
 END_IF;
 
-// =============================================================================
+// ═════════════════════════════════════════════════════════════════════════════
 // MAIN PROCESSING LOGIC
-// =============================================================================
+// ═════════════════════════════════════════════════════════════════════════════
 IF Enable THEN
     
-    // Process every 100ms
+    // Process every 100ms for optimal performance
     Processing_Timer(IN := TRUE, PT := T#100ms);
     
     IF Processing_Timer.Q THEN
         
-        // =============================================================================
-        // READ ERROR INPUTS FROM ALL FBs (via DB or direct calls)
-        // =============================================================================
-        
-        // =============================================================================
-        // READ SAFETY AND MOTOR ERRORS (processed by FB_Safety_Motor_Error_Processing)
-        // =============================================================================
-        
-        // Read safety and motor status from DB (processed by FB_Safety_Motor_Error_Processing)
+        // ─────────────────────────────────────────────────────────────────────────
+        // STEP 1: READ SAFETY CRITICAL ERRORS (Priority 4-5)
+        // ─────────────────────────────────────────────────────────────────────────
+        // Source: FB_Safety_Motor_Error_Processing → DB_HGU_Execution_V17
         Emergency_Stop_Active := "DB_HGU_Execution_V17".CRITICAL_SAFETY_ERROR;
         Motor_Thermal_Error := "DB_HGU_Execution_V17".ANY_MOTOR_ERROR;
         
-        // =============================================================================
-        // ANALOG SENSOR ERROR PROCESSING (simplified - read from DB only)
-        // =============================================================================
+        // TODO: Valve safety errors (requires FB_Pressure_Safety_Valves instance access)
+        // Valve_Watchdog_Error := "Valve_Instance".Watchdog_Error;
+        // Valve_Emergency_Stop_Required := "Valve_Instance".Emergency_Stop_Required;
+        // Valve_Communication_Error := NOT "Valve_Instance".Communication_OK;
         
-        // Read analog sensor status directly from DB (processed by FB_Analog_Input_Processing)
+        // ─────────────────────────────────────────────────────────────────────────
+        // STEP 2: READ SENSOR MONITORING ERRORS (Priority 1-3)
+        // ─────────────────────────────────────────────────────────────────────────
+        // Source: FB_Analog_Input_Processing → DB_HGU_Execution_V17
         Analog_Sensor_Error := "DB_HGU_Execution_V17".ANALOG_SENSOR_ERROR;
         Current_Analog_Error_Code := "DB_HGU_Execution_V17".ANALOG_ERROR_CODE;
         Analog_Error_Word := "DB_HGU_Execution_V17".ANALOG_ERROR_WORD;
         
-        // Decode error categories from bit patterns (for output categorization)
+        // Categorize analog sensor errors for simplified outputs
         Temperature_Sensor_Error := FALSE;
         Level_Sensor_Error := FALSE;
         Aqua_Sensor_Error := FALSE;
@@ -216,38 +288,30 @@ IF Enable THEN
         HSM_Pressure_Error := FALSE;
         
         IF Analog_Sensor_Error THEN
-            // Categorize based on error code for simplified output signals
             CASE Current_Analog_Error_Code OF
-                1, 18, 19:  // Temperature sensors (system temp, chiller inlet, chiller outlet)
+                1, 18, 19:                      // Temperature sensors (system, chiller inlet/outlet)
                     Temperature_Sensor_Error := TRUE;
-                    
-                2:          // Continuous level sensor
+                2:                              // Continuous level sensor
                     Level_Sensor_Error := TRUE;
-                    
-                3:          // Aqua sensor
+                3:                              // Aqua sensor
                     Aqua_Sensor_Error := TRUE;
-                    
-                4, 5, 6, 7, 8, 9, 10:  // Pump pressure sensors (1-6, CoilTube)
+                4, 5, 6, 7, 8, 9, 10:          // Pump pressure sensors (Motors 1-6, CoilTube)
                     Pump_Pressure_Error := TRUE;
-                    
-                11, 12, 13, 14, 15, 16, 17:  // HSM pressure sensors (1-7)
+                11, 12, 13, 14, 15, 16, 17:    // HSM pressure sensors (1-7)
                     HSM_Pressure_Error := TRUE;
             END_CASE;
         END_IF;
         
-        // =============================================================================
-        // DUAL CONTROLLER ERROR PROCESSING (via System Coordinator)
-        // =============================================================================
-        
-        // Read dual controller errors from System Coordinator instances
-        // Assuming multiple dual controller instances for different motors
+        // ─────────────────────────────────────────────────────────────────────────
+        // STEP 3: READ CONTROL SYSTEM ERRORS (Priority 2-3)  
+        // ─────────────────────────────────────────────────────────────────────────
+        // Source: FB_Dual_Controller instances → DB_System_Coordinator_Instance
         Dual_Controller_Error := FALSE;
         Flow_Controller_Error := FALSE;
         Pressure_Controller_Error := FALSE;
         Current_Dual_Controller_Error_Code := 0;
         
-        // Check all dual controller instances via System Coordinator
-        // Motor 1-6 dual controllers (example pattern)
+        // Check all 6 dual controller instances efficiently
         FOR i := 1 TO 6 DO
             CASE i OF
                 1: IF "DB_System_Coordinator_Instance".Dual_Controller_1.Error_Status THEN
@@ -277,7 +341,7 @@ IF Enable THEN
             END_CASE;
         END_FOR;
         
-        // Categorize dual controller errors
+        // Categorize dual controller errors by type
         IF Dual_Controller_Error THEN
             IF Current_Dual_Controller_Error_Code >= 11 AND Current_Dual_Controller_Error_Code <= 14 THEN
                 Flow_Controller_Error := TRUE;          // Flow controller errors (11-14)
@@ -286,37 +350,31 @@ IF Enable THEN
             END_IF;
         END_IF;
         
-        // =============================================================================
-        // FLOWMETER COMMUNICATION ERROR PROCESSING (via FB_Flowmeter_CANOPEN instance)
-        // =============================================================================
-        
-        // Read flowmeter communication status from DB (processed by FB_Flowmeter_CANOPEN)
-        // Use CAN communication status variables in DB
+        // ─────────────────────────────────────────────────────────────────────────
+        // STEP 4: READ COMMUNICATION ERRORS (Priority 2-3)
+        // ─────────────────────────────────────────────────────────────────────────
+        // Source: FB_Flowmeter_CANOPEN → DB_HGU_Execution_V17 (CAN variables)
         Flowmeter_Communication_Error := "DB_HGU_Execution_V17".CAN_SYSTEM_ERROR;
         
-        // Map CAN system error to flowmeter error code
         IF Flowmeter_Communication_Error THEN
-            Current_Flowmeter_Error_Code := 1; // Generic CAN communication error
+            Current_Flowmeter_Error_Code := 1;         // Generic CAN communication error
         ELSE
-            Current_Flowmeter_Error_Code := 0; // No error
+            Current_Flowmeter_Error_Code := 0;         // No error
         END_IF;
         
-        // Check CAN TCP connection status for watchdog error simulation
-        // If CAN not connected or no active devices, consider as watchdog error
+        // Check CAN device watchdog status (14 devices expected)
         IF NOT "DB_HGU_Execution_V17".CAN_TCP_CONNECTED OR "DB_HGU_Execution_V17".CAN_ACTIVE_DEVICE_COUNT < 14 THEN
             Flowmeter_Watchdog_Error := TRUE;
-            Flowmeter_Watchdog_Count := 14 - "DB_HGU_Execution_V17".CAN_ACTIVE_DEVICE_COUNT; // Missing device count
+            Flowmeter_Watchdog_Count := 14 - "DB_HGU_Execution_V17".CAN_ACTIVE_DEVICE_COUNT;
         ELSE
             Flowmeter_Watchdog_Error := FALSE;
             Flowmeter_Watchdog_Count := 0;
         END_IF;
         
-        // =============================================================================
-        // G120C DRIVE ERROR PROCESSING (via 6 motor instances in DB)
-        // =============================================================================
-        
-        // Read G120C drive status from DB variables (processed by FB_G120C_Drive instances)
-        // Check all 6 motors for faults and errors
+        // ─────────────────────────────────────────────────────────────────────────
+        // STEP 5: READ DRIVE SYSTEM ERRORS (Priority 2-4)
+        // ─────────────────────────────────────────────────────────────────────────
+        // Source: FB_G120C_Drive instances → DB_HGU_Execution_V17 (Motor status variables)
         G120C_Motor_Fault := FALSE;
         G120C_Communication_Error := FALSE;
         G120C_Safety_Error := FALSE;
@@ -325,131 +383,83 @@ IF Enable THEN
         Current_G120C_Error_Code := 0;
         Current_G120C_Warning_Code := 0;
         
-        // Motor 1 status check
-        IF "DB_HGU_Execution_V17".MOTOR_1_STATUS = 3 THEN // Status 3 = Error
-            G120C_Motor_Fault := TRUE;
-            G120C_Fault_Count := G120C_Fault_Count + 1;
-            IF Current_G120C_Error_Code = 0 THEN
-                Current_G120C_Error_Code := "DB_HGU_Execution_V17".MOTOR_1_ERROR_CODE;
-            END_IF;
-        END_IF;
+        // Check all 6 motors for fault status (Status 3 = Error)
+        FOR i := 1 TO 6 DO
+            CASE i OF
+                1: IF "DB_HGU_Execution_V17".MOTOR_1_STATUS = 3 THEN
+                       G120C_Motor_Fault := TRUE;
+                       G120C_Fault_Count := G120C_Fault_Count + 1;
+                       IF Current_G120C_Error_Code = 0 THEN
+                           Current_G120C_Error_Code := "DB_HGU_Execution_V17".MOTOR_1_ERROR_CODE;
+                       END_IF;
+                   END_IF;
+                2: IF "DB_HGU_Execution_V17".MOTOR_2_STATUS = 3 THEN
+                       G120C_Motor_Fault := TRUE;
+                       G120C_Fault_Count := G120C_Fault_Count + 1;
+                       IF Current_G120C_Error_Code = 0 THEN
+                           Current_G120C_Error_Code := "DB_HGU_Execution_V17".MOTOR_2_ERROR_CODE;
+                       END_IF;
+                   END_IF;
+                3: IF "DB_HGU_Execution_V17".MOTOR_3_STATUS = 3 THEN
+                       G120C_Motor_Fault := TRUE;
+                       G120C_Fault_Count := G120C_Fault_Count + 1;
+                       IF Current_G120C_Error_Code = 0 THEN
+                           Current_G120C_Error_Code := "DB_HGU_Execution_V17".MOTOR_3_ERROR_CODE;
+                       END_IF;
+                   END_IF;
+                4: IF "DB_HGU_Execution_V17".MOTOR_4_STATUS = 3 THEN
+                       G120C_Motor_Fault := TRUE;
+                       G120C_Fault_Count := G120C_Fault_Count + 1;
+                       IF Current_G120C_Error_Code = 0 THEN
+                           Current_G120C_Error_Code := "DB_HGU_Execution_V17".MOTOR_4_ERROR_CODE;
+                       END_IF;
+                   END_IF;
+                5: IF "DB_HGU_Execution_V17".MOTOR_5_STATUS = 3 THEN
+                       G120C_Motor_Fault := TRUE;
+                       G120C_Fault_Count := G120C_Fault_Count + 1;
+                       IF Current_G120C_Error_Code = 0 THEN
+                           Current_G120C_Error_Code := "DB_HGU_Execution_V17".MOTOR_5_ERROR_CODE;
+                       END_IF;
+                   END_IF;
+                6: IF "DB_HGU_Execution_V17".MOTOR_6_STATUS = 3 THEN
+                       G120C_Motor_Fault := TRUE;
+                       G120C_Fault_Count := G120C_Fault_Count + 1;
+                       IF Current_G120C_Error_Code = 0 THEN
+                           Current_G120C_Error_Code := "DB_HGU_Execution_V17".MOTOR_6_ERROR_CODE;
+                       END_IF;
+                   END_IF;
+            END_CASE;
+        END_FOR;
         
-        // Motor 2 status check
-        IF "DB_HGU_Execution_V17".MOTOR_2_STATUS = 3 THEN
-            G120C_Motor_Fault := TRUE;
-            G120C_Fault_Count := G120C_Fault_Count + 1;
-            IF Current_G120C_Error_Code = 0 THEN
-                Current_G120C_Error_Code := "DB_HGU_Execution_V17".MOTOR_2_ERROR_CODE;
-            END_IF;
-        END_IF;
+        // TODO: Advanced G120C error detection (requires FB_G120C_Drive instance access)
+        // G120C_Communication_Error := "Motor_1_G120C_Instance".Communication_Error OR ... ;
+        // G120C_Safety_Error := "Motor_1_G120C_Instance".Safety_Error OR ... ;
+        // G120C_Parameter_Error := "Motor_1_G120C_Instance".Parameter_Error OR ... ;
         
-        // Motor 3 status check
-        IF "DB_HGU_Execution_V17".MOTOR_3_STATUS = 3 THEN
-            G120C_Motor_Fault := TRUE;
-            G120C_Fault_Count := G120C_Fault_Count + 1;
-            IF Current_G120C_Error_Code = 0 THEN
-                Current_G120C_Error_Code := "DB_HGU_Execution_V17".MOTOR_3_ERROR_CODE;
-            END_IF;
-        END_IF;
+        // ─────────────────────────────────────────────────────────────────────────
+        // STEP 6: READ SAFETY VALVE ERRORS (Priority 4-5) - TODO: Instance access needed
+        // ─────────────────────────────────────────────────────────────────────────
+        // Source: FB_Pressure_Safety_Valves instance → Instance access needed
+        // TODO: Valve_Watchdog_Error := "Valve_Instance".Watchdog_Error;
+        // TODO: Valve_Emergency_Stop_Required := "Valve_Instance".Emergency_Stop_Required;
+        // TODO: Valve_Communication_Error := NOT "Valve_Instance".Communication_OK;
         
-        // Motor 4 status check
-        IF "DB_HGU_Execution_V17".MOTOR_4_STATUS = 3 THEN
-            G120C_Motor_Fault := TRUE;
-            G120C_Fault_Count := G120C_Fault_Count + 1;
-            IF Current_G120C_Error_Code = 0 THEN
-                Current_G120C_Error_Code := "DB_HGU_Execution_V17".MOTOR_4_ERROR_CODE;
-            END_IF;
-        END_IF;
-        
-        // Motor 5 status check
-        IF "DB_HGU_Execution_V17".MOTOR_5_STATUS = 3 THEN
-            G120C_Motor_Fault := TRUE;
-            G120C_Fault_Count := G120C_Fault_Count + 1;
-            IF Current_G120C_Error_Code = 0 THEN
-                Current_G120C_Error_Code := "DB_HGU_Execution_V17".MOTOR_5_ERROR_CODE;
-            END_IF;
-        END_IF;
-        
-        // Motor 6 status check
-        IF "DB_HGU_Execution_V17".MOTOR_6_STATUS = 3 THEN
-            G120C_Motor_Fault := TRUE;
-            G120C_Fault_Count := G120C_Fault_Count + 1;
-            IF Current_G120C_Error_Code = 0 THEN
-                Current_G120C_Error_Code := "DB_HGU_Execution_V17".MOTOR_6_ERROR_CODE;
-            END_IF;
-        END_IF;
-        
-        // TODO: Communication, Safety, and Parameter errors need direct access to G120C instances
-        // These require instance calls like "Motor_1_G120C_Instance".Communication_Error
-        // For now, framework is in place but logic needs G120C instance integration
-        
-        // Framework for future G120C Communication Error detection:
-        // IF "Motor_1_G120C_Instance".Communication_Error OR "Motor_2_G120C_Instance".Communication_Error... THEN
-        //     G120C_Communication_Error := TRUE;
-        // END_IF;
-        
-        // Framework for future G120C Safety Error detection:
-        // IF "Motor_1_G120C_Instance".Safety_Error OR "Motor_2_G120C_Instance".Safety_Error... THEN
-        //     G120C_Safety_Error := TRUE;
-        // END_IF;
-        
-        // Framework for future G120C Parameter Error detection:
-        // IF "Motor_1_G120C_Instance".Parameter_Error OR "Motor_2_G120C_Instance".Parameter_Error... THEN
-        //     G120C_Parameter_Error := TRUE;
-        // END_IF;
-        
-        // =============================================================================
-        // PRESSURE SAFETY VALVE ERROR PROCESSING (via FB_Pressure_Safety_Valves instance)
-        // =============================================================================
-        
-        // Read valve controller status from instance (via System Coordinator or direct instance call)
-        // TODO: This requires access to FB_Pressure_Safety_Valves instance
-        // For now, using DB variables if available, otherwise framework for future instance integration
-        
-        // Framework for future Valve Controller Error detection:
-        // IF "Valve_Controller_Instance".Watchdog_Error THEN
-        //     Valve_Watchdog_Error := TRUE;
-        //     Current_Valve_Error_Code := "Valve_Controller_Instance".Error_Code;
-        // END_IF;
-        // IF "Valve_Controller_Instance".Emergency_Stop_Required THEN
-        //     Valve_Emergency_Stop_Required := TRUE;
-        // END_IF;
-        // IF NOT "Valve_Controller_Instance".Communication_OK THEN
-        //     Valve_Communication_Error := TRUE;
-        // END_IF;
-        
-        // For now, reset valve errors (will be implemented when instance access is available)
+        // Temporary: Reset valve errors until instance access is available
         Valve_Watchdog_Error := FALSE;
         Valve_Emergency_Stop_Required := FALSE;
         Valve_Communication_Error := FALSE;
         Current_Valve_Error_Code := 0;
         Valve_Controller_OK := TRUE;
         
-        // =============================================================================
-        // DIGITAL INPUT AND FILTER ERROR PROCESSING (via FB_Digital_Input_Processing instance)
-        // =============================================================================
+        // ─────────────────────────────────────────────────────────────────────────
+        // STEP 7: READ FILTER & DIGITAL I/O ERRORS (Priority 1-2) - TODO: Instance access needed
+        // ─────────────────────────────────────────────────────────────────────────
+        // Source: FB_Digital_Input_Processing instance → Instance access needed
+        // TODO: Digital_Input_Error := "Digital_Input_Instance".Error_Status;
+        // TODO: Current_Filter_Error_Code := "Digital_Input_Instance".Error_Code;
+        // TODO: Categorize: Filter_Error (codes 1-7), Tank_Level_Error (10), Chiller_Flow_Error (11)
         
-        // Read filter and digital input status from instance (via System Coordinator or direct instance call)
-        // TODO: This requires access to FB_Digital_Input_Processing instance
-        // For now, using DB variables if available, otherwise framework for future instance integration
-        
-        // Framework for future Filter Error detection:
-        // IF "Digital_Input_Instance".Error_Status THEN
-        //     Digital_Input_Error := TRUE;
-        //     Current_Filter_Error_Code := "Digital_Input_Instance".Error_Code;
-        //     Total_Filter_Error_Count := "Digital_Input_Instance".Total_Filter_Errors;
-        // END_IF;
-        
-        // Categorize filter errors based on error code
-        // IF Current_Filter_Error_Code >= 1 AND Current_Filter_Error_Code <= 7 THEN
-        //     Filter_Error := TRUE; // Motor filter errors (1-7)
-        // ELSIF Current_Filter_Error_Code = 10 THEN
-        //     Tank_Level_Error := TRUE; // Tank level error
-        // ELSIF Current_Filter_Error_Code = 11 THEN
-        //     Chiller_Flow_Error := TRUE; // Chiller flow error
-        // END_IF;
-        
-        // For now, reset filter errors (will be implemented when instance access is available)
+        // Temporary: Reset filter errors until instance access is available
         Digital_Input_Error := FALSE;
         Filter_Error := FALSE;
         Tank_Level_Error := FALSE;
@@ -457,76 +467,28 @@ IF Enable THEN
         Current_Filter_Error_Code := 0;
         Total_Filter_Error_Count := 0;
         
-        // =============================================================================
-        // MOTOR SELECTION ERROR PROCESSING (via FB_Motor_Selection instances)
-        // =============================================================================
+        // ─────────────────────────────────────────────────────────────────────────
+        // STEP 8: READ MOTOR SELECTION ERRORS (Priority 1-2) - TODO: Instance access needed
+        // ─────────────────────────────────────────────────────────────────────────
+        // Source: FB_Motor_Selection instance → Instance access needed
+        // TODO: Motor_Selection_Error := "Motor_Selection_Instance".Error_Status;
+        // TODO: Categorize: Insufficient_Motor_Capacity (code 1), Insufficient_Available_Motors (code 2)
         
-        // Read motor selection errors from instances (via System Coordinator or direct instance call)
-        // TODO: This requires access to FB_Motor_Selection instances
-        // For now, using DB variables if available, otherwise framework for future instance integration
-        
-        // Framework for future Motor Selection Error detection:
-        // Motor_Selection_Error := FALSE;
-        // Motor_Selection_Error_Count := 0;
-        // Current_Motor_Selection_Error_Code := 0;
-        
-        // FOR i := 1 TO 6 DO  // Check all 6 motor selection instances
-        //     CASE i OF
-        //         1: IF "Motor_Selection_Instance_1".Error_Status THEN
-        //                Motor_Selection_Error := TRUE;
-        //                Current_Motor_Selection_Error_Code := "Motor_Selection_Instance_1".Error_Code;
-        //                Motor_Selection_Error_Count := Motor_Selection_Error_Count + 1;
-        //                
-        //                // Categorize error types
-        //                IF "Motor_Selection_Instance_1".Error_Code = 1 THEN
-        //                    Insufficient_Motor_Capacity := TRUE;
-        //                ELSIF "Motor_Selection_Instance_1".Error_Code = 2 THEN
-        //                    Insufficient_Available_Motors := TRUE;
-        //                END_IF;
-        //            END_IF;
-        //     END_CASE;
-        // END_FOR;
-        
-        // For now, reset motor selection errors (will be implemented when instance access is available)
+        // Temporary: Reset motor selection errors until instance access is available
         Motor_Selection_Error := FALSE;
         Insufficient_Motor_Capacity := FALSE;
         Insufficient_Available_Motors := FALSE;
         Current_Motor_Selection_Error_Code := 0;
         Motor_Selection_Error_Count := 0;
         
-        // =============================================================================
-        // MCC (MOTOR CONTROL CENTER) ERROR PROCESSING (via FB_Safety_Status_Manager instance)
-        // =============================================================================
+        // ─────────────────────────────────────────────────────────────────────────
+        // STEP 9: READ MCC COMMAND-FEEDBACK ERRORS (Priority 2) - TODO: Instance access needed
+        // ─────────────────────────────────────────────────────────────────────────
+        // Source: FB_Safety_Status_Manager instance → Instance access needed
+        // TODO: MCC_Error_Status := "Safety_Status_Manager_Instance".MCC_Error_Status;
+        // TODO: Read individual DO-feedback errors: Particle, Circ Contactor/SoftStarter, CoilTube Contactor/SoftStarter
         
-        // Read MCC errors from Safety Status Manager instance (via System Coordinator or direct instance call)
-        // TODO: This requires access to FB_Safety_Status_Manager instance
-        // For now, using DB variables if available, otherwise framework for future instance integration
-        
-        // Framework for future MCC Error detection:
-        // IF "Safety_Status_Manager_Instance".MCC_Error_Status THEN
-        //     MCC_Error_Status := TRUE;
-        //     Current_MCC_Error_Code := "Safety_Status_Manager_Instance".MCC_Error_Code;
-        //     Total_MCC_Error_Count := "Safety_Status_Manager_Instance".Total_MCC_Errors;
-        //     
-        //     // Individual DO command-feedback errors
-        //     Particle_Contactor_Error := "Safety_Status_Manager_Instance".Particle_Contactor_Error;
-        //     Circ_Contactor_Error := "Safety_Status_Manager_Instance".Circ_Contactor_Error;
-        //     Circ_SoftStarter_Error := "Safety_Status_Manager_Instance".Circ_SoftStarter_Error;
-        //     CoilTube_Contactor_Error := "Safety_Status_Manager_Instance".CoilTube_Contactor_Error;
-        //     CoilTube_SoftStarter_Error := "Safety_Status_Manager_Instance".CoilTube_SoftStarter_Error;
-        // ELSE
-        //     MCC_Error_Status := FALSE;
-        //     Current_MCC_Error_Code := 0;
-        //     Total_MCC_Error_Count := 0;
-        //     
-        //     Particle_Contactor_Error := FALSE;
-        //     Circ_Contactor_Error := FALSE;
-        //     Circ_SoftStarter_Error := FALSE;
-        //     CoilTube_Contactor_Error := FALSE;
-        //     CoilTube_SoftStarter_Error := FALSE;
-        // END_IF;
-        
-        // For now, reset MCC errors (will be implemented when instance access is available)
+        // Temporary: Reset MCC errors until instance access is available
         MCC_Error_Status := FALSE;
         Particle_Contactor_Error := FALSE;
         Circ_Contactor_Error := FALSE;
@@ -536,47 +498,58 @@ IF Enable THEN
         Current_MCC_Error_Code := 0;
         Total_MCC_Error_Count := 0;
         
-        // =============================================================================
-        // SIMPLE PROCESSING - Emergency Stops, Motor Thermal, Analog, Control, Communication, Drive, Valve, and Filter Errors
-        // =============================================================================
+        // ─────────────────────────────────────────────────────────────────────────
+        // STEP 10: CALCULATE SYSTEM STATUS SUMMARY  
+        // ─────────────────────────────────────────────────────────────────────────
         
-        // Emergency Stop and Motor Thermal status are already read from DB above
-        // (processed by FB_Safety_Motor_Error_Processing)
-        
-        // Calculate total active errors (including G120C drive errors, valve errors, and filter errors)
+        // Count total active errors across all categories
         Total_Active_Errors := 0;
+        // Safety Critical (Priority 4-5)
         IF Emergency_Stop_Active THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF Motor_Thermal_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
+        IF Valve_Watchdog_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
+        IF Valve_Emergency_Stop_Required THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
+        // Sensor Monitoring (Priority 1-3)
         IF Temperature_Sensor_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF Level_Sensor_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF Aqua_Sensor_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF Pump_Pressure_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF HSM_Pressure_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
+        // Control Systems (Priority 2-3)
         IF Flow_Controller_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF Pressure_Controller_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
+        // Communication (Priority 2-3)
         IF Flowmeter_Communication_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF Flowmeter_Watchdog_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
-        IF G120C_Motor_Fault THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF G120C_Communication_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
+        IF Valve_Communication_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
+        // Drive Systems (Priority 2-4)
+        IF G120C_Motor_Fault THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF G120C_Safety_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF G120C_Parameter_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
-        IF Valve_Watchdog_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
-        IF Valve_Emergency_Stop_Required THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
-        IF Valve_Communication_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
+        // Filter & Digital I/O (Priority 1-2)
         IF Filter_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF Tank_Level_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF Chiller_Flow_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
+        // Motor Selection (Priority 1-2)
         IF Motor_Selection_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF Insufficient_Motor_Capacity THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF Insufficient_Available_Motors THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
+        // MCC Command-Feedback (Priority 2)
         IF Particle_Contactor_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF Circ_Contactor_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF Circ_SoftStarter_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF CoilTube_Contactor_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         IF CoilTube_SoftStarter_Error THEN Total_Active_Errors := Total_Active_Errors + 1; END_IF;
         
-        // Overall system error status (including G120C drive errors, valve errors, filter errors, motor selection errors, and MCC errors)
-        System_Error_Active := Emergency_Stop_Active OR Motor_Thermal_Error OR Analog_Sensor_Error OR Dual_Controller_Error OR Flowmeter_Communication_Error OR Flowmeter_Watchdog_Error OR G120C_Motor_Fault OR G120C_Communication_Error OR G120C_Safety_Error OR G120C_Parameter_Error OR Valve_Watchdog_Error OR Valve_Emergency_Stop_Required OR Valve_Communication_Error OR Digital_Input_Error OR Filter_Error OR Tank_Level_Error OR Chiller_Flow_Error OR Motor_Selection_Error OR Insufficient_Motor_Capacity OR Insufficient_Available_Motors OR MCC_Error_Status;
+        // Overall system error status
+        System_Error_Active := Emergency_Stop_Active OR Motor_Thermal_Error OR Analog_Sensor_Error OR 
+                              Dual_Controller_Error OR Flowmeter_Communication_Error OR Flowmeter_Watchdog_Error OR
+                              G120C_Motor_Fault OR G120C_Communication_Error OR G120C_Safety_Error OR G120C_Parameter_Error OR
+                              Valve_Watchdog_Error OR Valve_Emergency_Stop_Required OR Valve_Communication_Error OR
+                              Digital_Input_Error OR Filter_Error OR Tank_Level_Error OR Chiller_Flow_Error OR
+                              Motor_Selection_Error OR Insufficient_Motor_Capacity OR Insufficient_Available_Motors OR
+                              MCC_Error_Status;
         
         // =============================================================================
         // LEGACY COMPATIBILITY OUTPUTS
