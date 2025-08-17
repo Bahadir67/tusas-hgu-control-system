@@ -1,0 +1,35 @@
+ORGANIZATION_BLOCK "OB1"
+TITLE = 'Main Program OB1'
+AUTHOR : 'TUSAS'
+FAMILY : 'Main'
+NAME : 'Main'
+VERSION : 3.0
+// =============================================================================
+// MAIN ORGANIZATION BLOCK - V17 ARCHITECTURE
+// TIA Portal S7-1500 Structured Control Language (SCL)
+// Description: Simple system coordination calling FB_System_Coordinator
+// =============================================================================
+
+VAR_TEMP
+    // Temporary variables for OB1 (minimum 20 bytes requirement)
+    SystemStatus : DInt;        // 4 bytes
+    CycleTime : Time;          // 4 bytes  
+    Reserved1 : DInt;          // 4 bytes
+    Reserved2 : DInt;          // 4 bytes
+    Reserved3 : DInt;          // 4 bytes
+END_VAR
+
+BEGIN
+
+// =============================================================================
+// MAIN SYSTEM COORDINATION
+// =============================================================================
+
+// Call main system coordinator with minimal configuration
+"DB_System_Coordinator_Instance"(
+    Enable := TRUE,
+    SystemCommand := 1,
+    System_Total_Flow_Setpoint := 100.0
+);
+
+END_ORGANIZATION_BLOCK

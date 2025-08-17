@@ -1,0 +1,236 @@
+FUNCTION_BLOCK "FB_Dual_Controller"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : '1.0'
+// =============================================================================
+// TUSAŞ HGU Dual Controller V17
+// Purpose: Flow/Pressure control mode switching and coordination
+// Logic: IF Pressure ≤ 95% setpoint → Flow control, ELSE Pressure limiting
+// Features: Seamless switching, motor RPM & valve current coordination
+// =============================================================================
+
+VAR_INPUT
+    Enable : Bool := FALSE;                    // Enable dual controller
+    Motor_Enable : Bool := FALSE;              // Motor enable status
+    
+    // Pressure inputs
+    Pressure_Setpoint : Real := 280.0;        // Pressure setpoint (Bar)
+    Pressure_Actual : Real := 0.0;            // Current pressure reading (Bar)
+    Pressure_Threshold : Real := 95.0;        // Threshold percentage for mode switching
+    
+    // Flow inputs
+    Flow_Setpoint : Real := 30.0;             // Flow setpoint (L/min)
+    Flow_Actual : Real := 0.0;               // Flow meter reading (L/min)
+    Motor_Displacement : Real := 100.0;       // Motor displacement (cc/rev)
+    Motor_Number : USInt := 1;                // Motor number (1-7)
+    
+    // Control parameters
+    Valve_Response_Time : Time := T#40ms;     // Valve response time
+END_VAR
+
+VAR_OUTPUT
+    // Motor outputs
+    Motor_RPM : Real := 0.0;                  // Motor RPM setpoint
+    
+    // Valve outputs
+    Valve_Current : Real := 0.0;              // Valve current setpoint (0-10000)
+    
+    // Status outputs
+    Flow_Control_Active : Bool := FALSE;      // Flow controller active
+    Pressure_Control_Active : Bool := FALSE;  // Pressure controller active
+    
+    // Error outputs
+    Error_Status : Bool := FALSE;             // Error condition
+    Error_Code : USInt := 0;                  // Error code
+END_VAR
+
+VAR
+    // Controller instances
+    Flow_Controller : "FB_Flow_Controller";    // Flow controller instance
+    Pressure_Controller : "FB_Pressure_Controller"; // Pressure controller instance
+    
+    // Control logic
+    Control_Mode : USInt := 0;                // Control mode (0=Flow, 1=Pressure)
+    Pressure_Limit : Real := 0.0;            // Calculated pressure limit
+    Mode_Switch_Timer : TON := (PT := T#500ms); // Mode switching delay timer
+    Last_Mode : USInt := 0;                   // Previous control mode
+    
+    // Status tracking
+    Last_Enable : Bool := FALSE;              // Previous enable state
+    Startup_Timer : TON := (PT := T#200ms);   // Startup delay timer
+    
+    // Error detection
+    Controller_Error : Bool := FALSE;         // Controller error status
+    Mode_Switch_Error : Bool := FALSE;        // Mode switching error
+    Error_Timer : TON := (PT := T#1s);        // Error persistence timer
+    
+    // Mode change detection
+    Mode_Change_Detected : Bool := FALSE;     // Mode change detection
+END_VAR
+
+VAR_TEMP
+    Flow_Control_Enable : Bool;               // Flow controller enable
+    Pressure_Control_Enable : Bool;           // Pressure controller enable
+END_VAR
+
+BEGIN
+
+// =============================================================================
+// INITIALIZATION AND STARTUP
+// =============================================================================
+IF Enable AND NOT Last_Enable THEN
+    // Reset all outputs on startup
+    Motor_RPM := 0.0;
+    Valve_Current := 0.0;
+    Control_Mode := 0;
+    Flow_Control_Active := FALSE;
+    Pressure_Control_Active := FALSE;
+    Error_Status := FALSE;
+    Error_Code := 0;
+    Last_Mode := 0;
+    Pressure_Limit := 0.0;
+END_IF;
+
+Last_Enable := Enable;
+
+// Startup delay (200ms for controller stabilization)
+Startup_Timer(IN := Enable, PT := T#200ms);
+
+// =============================================================================
+// MAIN CONTROL LOGIC
+// =============================================================================
+IF Enable AND Motor_Enable AND Startup_Timer.Q THEN
+    
+    // =============================================================================
+    // CONTROL MODE DETERMINATION
+    // =============================================================================
+    Pressure_Limit := Pressure_Setpoint * (Pressure_Threshold / 100.0);
+    
+    IF Pressure_Actual <= Pressure_Limit THEN
+        // Pressure is below threshold - Use FLOW CONTROL
+        Control_Mode := 0;
+        Flow_Control_Enable := TRUE;
+        Pressure_Control_Enable := FALSE;
+    ELSE
+        // Pressure is above threshold - Use PRESSURE LIMITING
+        Control_Mode := 1;
+        Flow_Control_Enable := FALSE;
+        Pressure_Control_Enable := TRUE;
+    END_IF;
+    
+    // =============================================================================
+    // MODE SWITCHING DELAY (Prevent Oscillation)
+    // =============================================================================
+    IF Control_Mode = Last_Mode THEN
+        Mode_Change_Detected := 0;
+    ELSE
+        Mode_Change_Detected := 1;
+    END_IF;
+    Mode_Switch_Timer(IN := Mode_Change_Detected, PT := T#500ms);
+    
+    // Only apply mode change after delay
+    IF NOT Mode_Change_Detected OR Mode_Switch_Timer.Q THEN
+        Last_Mode := Control_Mode;
+        
+        // =============================================================================
+        // FLOW CONTROLLER (Mode 0)
+        // =============================================================================
+        Flow_Controller(
+            Enable := Flow_Control_Enable,
+            Flow_Setpoint := Flow_Setpoint,
+            Flow_Actual := Flow_Actual,
+            Motor_Displacement := Motor_Displacement,
+            Motor_Number := Motor_Number,
+            Error_Threshold := 2.0,
+            Correction_Factor := 0.1,
+            Max_Correction := 50.0,
+            Max_RPM := 1500.0
+        );
+        
+        // =============================================================================
+        // PRESSURE CONTROLLER (Mode 1)
+        // =============================================================================
+        Pressure_Controller(
+            Enable := Pressure_Control_Enable,
+            Target_Pressure := Pressure_Setpoint,
+            Current_Pressure := Pressure_Actual,
+            Valve_Response_Time := Valve_Response_Time,
+            Approach_Percentage := 10.0,
+            Tracking_Step_Size := 0.05,
+            Pressure_Threshold := Pressure_Threshold
+        );
+        
+        // =============================================================================
+        // OUTPUT ASSIGNMENT BASED ON ACTIVE MODE
+        // =============================================================================
+        IF Control_Mode = 0 THEN
+            // FLOW CONTROL MODE
+            Motor_RPM := Flow_Controller.Motor_RPM;
+            Valve_Current := 4000.0; // Base valve opening for flow control
+            Flow_Control_Active := Flow_Controller.Control_Active;
+            Pressure_Control_Active := FALSE;
+            Controller_Error := Flow_Controller.Error_Status;
+            
+        ELSE
+            // PRESSURE LIMITING MODE
+            Motor_RPM := 0.0; // Reduce motor speed for pressure limiting
+            Valve_Current := Pressure_Controller.Valve_Current;
+            Flow_Control_Active := FALSE;
+            Pressure_Control_Active := Pressure_Controller.Control_Active;
+            Controller_Error := Pressure_Controller.Error_Status;
+        END_IF;
+        
+        // =============================================================================
+        // ERROR HANDLING
+        // =============================================================================
+        IF Controller_Error THEN
+            Error_Status := TRUE;
+            IF Control_Mode = 0 THEN
+                Error_Code := Flow_Controller.Error_Code + 10; // Flow controller errors: 11-14
+            ELSE
+                Error_Code := Pressure_Controller.Error_Code + 20; // Pressure controller errors: 21-24
+            END_IF;
+        ELSE
+            Error_Status := FALSE;
+            Error_Code := 0;
+        END_IF;
+        
+    ELSE
+        // Mode switching in progress - maintain previous outputs
+        // This prevents output glitches during mode transitions
+        ; // Empty block - semicolon required in TIA Portal V17
+    END_IF;
+    
+ELSE
+    // =============================================================================
+    // DISABLED STATE
+    // =============================================================================
+    Motor_RPM := 0.0;
+    Valve_Current := 0.0;
+    Control_Mode := 0;
+    Flow_Control_Active := FALSE;
+    Pressure_Control_Active := FALSE;
+    Error_Status := FALSE;
+    Error_Code := 0;
+    
+    // Disable sub-controllers
+    Flow_Controller(
+        Enable := FALSE,
+        Flow_Setpoint := 0.0,
+        Flow_Actual := 0.0,
+        Motor_Displacement := Motor_Displacement,
+        Motor_Number := Motor_Number
+    );
+    Pressure_Controller(
+        Enable := FALSE,
+        Target_Pressure := 0.0,
+        Current_Pressure := 0.0,
+        Valve_Response_Time := T#40ms
+    );
+    
+    // Reset timers
+    Startup_Timer(IN := FALSE, PT := T#200ms);
+    Mode_Switch_Timer(IN := FALSE, PT := T#500ms);
+    Error_Timer(IN := FALSE, PT := T#1s);
+END_IF;
+
+END_FUNCTION_BLOCK

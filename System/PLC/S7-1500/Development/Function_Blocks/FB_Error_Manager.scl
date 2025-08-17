@@ -1,0 +1,482 @@
+FUNCTION_BLOCK "FB_Error_Manager"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : '1.0'
+// =============================================================================
+// TUSAŞ HGU System-Wide Error Manager V17
+// Purpose: Centralized error and warning collection from all Function Blocks
+// Features: Priority-based error management, alarm categorization, system status
+// 
+// ERROR PRIORITY LEVELS:
+// 0 = System OK
+// 1 = Info/Status (Blue)    - System information
+// 2 = Warning (Yellow)      - Non-critical warnings
+// 3 = Error (Orange)        - Operational errors
+// 4 = Critical (Red)        - Safety critical errors
+// 5 = Emergency (Flashing Red) - Emergency stop required
+//
+// ERROR CATEGORIES:
+// A. Safety Critical (Priority 4-5)
+//    - Emergency stops, protection failures, critical communication timeouts
+// B. Communication (Priority 3-4)
+//    - TCP communication failures, watchdog timeouts
+// C. Hardware Faults (Priority 3)
+//    - Motor thermal faults, sensor errors, drive faults
+// D. Process Warnings (Priority 2)
+//    - Filter warnings, pressure deviations, flow limits
+// E. System Status (Priority 1)
+//    - Operational status, maintenance due, statistics
+// =============================================================================
+
+VAR_INPUT
+    Enable : Bool := FALSE;                    // Enable error manager
+END_VAR
+
+VAR_OUTPUT
+    // System-wide status
+    System_Status_OK : Bool := FALSE;          // Overall system health
+    Current_Error_Priority : USInt := 0;       // Highest active error priority (0-5)
+    Current_Error_Category : USInt := 0;       // Error category (1=Safety, 2=Comm, 3=Hardware, 4=Process, 5=Status)
+    Emergency_Stop_Required : Bool := FALSE;   // Emergency stop command
+    
+    // Error summary counts
+    Critical_Error_Count : USInt := 0;         // Priority 4-5 errors
+    Error_Count : USInt := 0;                  // Priority 3 errors
+    Warning_Count : USInt := 0;                // Priority 2 warnings
+    Info_Count : USInt := 0;                   // Priority 1 information
+    
+    // Detailed error words (32-bit each)
+    Safety_Error_Word : DWord := 0;            // Safety critical errors (bits 0-31)
+    Communication_Error_Word : DWord := 0;     // Communication errors (bits 0-31)
+    Hardware_Error_Word : DWord := 0;          // Hardware fault errors (bits 0-31)
+    Process_Warning_Word : DWord := 0;         // Process warnings (bits 0-31)
+    System_Status_Word : DWord := 0;           // System status information (bits 0-31)
+    
+    // Master error code (0-255)
+    Master_Error_Code : USInt := 0;            // Combined error code for HMI/SCADA
+END_VAR
+
+VAR
+    // FB Interface Variables - Error Status Inputs
+    // Safety Status Manager
+    Safety_Critical_Error : Bool := FALSE;
+    Safety_Any_Motor_Error : Bool := FALSE;
+    Safety_Error_Code : USInt := 0;
+    
+    // Analog Input Processing
+    Analog_Error_Status : Bool := FALSE;
+    Analog_Total_Sensors_Error : USInt := 0;
+    Analog_Error_Code : USInt := 0;
+    
+    // Digital Input Processing
+    Digital_Error_Status : Bool := FALSE;
+    Digital_Total_Filter_Errors : USInt := 0;
+    Digital_Error_Code : USInt := 0;
+    
+    // Pressure Safety Valves
+    Valves_Watchdog_Error : Bool := FALSE;
+    Valves_Emergency_Stop_Required : Bool := FALSE;
+    Valves_Error_Code : USInt := 0;
+    
+    // Flowmeter CANOPEN
+    Flowmeter_Communication_Error : Bool := FALSE;
+    Flowmeter_Error_Code : USInt := 0;
+    
+    // G120C Drive (example for Motor 1)
+    Drive_Motor_Fault : Bool := FALSE;
+    Drive_Communication_Error : Bool := FALSE;
+    Drive_Error_Code : USInt := 0;
+    
+    // Flow Controller
+    Flow_Error_Status : Bool := FALSE;
+    Flow_Error_Code : USInt := 0;
+    
+    // Pressure Controller
+    Pressure_Error_Status : Bool := FALSE;
+    Pressure_Error_Code : USInt := 0;
+    
+    // Motor Selection
+    Motor_Selection_Error_Status : Bool := FALSE;
+    Motor_Selection_Error_Code : USInt := 0;
+    
+    // Processing variables
+    Temp_Priority : USInt := 0;
+    Temp_Category : USInt := 0;
+    Max_Priority : USInt := 0;
+    Active_Category : USInt := 0;
+    
+    // Bit manipulation
+    Safety_Word_Temp : DWord := 0;
+    Comm_Word_Temp : DWord := 0;
+    Hardware_Word_Temp : DWord := 0;
+    Process_Word_Temp : DWord := 0;
+    Status_Word_Temp : DWord := 0;
+    
+    // Error counting
+    Critical_Count : USInt := 0;
+    Error_Count_Temp : USInt := 0;
+    Warning_Count_Temp : USInt := 0;
+    Info_Count_Temp : USInt := 0;
+    
+    // Processing control
+    Processing_Timer : TON;
+    Init_Complete : Bool := FALSE;
+    
+    i : USInt; // Loop counter
+END_VAR
+
+VAR_TEMP
+    Temp_DWord : DWord;
+    Temp_Bool : Bool;
+END_VAR
+
+BEGIN
+
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
+IF NOT Init_Complete THEN
+    System_Status_OK := FALSE;
+    Current_Error_Priority := 0;
+    Current_Error_Category := 0;
+    Emergency_Stop_Required := FALSE;
+    
+    Critical_Error_Count := 0;
+    Error_Count := 0;
+    Warning_Count := 0;
+    Info_Count := 0;
+    
+    Safety_Error_Word := 0;
+    Communication_Error_Word := 0;
+    Hardware_Error_Word := 0;
+    Process_Warning_Word := 0;
+    System_Status_Word := 0;
+    
+    Master_Error_Code := 0;
+    
+    Processing_Timer(IN := FALSE, PT := T#100ms);
+    Init_Complete := TRUE;
+END_IF;
+
+// =============================================================================
+// MAIN PROCESSING LOGIC
+// =============================================================================
+IF Enable THEN
+    
+    // Process every 100ms
+    Processing_Timer(IN := TRUE, PT := T#100ms);
+    
+    IF Processing_Timer.Q THEN
+        
+        // =============================================================================
+        // READ ERROR INPUTS FROM ALL FBs (via DB or direct calls)
+        // =============================================================================
+        
+        // Safety Status Manager
+        Safety_Critical_Error := "DB_HGU_Execution_V17".CRITICAL_SAFETY_ERROR;
+        Safety_Any_Motor_Error := "DB_HGU_Execution_V17".ANY_MOTOR_ERROR;
+        Safety_Error_Code := "DB_HGU_Execution_V17".SAFETY_ERROR_CODE;
+        
+        // Digital Input Processing (connected via System Coordinator instances)
+        // TODO: Connect these to actual FB instances in System Coordinator:
+        // Digital_Error_Status := Digital_Input_Processor.Error_Status;
+        // Digital_Total_Filter_Errors := Digital_Input_Processor.Total_Filter_Errors;
+        // Digital_Error_Code := Digital_Input_Processor.Error_Code;
+        Digital_Error_Status := FALSE; // PLACEHOLDER - connect to System Coordinator FB instance
+        Digital_Total_Filter_Errors := 0; // PLACEHOLDER
+        Digital_Error_Code := 0; // PLACEHOLDER
+        
+        // Pressure Safety Valves (error logic moved to Error Manager)
+        // Check communication status and connection from DB
+        IF "DB_HGU_Execution_V17".PRESSURE_SAFETY_VALVES_ENABLE THEN
+            // Watchdog error check (250ms timeout)
+            // Communication status from Pressure Safety Valves FB
+            IF NOT "DB_HGU_Execution_V17".PRESSURE_VALVES_COMMUNICATION_OK THEN
+                Valves_Watchdog_Error := TRUE;
+                Valves_Emergency_Stop_Required := TRUE;
+                Valves_Error_Code := 1; // Watchdog timeout
+            ELSIF "DB_HGU_Execution_V17".PRESSURE_VALVES_TCP_ERROR THEN
+                Valves_Watchdog_Error := FALSE;
+                Valves_Emergency_Stop_Required := FALSE;
+                Valves_Error_Code := 2; // Communication error
+            ELSE
+                Valves_Watchdog_Error := FALSE;
+                Valves_Emergency_Stop_Required := FALSE;
+                Valves_Error_Code := 0; // No error
+            END_IF;
+        ELSE
+            Valves_Watchdog_Error := FALSE;
+            Valves_Emergency_Stop_Required := FALSE;
+            Valves_Error_Code := 0;
+        END_IF;
+        
+        // =============================================================================
+        // RESET COUNTERS AND WORDS
+        // =============================================================================
+        Critical_Count := 0;
+        Error_Count_Temp := 0;
+        Warning_Count_Temp := 0;
+        Info_Count_Temp := 0;
+        Max_Priority := 0;
+        Active_Category := 0;
+        
+        Safety_Word_Temp := 0;
+        Comm_Word_Temp := 0;
+        Hardware_Word_Temp := 0;
+        Process_Word_Temp := 0;
+        Status_Word_Temp := 0;
+        
+        Emergency_Stop_Required := FALSE;
+        
+        // =============================================================================
+        // CATEGORY A: SAFETY CRITICAL ERRORS (Priority 4-5)
+        // =============================================================================
+        
+        // Bit 0: Critical Safety Error from Safety Status Manager
+        IF Safety_Critical_Error THEN
+            Safety_Word_Temp := Safety_Word_Temp OR DWord#16#00000001;
+            Critical_Count := Critical_Count + 1;
+            IF Safety_Error_Code = 3 THEN // Critical safety error
+                Temp_Priority := 5; // Emergency
+                Emergency_Stop_Required := TRUE;
+            ELSE
+                Temp_Priority := 4; // Critical
+            END_IF;
+            IF Temp_Priority > Max_Priority THEN
+                Max_Priority := Temp_Priority;
+                Active_Category := 1; // Safety
+            END_IF;
+        END_IF;
+        
+        // Bit 1: Pressure Safety Valves Watchdog Error (CRITICAL - 250ms timeout)
+        IF Valves_Watchdog_Error THEN
+            Safety_Word_Temp := Safety_Word_Temp OR DWord#16#00000002;
+            Critical_Count := Critical_Count + 1;
+            Temp_Priority := 5; // Emergency - force motor stop
+            Emergency_Stop_Required := TRUE;
+            IF Temp_Priority > Max_Priority THEN
+                Max_Priority := Temp_Priority;
+                Active_Category := 1; // Safety
+            END_IF;
+        END_IF;
+        
+        // Bit 2: Emergency Stop Required from Valves
+        IF Valves_Emergency_Stop_Required THEN
+            Safety_Word_Temp := Safety_Word_Temp OR DWord#16#00000004;
+            Critical_Count := Critical_Count + 1;
+            Temp_Priority := 5; // Emergency
+            Emergency_Stop_Required := TRUE;
+            IF Temp_Priority > Max_Priority THEN
+                Max_Priority := Temp_Priority;
+                Active_Category := 1; // Safety
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // CATEGORY B: COMMUNICATION ERRORS (Priority 3-4)
+        // =============================================================================
+        
+        // Bit 0: Flowmeter Communication Error
+        IF Flowmeter_Communication_Error THEN
+            Comm_Word_Temp := Comm_Word_Temp OR DWord#16#00000001;
+            Error_Count_Temp := Error_Count_Temp + 1;
+            Temp_Priority := 3; // Error
+            IF Temp_Priority > Max_Priority THEN
+                Max_Priority := Temp_Priority;
+                Active_Category := 2; // Communication
+            END_IF;
+        END_IF;
+        
+        // Bit 1: Drive Communication Error
+        IF Drive_Communication_Error THEN
+            Comm_Word_Temp := Comm_Word_Temp OR DWord#16#00000002;
+            Error_Count_Temp := Error_Count_Temp + 1;
+            Temp_Priority := 3; // Error
+            IF Temp_Priority > Max_Priority THEN
+                Max_Priority := Temp_Priority;
+                Active_Category := 2; // Communication
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // CATEGORY C: HARDWARE FAULTS (Priority 3)
+        // =============================================================================
+        
+        // Bit 0: Motor Thermal Errors (from Safety Status Manager)
+        IF Safety_Any_Motor_Error THEN
+            Hardware_Word_Temp := Hardware_Word_Temp OR DWord#16#00000001;
+            Error_Count_Temp := Error_Count_Temp + 1;
+            Temp_Priority := 3; // Error
+            IF Temp_Priority > Max_Priority THEN
+                Max_Priority := Temp_Priority;
+                Active_Category := 3; // Hardware
+            END_IF;
+        END_IF;
+        
+        // Bit 1: Drive Motor Fault
+        IF Drive_Motor_Fault THEN
+            Hardware_Word_Temp := Hardware_Word_Temp OR DWord#16#00000002;
+            Error_Count_Temp := Error_Count_Temp + 1;
+            Temp_Priority := 3; // Error
+            IF Temp_Priority > Max_Priority THEN
+                Max_Priority := Temp_Priority;
+                Active_Category := 3; // Hardware
+            END_IF;
+        END_IF;
+        
+        // Bit 2: Analog Sensor Errors
+        IF Analog_Error_Status THEN
+            Hardware_Word_Temp := Hardware_Word_Temp OR DWord#16#00000004;
+            Error_Count_Temp := Error_Count_Temp + 1;
+            Temp_Priority := 3; // Error
+            IF Temp_Priority > Max_Priority THEN
+                Max_Priority := Temp_Priority;
+                Active_Category := 3; // Hardware
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // CATEGORY D: PROCESS WARNINGS (Priority 2)
+        // =============================================================================
+        
+        // Bit 0: Filter Errors/Warnings
+        IF Digital_Error_Status THEN
+            Process_Word_Temp := Process_Word_Temp OR DWord#16#00000001;
+            Warning_Count_Temp := Warning_Count_Temp + 1;
+            Temp_Priority := 2; // Warning
+            IF Temp_Priority > Max_Priority THEN
+                Max_Priority := Temp_Priority;
+                Active_Category := 4; // Process
+            END_IF;
+        END_IF;
+        
+        // Bit 1: Flow Controller Error
+        IF Flow_Error_Status THEN
+            Process_Word_Temp := Process_Word_Temp OR DWord#16#00000002;
+            Warning_Count_Temp := Warning_Count_Temp + 1;
+            Temp_Priority := 2; // Warning
+            IF Temp_Priority > Max_Priority THEN
+                Max_Priority := Temp_Priority;
+                Active_Category := 4; // Process
+            END_IF;
+        END_IF;
+        
+        // Bit 2: Pressure Controller Error
+        IF Pressure_Error_Status THEN
+            Process_Word_Temp := Process_Word_Temp OR DWord#16#00000004;
+            Warning_Count_Temp := Warning_Count_Temp + 1;
+            Temp_Priority := 2; // Warning
+            IF Temp_Priority > Max_Priority THEN
+                Max_Priority := Temp_Priority;
+                Active_Category := 4; // Process
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // CATEGORY E: SYSTEM STATUS (Priority 1)
+        // =============================================================================
+        
+        // Bit 0: Motor Selection Insufficient Capacity
+        IF Motor_Selection_Error_Status THEN
+            Status_Word_Temp := Status_Word_Temp OR DWord#16#00000001;
+            Info_Count_Temp := Info_Count_Temp + 1;
+            Temp_Priority := 1; // Info
+            IF Temp_Priority > Max_Priority THEN
+                Max_Priority := Temp_Priority;
+                Active_Category := 5; // Status
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // UPDATE OUTPUTS
+        // =============================================================================
+        
+        // Error counts
+        Critical_Error_Count := Critical_Count;
+        Error_Count := Error_Count_Temp;
+        Warning_Count := Warning_Count_Temp;
+        Info_Count := Info_Count_Temp;
+        
+        // Error words
+        Safety_Error_Word := Safety_Word_Temp;
+        Communication_Error_Word := Comm_Word_Temp;
+        Hardware_Error_Word := Hardware_Word_Temp;
+        Process_Warning_Word := Process_Word_Temp;
+        System_Status_Word := Status_Word_Temp;
+        
+        // System status
+        System_Status_OK := (Max_Priority = 0);
+        Current_Error_Priority := Max_Priority;
+        Current_Error_Category := Active_Category;
+        
+        // Master error code calculation (priority * 50 + category * 10 + specific code)
+        IF Max_Priority > 0 THEN
+            Master_Error_Code := Max_Priority * 50 + Active_Category * 10;
+            // Add specific error code from active category
+            CASE Active_Category OF
+                1: Master_Error_Code := Master_Error_Code + Safety_Error_Code;
+                2: Master_Error_Code := Master_Error_Code + Valves_Error_Code;
+                3: Master_Error_Code := Master_Error_Code + Drive_Error_Code;
+                4: Master_Error_Code := Master_Error_Code + Flow_Error_Code;
+                5: Master_Error_Code := Master_Error_Code + Motor_Selection_Error_Code;
+            END_CASE;
+        ELSE
+            Master_Error_Code := 0;
+        END_IF;
+        
+        // Update DB variables
+        "DB_HGU_Execution_V17".SYSTEM_ERROR_MANAGER_ACTIVE := TRUE;
+        "DB_HGU_Execution_V17".SYSTEM_STATUS_OK := System_Status_OK;
+        "DB_HGU_Execution_V17".CURRENT_ERROR_PRIORITY := Current_Error_Priority;
+        "DB_HGU_Execution_V17".CURRENT_ERROR_CATEGORY := Current_Error_Category;
+        "DB_HGU_Execution_V17".EMERGENCY_STOP_REQUIRED := Emergency_Stop_Required;
+        "DB_HGU_Execution_V17".MASTER_ERROR_CODE := Master_Error_Code;
+        
+        "DB_HGU_Execution_V17".SAFETY_ERROR_WORD := Safety_Error_Word;
+        "DB_HGU_Execution_V17".COMMUNICATION_ERROR_WORD := Communication_Error_Word;
+        "DB_HGU_Execution_V17".HARDWARE_ERROR_WORD := Hardware_Error_Word;
+        "DB_HGU_Execution_V17".PROCESS_WARNING_WORD := Process_Warning_Word;
+        "DB_HGU_Execution_V17".SYSTEM_STATUS_WORD := System_Status_Word;
+        
+        Processing_Timer(IN := FALSE, PT := T#100ms);
+    END_IF;
+    
+ELSE
+    // =============================================================================
+    // DISABLED STATE
+    // =============================================================================
+    System_Status_OK := FALSE;
+    Current_Error_Priority := 0;
+    Current_Error_Category := 0;
+    Emergency_Stop_Required := FALSE;
+    
+    Critical_Error_Count := 0;
+    Error_Count := 0;
+    Warning_Count := 0;
+    Info_Count := 0;
+    
+    Safety_Error_Word := 0;
+    Communication_Error_Word := 0;
+    Hardware_Error_Word := 0;
+    Process_Warning_Word := 0;
+    System_Status_Word := 0;
+    
+    Master_Error_Code := 0;
+    
+    Processing_Timer(IN := FALSE, PT := T#100ms);
+    
+    // Reset DB outputs
+    "DB_HGU_Execution_V17".SYSTEM_ERROR_MANAGER_ACTIVE := FALSE;
+    "DB_HGU_Execution_V17".SYSTEM_STATUS_OK := FALSE;
+    "DB_HGU_Execution_V17".CURRENT_ERROR_PRIORITY := 0;
+    "DB_HGU_Execution_V17".CURRENT_ERROR_CATEGORY := 0;
+    "DB_HGU_Execution_V17".EMERGENCY_STOP_REQUIRED := FALSE;
+    "DB_HGU_Execution_V17".MASTER_ERROR_CODE := 0;
+    
+    "DB_HGU_Execution_V17".SAFETY_ERROR_WORD := DWord#0;
+    "DB_HGU_Execution_V17".COMMUNICATION_ERROR_WORD := DWord#0;
+    "DB_HGU_Execution_V17".HARDWARE_ERROR_WORD := DWord#0;
+    "DB_HGU_Execution_V17".PROCESS_WARNING_WORD := DWord#0;
+    "DB_HGU_Execution_V17".SYSTEM_STATUS_WORD := DWord#0;
+END_IF;
+
+END_FUNCTION_BLOCK

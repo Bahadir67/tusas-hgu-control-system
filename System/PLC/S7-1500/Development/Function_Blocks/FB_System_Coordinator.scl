@@ -1,0 +1,957 @@
+FUNCTION_BLOCK "FB_System_Coordinator"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : '2.0'
+// =============================================================================
+// TUSAŞ HGU System Coordinator V17 - UPDATED
+// Purpose: System-wide coordination with new algorithm integration
+// Features: Motor selection, dual control coordination, wear leveling
+// Motor 1-6: Variable displacement, Motor 7: Fixed displacement
+// =============================================================================
+
+VAR_INPUT 
+    Enable : Bool := FALSE;                    // System enable from OB1
+    SystemCommand : DInt := 0;                 // System command from HMI
+    
+    // System flow requirements
+    System_Total_Flow_Setpoint : Real := 100.0; // Total required flow (L/min)
+END_VAR
+
+VAR_OUTPUT 
+    SystemReady : Bool := FALSE;               // System ready status
+    SystemError : Bool := FALSE;               // System error status
+    SystemStatus : DInt := 0;                  // System status code
+    
+    // Coordination status
+    Active_Motor_Count : USInt := 0;           // Number of active motors
+    Total_System_Flow : Real := 0.0;          // Total system flow capacity
+    System_Control_Mode : USInt := 0;          // Overall system control mode
+END_VAR
+
+// VAR_IN_OUT 
+//    DB_HGU_Data : "DB_HGU_Execution_V17";     // Reference to main DB - Moved to direct access
+// END_VAR
+
+VAR 
+    // Motor selection instance
+    Motor_Selector : "FB_Motor_Selection";     // Motor selection algorithm
+    
+    // Dual controller instances for each motor
+    Dual_Controller_1 : "FB_Dual_Controller";
+    Dual_Controller_2 : "FB_Dual_Controller";
+    Dual_Controller_3 : "FB_Dual_Controller";
+    Dual_Controller_4 : "FB_Dual_Controller";
+    Dual_Controller_5 : "FB_Dual_Controller";
+    Dual_Controller_6 : "FB_Dual_Controller";
+    Dual_Controller_7 : "FB_Dual_Controller"; // Motor 7 fixed displacement
+    
+    // G120C drive controller instances for Motors 1-6
+    G120C_Drive_1 : "FB_G120C_Drive";         // Motor 1 G120C drive controller
+    G120C_Drive_2 : "FB_G120C_Drive";         // Motor 2 G120C drive controller
+    G120C_Drive_3 : "FB_G120C_Drive";         // Motor 3 G120C drive controller
+    G120C_Drive_4 : "FB_G120C_Drive";         // Motor 4 G120C drive controller
+    G120C_Drive_5 : "FB_G120C_Drive";         // Motor 5 G120C drive controller
+    G120C_Drive_6 : "FB_G120C_Drive";         // Motor 6 G120C drive controller
+    
+    // Analog input processing (4-20mA sensors)
+    Analog_Input_Processor : "FB_Analog_Input_Processing";  // 19 analog inputs with calibration
+    
+    // Digital input processing (all DI signals)
+    Digital_Input_Processor : "FB_Digital_Input_Processing"; // 30+ digital inputs with debouncing
+    
+    // Safety status manager (emergency stops, motor faults, status signals)
+    Safety_Status_Manager : "FB_Safety_Status_Manager";     // Safety signal bit mapping and categorization
+    
+    // System-wide error manager (centralized error collection and prioritization)
+    Error_Manager : "FB_Error_Manager";                     // Priority-based error management from all FBs
+    
+    // Communication systems
+    Flowmeter_Reader : "FB_Flowmeter_CANOPEN";       // 14 flowmeters via CAN-Ethernet
+    Pressure_Safety_Valves : "FB_Pressure_Safety_Valves";  // 7 proportional relief valves
+    
+    // System state management
+    InitComplete : Bool := FALSE;
+    SystemTimer : TON;
+    LastSystemSetpoint : Real := 0.0;
+    SystemSetpointChanged : Bool := FALSE;
+    
+    // Coordination variables
+    i : USInt;
+    ActivePumpCount : USInt := 0;
+    TotalPressure : Real := 0.0;
+    AveragePressure : Real := 0.0;
+    Total_Flow_Capacity : Real := 0.0;
+    
+    // System state machine
+    SystemState : USInt := 0;                  // 0=Init, 1=Ready, 2=Running, 3=Error
+    StateTimer : TON := (PT := T#2s);
+    
+    // Motor hours tracking  
+    Hour_Update_Timer : TON := (PT := T#60s); // 1-minute timer for operating hours (more accurate)
+    Motor_Running_Array : Array[1..7] of Bool; // Motor running status
+    
+    // Flow distribution for selected motors
+    Flow_Per_Motor : Real := 0.0;             // Individual motor flow assignment
+    Selected_Motor_Flow : Real := 0.0;        // Flow for variable motors only
+    
+    // Error tracking
+    System_Error_Code : USInt := 0;           // Detailed error code
+    Controller_Errors : USInt := 0;           // Count of controller errors
+    
+    // Pressure setpoint management
+    Last_System_Pressure_Setpoint : Real := 0.0;  // Previous system pressure setpoint
+    System_Pressure_Changed : Bool := FALSE;      // System pressure setpoint changed flag
+END_VAR
+
+VAR_TEMP
+    Motor_Flow_Setpoint : Real;               // Temporary flow calculation
+    Motor_Available : Bool;                   // Temporary motor availability
+END_VAR
+
+BEGIN
+
+// =============================================================================
+// SYSTEM INITIALIZATION
+// =============================================================================
+IF NOT InitComplete THEN
+    "DB_HGU_Execution_V17".SYSTEM_STATUS := 0;          // System initializing
+    "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT := 280.0; // Default setpoint
+    
+    // Initialize motor hours tracking
+    Hour_Update_Timer(IN := FALSE, PT := T#60s);
+    
+    // Initialize motor running status
+    FOR i := 1 TO 7 DO
+        Motor_Running_Array[i] := FALSE;
+    END_FOR;
+    
+    InitComplete := TRUE;
+    SystemState := 0;
+END_IF;
+
+// =============================================================================
+// MAIN SYSTEM LOGIC
+// =============================================================================
+IF Enable THEN
+    
+    // =============================================================================
+    // ANALOG INPUT PROCESSING (4-20mA SENSORS)
+    // =============================================================================
+    Analog_Input_Processor(
+        Enable := TRUE,
+        Calibration_Mode := FALSE,              // Normal operation mode
+        Zero_Calibration := FALSE,              // Zero calibration command from HMI
+        Span_Calibration := FALSE,              // Span calibration command from HMI
+        Reset_Drift_Values := FALSE             // Reset drift compensation command from HMI
+    );
+    
+    // =============================================================================
+    // DIGITAL INPUT PROCESSING (ALL DI SIGNALS)
+    // =============================================================================
+    Digital_Input_Processor(
+        Enable := TRUE,
+        Filter_Debounce_Time := T#100ms,        // Filter signal debounce time
+        Level_Switch_Debounce_Time := T#500ms,  // Level switch debounce time
+        Reset_Filter_Errors := FALSE            // Manual reset for all filter errors (from HMI)
+    );
+    
+    // =============================================================================
+    // SAFETY STATUS MANAGER (EMERGENCY STOPS, MOTOR FAULTS, STATUS SIGNALS)
+    // =============================================================================
+    Safety_Status_Manager(
+        Enable := TRUE                          // Always enabled for safety monitoring
+    );
+    
+    // =============================================================================
+    // SYSTEM-WIDE ERROR MANAGER (CENTRALIZED ERROR COLLECTION)
+    // =============================================================================
+    Error_Manager(
+        Enable := TRUE                          // Always enabled for error monitoring
+        // TODO: Add FB output connections here when Error Manager is fully implemented:
+        // Example connections to be added:
+        // Digital_Error_Status := Digital_Input_Processor.Error_Status,
+        // Digital_Error_Code := Digital_Input_Processor.Error_Code,
+        // Valves_Watchdog_Error := Pressure_Safety_Valves.Watchdog_Error,
+        // Valves_Emergency_Stop_Required := Pressure_Safety_Valves.Emergency_Stop_Required,
+        // Drive_Motor_Fault := G120C_Drive_1.Motor_Fault,
+        // Drive_Communication_Error := G120C_Drive_1.Communication_Error,
+        // Flow_Error_Status := Flow_Controller.Error_Status,
+        // Pressure_Error_Status := Pressure_Controller.Error_Status,
+        // Motor_Selection_Error_Status := Motor_Selector.Error_Status
+    );
+    
+    // =============================================================================
+    // FLOWMETER COMMUNICATION (14 CAN DEVICES)
+    // =============================================================================
+    Flowmeter_Reader(
+        Enable := TRUE,
+        CAN_Ethernet_IP := '192.168.100.21',   // CAN-Ethernet converter IP
+        TCP_Port := 40002,                     // TCP port for flowmeter data
+        Watchdog_Timeout := T#250ms            // Flowmeter watchdog timeout
+    );
+    
+    // =============================================================================
+    // PRESSURE SAFETY VALVES (7 PROPORTIONAL RELIEF VALVES)
+    // =============================================================================
+    Pressure_Safety_Valves(
+        Enable := "DB_HGU_Execution_V17".PRESSURE_SAFETY_VALVES_ENABLE,
+        Valve_Controller_IP := '192.168.100.22', // Valve controller IP
+        TCP_Port := 40001,                     // TCP port for valve control
+        Watchdog_Timeout := T#250ms            // Critical safety watchdog
+    );
+    
+    // =============================================================================
+    // MOTOR SELECTION ALGORITHM WITH SAFETY INTEGRATION
+    // =============================================================================
+    Motor_Selector(
+        Enable := TRUE,
+        Wear_Leveling_Enable := "DB_HGU_Execution_V17".WEAR_LEVELING_ENABLE,
+        Required_Total_Flow := System_Total_Flow_Setpoint,
+        
+        // Motor enable status
+        Motor_1_Enable := "DB_HGU_Execution_V17".MOTOR_1_ENABLE,
+        Motor_2_Enable := "DB_HGU_Execution_V17".MOTOR_2_ENABLE,
+        Motor_3_Enable := "DB_HGU_Execution_V17".MOTOR_3_ENABLE,
+        Motor_4_Enable := "DB_HGU_Execution_V17".MOTOR_4_ENABLE,
+        Motor_5_Enable := "DB_HGU_Execution_V17".MOTOR_5_ENABLE,
+        Motor_6_Enable := "DB_HGU_Execution_V17".MOTOR_6_ENABLE,
+        Motor_7_Enable := "DB_HGU_Execution_V17".MOTOR_7_ENABLE,
+        
+        // Operating hours
+        Motor_1_Hours := "DB_HGU_Execution_V17".MOTOR_1_OPERATING_HOURS,
+        Motor_2_Hours := "DB_HGU_Execution_V17".MOTOR_2_OPERATING_HOURS,
+        Motor_3_Hours := "DB_HGU_Execution_V17".MOTOR_3_OPERATING_HOURS,
+        Motor_4_Hours := "DB_HGU_Execution_V17".MOTOR_4_OPERATING_HOURS,
+        Motor_5_Hours := "DB_HGU_Execution_V17".MOTOR_5_OPERATING_HOURS,
+        Motor_6_Hours := "DB_HGU_Execution_V17".MOTOR_6_OPERATING_HOURS,
+        
+        // Maintenance status
+        Motor_1_Maintenance_Due := "DB_HGU_Execution_V17".MOTOR_1_MAINTENANCE_DUE,
+        Motor_2_Maintenance_Due := "DB_HGU_Execution_V17".MOTOR_2_MAINTENANCE_DUE,
+        Motor_3_Maintenance_Due := "DB_HGU_Execution_V17".MOTOR_3_MAINTENANCE_DUE,
+        Motor_4_Maintenance_Due := "DB_HGU_Execution_V17".MOTOR_4_MAINTENANCE_DUE,
+        Motor_5_Maintenance_Due := "DB_HGU_Execution_V17".MOTOR_5_MAINTENANCE_DUE,
+        Motor_6_Maintenance_Due := "DB_HGU_Execution_V17".MOTOR_6_MAINTENANCE_DUE,
+        
+        // Safety status inputs (Pump 1-7)
+        Pump_1_Line_Filter_Status := "DB_HGU_Execution_V17".PUMP_1_LINE_FILTER_STATUS,
+        Pump_1_Suction_Filter_Status := "DB_HGU_Execution_V17".PUMP_1_SUCTION_FILTER_STATUS,
+        Pump_1_Manual_Valve_Status := "DB_HGU_Execution_V17".PUMP_1_MANUAL_VALVE_STATUS,
+        
+        Pump_2_Line_Filter_Status := "DB_HGU_Execution_V17".PUMP_2_LINE_FILTER_STATUS,
+        Pump_2_Suction_Filter_Status := "DB_HGU_Execution_V17".PUMP_2_SUCTION_FILTER_STATUS,
+        Pump_2_Manual_Valve_Status := "DB_HGU_Execution_V17".PUMP_2_MANUAL_VALVE_STATUS,
+        
+        Pump_3_Line_Filter_Status := "DB_HGU_Execution_V17".PUMP_3_LINE_FILTER_STATUS,
+        Pump_3_Suction_Filter_Status := "DB_HGU_Execution_V17".PUMP_3_SUCTION_FILTER_STATUS,
+        Pump_3_Manual_Valve_Status := "DB_HGU_Execution_V17".PUMP_3_MANUAL_VALVE_STATUS,
+        
+        Pump_4_Line_Filter_Status := "DB_HGU_Execution_V17".PUMP_4_LINE_FILTER_STATUS,
+        Pump_4_Suction_Filter_Status := "DB_HGU_Execution_V17".PUMP_4_SUCTION_FILTER_STATUS,
+        Pump_4_Manual_Valve_Status := "DB_HGU_Execution_V17".PUMP_4_MANUAL_VALVE_STATUS,
+        
+        Pump_5_Line_Filter_Status := "DB_HGU_Execution_V17".PUMP_5_LINE_FILTER_STATUS,
+        Pump_5_Suction_Filter_Status := "DB_HGU_Execution_V17".PUMP_5_SUCTION_FILTER_STATUS,
+        Pump_5_Manual_Valve_Status := "DB_HGU_Execution_V17".PUMP_5_MANUAL_VALVE_STATUS,
+        
+        Pump_6_Line_Filter_Status := "DB_HGU_Execution_V17".PUMP_6_LINE_FILTER_STATUS,
+        Pump_6_Suction_Filter_Status := "DB_HGU_Execution_V17".PUMP_6_SUCTION_FILTER_STATUS,
+        Pump_6_Manual_Valve_Status := "DB_HGU_Execution_V17".PUMP_6_MANUAL_VALVE_STATUS,
+        
+        Pump_7_Line_Filter_Status := "DB_HGU_Execution_V17".PUMP_7_LINE_FILTER_STATUS,
+        Pump_7_Suction_Filter_Status := "DB_HGU_Execution_V17".PUMP_7_SUCTION_FILTER_STATUS,
+        Pump_7_Manual_Valve_Status := "DB_HGU_Execution_V17".PUMP_7_MANUAL_VALVE_STATUS,
+        
+        // System parameters
+        Motor_Displacement := 100.0,           // cc/rev
+        Max_Motor_RPM := 1500.0,              // RPM
+        Motor_7_Fixed_Flow := 34.0            // L/min
+    );
+    
+    // =============================================================================
+    // FLOW DISTRIBUTION CALCULATION
+    // =============================================================================
+    
+    // Calculate flow for variable motors (excluding Motor 7)
+    Selected_Motor_Flow := System_Total_Flow_Setpoint;
+    IF Motor_Selector.Motor_7_Selected THEN
+        Selected_Motor_Flow := Selected_Motor_Flow - 34.0; // Subtract Motor 7 flow
+    END_IF;
+    
+    // Ensure non-negative flow
+    IF Selected_Motor_Flow < 0.0 THEN
+        Selected_Motor_Flow := 0.0;
+    END_IF;
+    
+    // Calculate flow per selected motor
+    IF Motor_Selector.Selected_Motor_Count > 0 THEN
+        Flow_Per_Motor := Selected_Motor_Flow / USINT_TO_REAL(Motor_Selector.Selected_Motor_Count);
+    ELSE
+        Flow_Per_Motor := 0.0;
+    END_IF;
+    
+    // =============================================================================
+    // DUAL CONTROLLER COORDINATION (Motors 1-6)
+    // =============================================================================
+    
+    // Motor 1 Dual Controller
+    Dual_Controller_1(
+        Enable := TRUE,
+        Motor_Enable := Motor_Selector.Motor_1_Selected,
+        Pressure_Setpoint := "DB_HGU_Execution_V17".PUMP_1_PRESSURE_SETPOINT,
+        Pressure_Actual := "DB_HGU_Execution_V17".PUMP_1_PRESSURE_ACTUAL,
+        Flow_Setpoint := Flow_Per_Motor,
+        Flow_Actual := "DB_HGU_Execution_V17".PUMP_1_FLOW_METER_VALUE,
+        Motor_Displacement := "DB_HGU_Execution_V17".PUMP_1_DISPLACEMENT,
+        Motor_Number := 1,
+        Valve_Response_Time := "DB_HGU_Execution_V17".VALVE_RESPONSE_TIME
+    );
+    
+    // Update outputs for Motor 1
+    "DB_HGU_Execution_V17".MOTOR_1_RPM_SETPOINT := Dual_Controller_1.Motor_RPM;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_1_SETPOINT := REAL_TO_UINT(Dual_Controller_1.Valve_Current);
+    // "DB_HGU_Execution_V17".PUMP_1_CONTROL_MODE := 0; // Manual mode assignment if needed
+    Motor_Running_Array[1] := G120C_Drive_1.Motor_Running;
+    
+    // Motor 2 Dual Controller
+    Dual_Controller_2(
+        Enable := TRUE,
+        Motor_Enable := Motor_Selector.Motor_2_Selected,
+        Pressure_Setpoint := "DB_HGU_Execution_V17".PUMP_2_PRESSURE_SETPOINT,
+        Pressure_Actual := "DB_HGU_Execution_V17".PUMP_2_PRESSURE_ACTUAL,
+        Flow_Setpoint := Flow_Per_Motor,
+        Flow_Actual := "DB_HGU_Execution_V17".PUMP_2_FLOW_METER_VALUE,
+        Motor_Displacement := "DB_HGU_Execution_V17".PUMP_2_DISPLACEMENT,
+        Motor_Number := 2,
+        Valve_Response_Time := "DB_HGU_Execution_V17".VALVE_RESPONSE_TIME
+    );
+    
+    "DB_HGU_Execution_V17".MOTOR_2_RPM_SETPOINT := Dual_Controller_2.Motor_RPM;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_2_SETPOINT := REAL_TO_UINT(Dual_Controller_2.Valve_Current);
+    // "DB_HGU_Execution_V17".PUMP_2_CONTROL_MODE := 0; // Manual mode assignment if needed
+    Motor_Running_Array[2] := G120C_Drive_2.Motor_Running;
+    
+    // Motor 3 Dual Controller
+    Dual_Controller_3(
+        Enable := TRUE,
+        Motor_Enable := Motor_Selector.Motor_3_Selected,
+        Pressure_Setpoint := "DB_HGU_Execution_V17".PUMP_3_PRESSURE_SETPOINT,
+        Pressure_Actual := "DB_HGU_Execution_V17".PUMP_3_PRESSURE_ACTUAL,
+        Flow_Setpoint := Flow_Per_Motor,
+        Flow_Actual := "DB_HGU_Execution_V17".PUMP_3_FLOW_METER_VALUE,
+        Motor_Displacement := "DB_HGU_Execution_V17".PUMP_3_DISPLACEMENT,
+        Motor_Number := 3,
+        Valve_Response_Time := "DB_HGU_Execution_V17".VALVE_RESPONSE_TIME
+    );
+    
+    "DB_HGU_Execution_V17".MOTOR_3_RPM_SETPOINT := Dual_Controller_3.Motor_RPM;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_3_SETPOINT := REAL_TO_UINT(Dual_Controller_3.Valve_Current);
+    // "DB_HGU_Execution_V17".PUMP_3_CONTROL_MODE := 0; // Manual mode assignment if needed
+    Motor_Running_Array[3] := G120C_Drive_3.Motor_Running;
+    
+    // Motor 4 Dual Controller
+    Dual_Controller_4(
+        Enable := TRUE,
+        Motor_Enable := Motor_Selector.Motor_4_Selected,
+        Pressure_Setpoint := "DB_HGU_Execution_V17".PUMP_4_PRESSURE_SETPOINT,
+        Pressure_Actual := "DB_HGU_Execution_V17".PUMP_4_PRESSURE_ACTUAL,
+        Flow_Setpoint := Flow_Per_Motor,
+        Flow_Actual := "DB_HGU_Execution_V17".PUMP_4_FLOW_METER_VALUE,
+        Motor_Displacement := "DB_HGU_Execution_V17".PUMP_4_DISPLACEMENT,
+        Motor_Number := 4,
+        Valve_Response_Time := "DB_HGU_Execution_V17".VALVE_RESPONSE_TIME
+    );
+    
+    "DB_HGU_Execution_V17".MOTOR_4_RPM_SETPOINT := Dual_Controller_4.Motor_RPM;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_4_SETPOINT := REAL_TO_UINT(Dual_Controller_4.Valve_Current);
+    // "DB_HGU_Execution_V17".PUMP_4_CONTROL_MODE := 0; // Manual mode assignment if needed
+    Motor_Running_Array[4] := G120C_Drive_4.Motor_Running;
+    
+    // Motor 5 Dual Controller
+    Dual_Controller_5(
+        Enable := TRUE,
+        Motor_Enable := Motor_Selector.Motor_5_Selected,
+        Pressure_Setpoint := "DB_HGU_Execution_V17".PUMP_5_PRESSURE_SETPOINT,
+        Pressure_Actual := "DB_HGU_Execution_V17".PUMP_5_PRESSURE_ACTUAL,
+        Flow_Setpoint := Flow_Per_Motor,
+        Flow_Actual := "DB_HGU_Execution_V17".PUMP_5_FLOW_METER_VALUE,
+        Motor_Displacement := "DB_HGU_Execution_V17".PUMP_5_DISPLACEMENT,
+        Motor_Number := 5,
+        Valve_Response_Time := "DB_HGU_Execution_V17".VALVE_RESPONSE_TIME
+    );
+    
+    "DB_HGU_Execution_V17".MOTOR_5_RPM_SETPOINT := Dual_Controller_5.Motor_RPM;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_5_SETPOINT := REAL_TO_UINT(Dual_Controller_5.Valve_Current);
+    // "DB_HGU_Execution_V17".PUMP_5_CONTROL_MODE := 0; // Manual mode assignment if needed
+    Motor_Running_Array[5] := G120C_Drive_5.Motor_Running;
+    
+    // Motor 6 Dual Controller
+    Dual_Controller_6(
+        Enable := TRUE,
+        Motor_Enable := Motor_Selector.Motor_6_Selected,
+        Pressure_Setpoint := "DB_HGU_Execution_V17".PUMP_6_PRESSURE_SETPOINT,
+        Pressure_Actual := "DB_HGU_Execution_V17".PUMP_6_PRESSURE_ACTUAL,
+        Flow_Setpoint := Flow_Per_Motor,
+        Flow_Actual := "DB_HGU_Execution_V17".PUMP_6_FLOW_METER_VALUE,
+        Motor_Displacement := "DB_HGU_Execution_V17".PUMP_6_DISPLACEMENT,
+        Motor_Number := 6,
+        Valve_Response_Time := "DB_HGU_Execution_V17".VALVE_RESPONSE_TIME
+    );
+    
+    "DB_HGU_Execution_V17".MOTOR_6_RPM_SETPOINT := Dual_Controller_6.Motor_RPM;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_6_SETPOINT := REAL_TO_UINT(Dual_Controller_6.Valve_Current);
+    // "DB_HGU_Execution_V17".PUMP_6_CONTROL_MODE := 0; // Manual mode assignment if needed
+    Motor_Running_Array[6] := G120C_Drive_6.Motor_Running;
+    
+    // =============================================================================
+    // G120C DRIVE CONTROL (Motors 1-6)
+    // =============================================================================
+    
+    // Motor 1 G120C Drive Controller
+    G120C_Drive_1(
+        Enable := Motor_Selector.Motor_1_Selected,
+        Motor_Number := 1,
+        RPM_Setpoint := Dual_Controller_1.Motor_RPM,
+        Start_Command := "DB_HGU_Execution_V17".MOTOR_1_START_CMD,
+        Stop_Command := "DB_HGU_Execution_V17".MOTOR_1_STOP_CMD,
+        Reset_Command := "DB_HGU_Execution_V17".MOTOR_1_RESET_CMD,
+        Emergency_Stop := "DB_HGU_Execution_V17".EMERGENCY_STOP,
+        Motor_Enable_Switch := "DB_HGU_Execution_V17".MOTOR_1_ENABLE,
+        Max_RPM := 1500.0,
+        Ramp_Up_Time := T#5s,
+        Ramp_Down_Time := T#3s,
+        Control_Word := "M1_Control_Word",
+        Status_Word := "M1_Status_Word",
+        RPM_Setpoint_Word := "M1_RPM_Setpoint_Word",
+        RPM_Actual_Word := "M1_RPM_Actual_Word",
+        Current_Word := "M1_Current_Word",
+        Temperature_Word := "M1_Temperature_Word",
+        Error_Word := "M1_Error_Word"
+    );
+    
+    // Update Motor 1 outputs from G120C
+    "DB_HGU_Execution_V17".MOTOR_1_STATUS := BOOL_TO_USINT(G120C_Drive_1.Motor_Running) * 2;
+    "DB_HGU_Execution_V17".MOTOR_1_RPM_ACTUAL := G120C_Drive_1.RPM_Actual;
+    "DB_HGU_Execution_V17".MOTOR_1_CURRENT_A := G120C_Drive_1.Current_A;
+    "DB_HGU_Execution_V17".MOTOR_1_TEMPERATURE_C := G120C_Drive_1.Temperature_C;
+    "DB_HGU_Execution_V17".MOTOR_1_ERROR_CODE := G120C_Drive_1.Error_Code;
+    "DB_HGU_Execution_V17".MOTOR_1_START_ACK := G120C_Drive_1.Start_Ack;
+    "DB_HGU_Execution_V17".MOTOR_1_STOP_ACK := G120C_Drive_1.Stop_Ack;
+    "DB_HGU_Execution_V17".MOTOR_1_RESET_ACK := G120C_Drive_1.Reset_Ack;
+    
+    // Motor 2 G120C Drive Controller
+    G120C_Drive_2(
+        Enable := Motor_Selector.Motor_2_Selected,
+        Motor_Number := 2,
+        RPM_Setpoint := Dual_Controller_2.Motor_RPM,
+        Start_Command := "DB_HGU_Execution_V17".MOTOR_2_START_CMD,
+        Stop_Command := "DB_HGU_Execution_V17".MOTOR_2_STOP_CMD,
+        Reset_Command := "DB_HGU_Execution_V17".MOTOR_2_RESET_CMD,
+        Emergency_Stop := "DB_HGU_Execution_V17".EMERGENCY_STOP,
+        Motor_Enable_Switch := "DB_HGU_Execution_V17".MOTOR_2_ENABLE,
+        Max_RPM := 1500.0,
+        Ramp_Up_Time := T#5s,
+        Ramp_Down_Time := T#3s,
+        Control_Word := "M2_Control_Word",
+        Status_Word := "M2_Status_Word",
+        RPM_Setpoint_Word := "M2_RPM_Setpoint_Word",
+        RPM_Actual_Word := "M2_RPM_Actual_Word",
+        Current_Word := "M2_Current_Word",
+        Temperature_Word := "M2_Temperature_Word",
+        Error_Word := "M2_Error_Word"
+    );
+    
+    "DB_HGU_Execution_V17".MOTOR_2_STATUS := BOOL_TO_USINT(G120C_Drive_2.Motor_Running) * 2;
+    "DB_HGU_Execution_V17".MOTOR_2_RPM_ACTUAL := G120C_Drive_2.RPM_Actual;
+    "DB_HGU_Execution_V17".MOTOR_2_CURRENT_A := G120C_Drive_2.Current_A;
+    "DB_HGU_Execution_V17".MOTOR_2_TEMPERATURE_C := G120C_Drive_2.Temperature_C;
+    "DB_HGU_Execution_V17".MOTOR_2_ERROR_CODE := G120C_Drive_2.Error_Code;
+    "DB_HGU_Execution_V17".MOTOR_2_START_ACK := G120C_Drive_2.Start_Ack;
+    "DB_HGU_Execution_V17".MOTOR_2_STOP_ACK := G120C_Drive_2.Stop_Ack;
+    "DB_HGU_Execution_V17".MOTOR_2_RESET_ACK := G120C_Drive_2.Reset_Ack;
+    
+    // Motor 3 G120C Drive Controller
+    G120C_Drive_3(
+        Enable := Motor_Selector.Motor_3_Selected,
+        Motor_Number := 3,
+        RPM_Setpoint := Dual_Controller_3.Motor_RPM,
+        Start_Command := "DB_HGU_Execution_V17".MOTOR_3_START_CMD,
+        Stop_Command := "DB_HGU_Execution_V17".MOTOR_3_STOP_CMD,
+        Reset_Command := "DB_HGU_Execution_V17".MOTOR_3_RESET_CMD,
+        Emergency_Stop := "DB_HGU_Execution_V17".EMERGENCY_STOP,
+        Motor_Enable_Switch := "DB_HGU_Execution_V17".MOTOR_3_ENABLE,
+        Max_RPM := 1500.0,
+        Ramp_Up_Time := T#5s,
+        Ramp_Down_Time := T#3s,
+        Control_Word := "M3_Control_Word",
+        Status_Word := "M3_Status_Word",
+        RPM_Setpoint_Word := "M3_RPM_Setpoint_Word",
+        RPM_Actual_Word := "M3_RPM_Actual_Word",
+        Current_Word := "M3_Current_Word",
+        Temperature_Word := "M3_Temperature_Word",
+        Error_Word := "M3_Error_Word"
+    );
+    
+    "DB_HGU_Execution_V17".MOTOR_3_STATUS := BOOL_TO_USINT(G120C_Drive_3.Motor_Running) * 2;
+    "DB_HGU_Execution_V17".MOTOR_3_RPM_ACTUAL := G120C_Drive_3.RPM_Actual;
+    "DB_HGU_Execution_V17".MOTOR_3_CURRENT_A := G120C_Drive_3.Current_A;
+    "DB_HGU_Execution_V17".MOTOR_3_TEMPERATURE_C := G120C_Drive_3.Temperature_C;
+    "DB_HGU_Execution_V17".MOTOR_3_ERROR_CODE := G120C_Drive_3.Error_Code;
+    "DB_HGU_Execution_V17".MOTOR_3_START_ACK := G120C_Drive_3.Start_Ack;
+    "DB_HGU_Execution_V17".MOTOR_3_STOP_ACK := G120C_Drive_3.Stop_Ack;
+    "DB_HGU_Execution_V17".MOTOR_3_RESET_ACK := G120C_Drive_3.Reset_Ack;
+    
+    // Motor 4 G120C Drive Controller
+    G120C_Drive_4(
+        Enable := Motor_Selector.Motor_4_Selected,
+        Motor_Number := 4,
+        RPM_Setpoint := Dual_Controller_4.Motor_RPM,
+        Start_Command := "DB_HGU_Execution_V17".MOTOR_4_START_CMD,
+        Stop_Command := "DB_HGU_Execution_V17".MOTOR_4_STOP_CMD,
+        Reset_Command := "DB_HGU_Execution_V17".MOTOR_4_RESET_CMD,
+        Emergency_Stop := "DB_HGU_Execution_V17".EMERGENCY_STOP,
+        Motor_Enable_Switch := "DB_HGU_Execution_V17".MOTOR_4_ENABLE,
+        Max_RPM := 1500.0,
+        Ramp_Up_Time := T#5s,
+        Ramp_Down_Time := T#3s,
+        Control_Word := "M4_Control_Word",
+        Status_Word := "M4_Status_Word",
+        RPM_Setpoint_Word := "M4_RPM_Setpoint_Word",
+        RPM_Actual_Word := "M4_RPM_Actual_Word",
+        Current_Word := "M4_Current_Word",
+        Temperature_Word := "M4_Temperature_Word",
+        Error_Word := "M4_Error_Word"
+    );
+    
+    "DB_HGU_Execution_V17".MOTOR_4_STATUS := BOOL_TO_USINT(G120C_Drive_4.Motor_Running) * 2;
+    "DB_HGU_Execution_V17".MOTOR_4_RPM_ACTUAL := G120C_Drive_4.RPM_Actual;
+    "DB_HGU_Execution_V17".MOTOR_4_CURRENT_A := G120C_Drive_4.Current_A;
+    "DB_HGU_Execution_V17".MOTOR_4_TEMPERATURE_C := G120C_Drive_4.Temperature_C;
+    "DB_HGU_Execution_V17".MOTOR_4_ERROR_CODE := G120C_Drive_4.Error_Code;
+    "DB_HGU_Execution_V17".MOTOR_4_START_ACK := G120C_Drive_4.Start_Ack;
+    "DB_HGU_Execution_V17".MOTOR_4_STOP_ACK := G120C_Drive_4.Stop_Ack;
+    "DB_HGU_Execution_V17".MOTOR_4_RESET_ACK := G120C_Drive_4.Reset_Ack;
+    
+    // Motor 5 G120C Drive Controller
+    G120C_Drive_5(
+        Enable := Motor_Selector.Motor_5_Selected,
+        Motor_Number := 5,
+        RPM_Setpoint := Dual_Controller_5.Motor_RPM,
+        Start_Command := "DB_HGU_Execution_V17".MOTOR_5_START_CMD,
+        Stop_Command := "DB_HGU_Execution_V17".MOTOR_5_STOP_CMD,
+        Reset_Command := "DB_HGU_Execution_V17".MOTOR_5_RESET_CMD,
+        Emergency_Stop := "DB_HGU_Execution_V17".EMERGENCY_STOP,
+        Motor_Enable_Switch := "DB_HGU_Execution_V17".MOTOR_5_ENABLE,
+        Max_RPM := 1500.0,
+        Ramp_Up_Time := T#5s,
+        Ramp_Down_Time := T#3s,
+        Control_Word := "M5_Control_Word",
+        Status_Word := "M5_Status_Word",
+        RPM_Setpoint_Word := "M5_RPM_Setpoint_Word",
+        RPM_Actual_Word := "M5_RPM_Actual_Word",
+        Current_Word := "M5_Current_Word",
+        Temperature_Word := "M5_Temperature_Word",
+        Error_Word := "M5_Error_Word"
+    );
+    
+    "DB_HGU_Execution_V17".MOTOR_5_STATUS := BOOL_TO_USINT(G120C_Drive_5.Motor_Running) * 2;
+    "DB_HGU_Execution_V17".MOTOR_5_RPM_ACTUAL := G120C_Drive_5.RPM_Actual;
+    "DB_HGU_Execution_V17".MOTOR_5_CURRENT_A := G120C_Drive_5.Current_A;
+    "DB_HGU_Execution_V17".MOTOR_5_TEMPERATURE_C := G120C_Drive_5.Temperature_C;
+    "DB_HGU_Execution_V17".MOTOR_5_ERROR_CODE := G120C_Drive_5.Error_Code;
+    "DB_HGU_Execution_V17".MOTOR_5_START_ACK := G120C_Drive_5.Start_Ack;
+    "DB_HGU_Execution_V17".MOTOR_5_STOP_ACK := G120C_Drive_5.Stop_Ack;
+    "DB_HGU_Execution_V17".MOTOR_5_RESET_ACK := G120C_Drive_5.Reset_Ack;
+    
+    // Motor 6 G120C Drive Controller
+    G120C_Drive_6(
+        Enable := Motor_Selector.Motor_6_Selected,
+        Motor_Number := 6,
+        RPM_Setpoint := Dual_Controller_6.Motor_RPM,
+        Start_Command := "DB_HGU_Execution_V17".MOTOR_6_START_CMD,
+        Stop_Command := "DB_HGU_Execution_V17".MOTOR_6_STOP_CMD,
+        Reset_Command := "DB_HGU_Execution_V17".MOTOR_6_RESET_CMD,
+        Emergency_Stop := "DB_HGU_Execution_V17".EMERGENCY_STOP,
+        Motor_Enable_Switch := "DB_HGU_Execution_V17".MOTOR_6_ENABLE,
+        Max_RPM := 1500.0,
+        Ramp_Up_Time := T#5s,
+        Ramp_Down_Time := T#3s,
+        Control_Word := "M6_Control_Word",
+        Status_Word := "M6_Status_Word",
+        RPM_Setpoint_Word := "M6_RPM_Setpoint_Word",
+        RPM_Actual_Word := "M6_RPM_Actual_Word",
+        Current_Word := "M6_Current_Word",
+        Temperature_Word := "M6_Temperature_Word",
+        Error_Word := "M6_Error_Word"
+    );
+    
+    "DB_HGU_Execution_V17".MOTOR_6_STATUS := BOOL_TO_USINT(G120C_Drive_6.Motor_Running) * 2;
+    "DB_HGU_Execution_V17".MOTOR_6_RPM_ACTUAL := G120C_Drive_6.RPM_Actual;
+    "DB_HGU_Execution_V17".MOTOR_6_CURRENT_A := G120C_Drive_6.Current_A;
+    "DB_HGU_Execution_V17".MOTOR_6_TEMPERATURE_C := G120C_Drive_6.Temperature_C;
+    "DB_HGU_Execution_V17".MOTOR_6_ERROR_CODE := G120C_Drive_6.Error_Code;
+    "DB_HGU_Execution_V17".MOTOR_6_START_ACK := G120C_Drive_6.Start_Ack;
+    "DB_HGU_Execution_V17".MOTOR_6_STOP_ACK := G120C_Drive_6.Stop_Ack;
+    "DB_HGU_Execution_V17".MOTOR_6_RESET_ACK := G120C_Drive_6.Reset_Ack;
+    
+    // =============================================================================
+    // MOTOR 7 FIXED DISPLACEMENT CONTROL
+    // =============================================================================
+    Dual_Controller_7(
+        Enable := TRUE,
+        Motor_Enable := Motor_Selector.Motor_7_Selected,
+        Pressure_Setpoint := "DB_HGU_Execution_V17".PUMP_7_PRESSURE_SETPOINT,
+        Pressure_Actual := "DB_HGU_Execution_V17".PUMP_7_PRESSURE_ACTUAL,
+        Flow_Setpoint := 34.0,                // Fixed flow for Motor 7
+        Flow_Actual := "DB_HGU_Execution_V17".PUMP_7_FLOW_METER_VALUE,
+        Motor_Displacement := 34.0,           // Fixed displacement equivalent
+        Motor_Number := 7,
+        Valve_Response_Time := "DB_HGU_Execution_V17".VALVE_RESPONSE_TIME
+    );
+    
+    // Motor 7 always runs at 1500 RPM when selected
+    IF Motor_Selector.Motor_7_Selected THEN
+        "DB_HGU_Execution_V17".MOTOR_7_RPM_SETPOINT := 1500.0;
+    ELSE
+        "DB_HGU_Execution_V17".MOTOR_7_RPM_SETPOINT := 0.0;
+    END_IF;
+    
+    "DB_HGU_Execution_V17".PROP_REL_VLV_7_SETPOINT := REAL_TO_UINT(Dual_Controller_7.Valve_Current);
+    // "DB_HGU_Execution_V17".PUMP_7_CONTROL_MODE := 0; // Manual mode assignment if needed
+    Motor_Running_Array[7] := Motor_Selector.Motor_7_Selected;
+    
+    // =============================================================================
+    // MOTOR OPERATING HOURS TRACKING
+    // =============================================================================
+    Hour_Update_Timer(IN := TRUE, PT := T#60s); // 1 minute timer for accurate tracking
+    
+    IF Hour_Update_Timer.Q THEN
+        // Update operating hours for running motors (1 minute = 1/60 hour)
+        IF Motor_Running_Array[1] THEN
+            "DB_HGU_Execution_V17".MOTOR_1_OPERATING_HOURS := "DB_HGU_Execution_V17".MOTOR_1_OPERATING_HOURS + 0.0167;
+        END_IF;
+        IF Motor_Running_Array[2] THEN
+            "DB_HGU_Execution_V17".MOTOR_2_OPERATING_HOURS := "DB_HGU_Execution_V17".MOTOR_2_OPERATING_HOURS + 0.0167;
+        END_IF;
+        IF Motor_Running_Array[3] THEN
+            "DB_HGU_Execution_V17".MOTOR_3_OPERATING_HOURS := "DB_HGU_Execution_V17".MOTOR_3_OPERATING_HOURS + 0.0167;
+        END_IF;
+        IF Motor_Running_Array[4] THEN
+            "DB_HGU_Execution_V17".MOTOR_4_OPERATING_HOURS := "DB_HGU_Execution_V17".MOTOR_4_OPERATING_HOURS + 0.0167;
+        END_IF;
+        IF Motor_Running_Array[5] THEN
+            "DB_HGU_Execution_V17".MOTOR_5_OPERATING_HOURS := "DB_HGU_Execution_V17".MOTOR_5_OPERATING_HOURS + 0.0167;
+        END_IF;
+        IF Motor_Running_Array[6] THEN
+            "DB_HGU_Execution_V17".MOTOR_6_OPERATING_HOURS := "DB_HGU_Execution_V17".MOTOR_6_OPERATING_HOURS + 0.0167;
+        END_IF;
+        IF Motor_Running_Array[7] THEN
+            "DB_HGU_Execution_V17".MOTOR_7_OPERATING_HOURS := "DB_HGU_Execution_V17".MOTOR_7_OPERATING_HOURS + 0.0167;
+        END_IF;
+        
+        // Check maintenance due status
+        "DB_HGU_Execution_V17".MOTOR_1_MAINTENANCE_DUE := ("DB_HGU_Execution_V17".MOTOR_1_OPERATING_HOURS >= "DB_HGU_Execution_V17".MOTOR_1_MAINTENANCE_HOURS);
+        "DB_HGU_Execution_V17".MOTOR_2_MAINTENANCE_DUE := ("DB_HGU_Execution_V17".MOTOR_2_OPERATING_HOURS >= "DB_HGU_Execution_V17".MOTOR_2_MAINTENANCE_HOURS);
+        "DB_HGU_Execution_V17".MOTOR_3_MAINTENANCE_DUE := ("DB_HGU_Execution_V17".MOTOR_3_OPERATING_HOURS >= "DB_HGU_Execution_V17".MOTOR_3_MAINTENANCE_HOURS);
+        "DB_HGU_Execution_V17".MOTOR_4_MAINTENANCE_DUE := ("DB_HGU_Execution_V17".MOTOR_4_OPERATING_HOURS >= "DB_HGU_Execution_V17".MOTOR_4_MAINTENANCE_HOURS);
+        "DB_HGU_Execution_V17".MOTOR_5_MAINTENANCE_DUE := ("DB_HGU_Execution_V17".MOTOR_5_OPERATING_HOURS >= "DB_HGU_Execution_V17".MOTOR_5_MAINTENANCE_HOURS);
+        "DB_HGU_Execution_V17".MOTOR_6_MAINTENANCE_DUE := ("DB_HGU_Execution_V17".MOTOR_6_OPERATING_HOURS >= "DB_HGU_Execution_V17".MOTOR_6_MAINTENANCE_HOURS);
+        "DB_HGU_Execution_V17".MOTOR_7_MAINTENANCE_DUE := ("DB_HGU_Execution_V17".MOTOR_7_OPERATING_HOURS >= "DB_HGU_Execution_V17".MOTOR_7_MAINTENANCE_HOURS);
+        
+        Hour_Update_Timer(IN := FALSE, PT := T#60s); // Reset timer
+    END_IF;
+    
+    // =============================================================================
+    // SAFETY MONITORING AND ERROR DETECTION (ENHANCED WITH ERROR MANAGER)
+    // =============================================================================
+    
+    // Reset safety error counters
+    Controller_Errors := 0;
+    System_Error_Code := 0;
+    
+    // Check for emergency stop from Error Manager (CRITICAL SAFETY)
+    IF Error_Manager.Emergency_Stop_Required THEN
+        "DB_HGU_Execution_V17".EMERGENCY_STOP := TRUE;
+        Controller_Errors := Controller_Errors + 10; // High priority error count
+        IF System_Error_Code = 0 THEN 
+            System_Error_Code := Error_Manager.Master_Error_Code; // Use master error code
+        END_IF;
+    END_IF;
+    
+    // Check each motor's safety status and count safety violations
+    FOR i := 1 TO 7 DO
+        CASE i OF
+            1: IF ("DB_HGU_Execution_V17".PUMP_1_LINE_FILTER_STATUS = 0) OR 
+                  ("DB_HGU_Execution_V17".PUMP_1_SUCTION_FILTER_STATUS = 0) OR
+                  ("DB_HGU_Execution_V17".PUMP_1_MANUAL_VALVE_STATUS = 0) THEN
+                   Controller_Errors := Controller_Errors + 1;
+                   IF System_Error_Code = 0 THEN System_Error_Code := 10 + i; END_IF; // Safety error codes 11-17
+               END_IF;
+               
+            2: IF ("DB_HGU_Execution_V17".PUMP_2_LINE_FILTER_STATUS = 0) OR 
+                  ("DB_HGU_Execution_V17".PUMP_2_SUCTION_FILTER_STATUS = 0) OR
+                  ("DB_HGU_Execution_V17".PUMP_2_MANUAL_VALVE_STATUS = 0) THEN
+                   Controller_Errors := Controller_Errors + 1;
+                   IF System_Error_Code = 0 THEN System_Error_Code := 10 + i; END_IF;
+               END_IF;
+               
+            3: IF ("DB_HGU_Execution_V17".PUMP_3_LINE_FILTER_STATUS = 0) OR 
+                  ("DB_HGU_Execution_V17".PUMP_3_SUCTION_FILTER_STATUS = 0) OR
+                  ("DB_HGU_Execution_V17".PUMP_3_MANUAL_VALVE_STATUS = 0) THEN
+                   Controller_Errors := Controller_Errors + 1;
+                   IF System_Error_Code = 0 THEN System_Error_Code := 10 + i; END_IF;
+               END_IF;
+               
+            4: IF ("DB_HGU_Execution_V17".PUMP_4_LINE_FILTER_STATUS = 0) OR 
+                  ("DB_HGU_Execution_V17".PUMP_4_SUCTION_FILTER_STATUS = 0) OR
+                  ("DB_HGU_Execution_V17".PUMP_4_MANUAL_VALVE_STATUS = 0) THEN
+                   Controller_Errors := Controller_Errors + 1;
+                   IF System_Error_Code = 0 THEN System_Error_Code := 10 + i; END_IF;
+               END_IF;
+               
+            5: IF ("DB_HGU_Execution_V17".PUMP_5_LINE_FILTER_STATUS = 0) OR 
+                  ("DB_HGU_Execution_V17".PUMP_5_SUCTION_FILTER_STATUS = 0) OR
+                  ("DB_HGU_Execution_V17".PUMP_5_MANUAL_VALVE_STATUS = 0) THEN
+                   Controller_Errors := Controller_Errors + 1;
+                   IF System_Error_Code = 0 THEN System_Error_Code := 10 + i; END_IF;
+               END_IF;
+               
+            6: IF ("DB_HGU_Execution_V17".PUMP_6_LINE_FILTER_STATUS = 0) OR 
+                  ("DB_HGU_Execution_V17".PUMP_6_SUCTION_FILTER_STATUS = 0) OR
+                  ("DB_HGU_Execution_V17".PUMP_6_MANUAL_VALVE_STATUS = 0) THEN
+                   Controller_Errors := Controller_Errors + 1;
+                   IF System_Error_Code = 0 THEN System_Error_Code := 10 + i; END_IF;
+               END_IF;
+               
+            7: IF ("DB_HGU_Execution_V17".PUMP_7_LINE_FILTER_STATUS = 0) OR 
+                  ("DB_HGU_Execution_V17".PUMP_7_SUCTION_FILTER_STATUS = 0) OR
+                  ("DB_HGU_Execution_V17".PUMP_7_MANUAL_VALVE_STATUS = 0) THEN
+                   Controller_Errors := Controller_Errors + 1;
+                   IF System_Error_Code = 0 THEN System_Error_Code := 10 + i; END_IF;
+               END_IF;
+        END_CASE;
+    END_FOR;
+    
+    // Update system safety status
+    IF Controller_Errors > 0 THEN
+        "DB_HGU_Execution_V17".SYSTEM_SAFETY_STATUS := 2; // Safety error
+    ELSIF Controller_Errors = 0 THEN
+        "DB_HGU_Execution_V17".SYSTEM_SAFETY_STATUS := 1; // All safe
+    ELSE
+        "DB_HGU_Execution_V17".SYSTEM_SAFETY_STATUS := 0; // Unknown
+    END_IF;
+    
+    // =============================================================================
+    // PRESSURE SETPOINT MANAGEMENT (RISING EDGE + AUTO PROPAGATION)
+    // =============================================================================
+    
+    // 1. Check for SYSTEM_PRESSURE_SETPOINT rising edge
+    System_Pressure_Changed := ("DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT <> Last_System_Pressure_Setpoint);
+    
+    // 2. Auto-propagate SYSTEM_PRESSURE_SETPOINT to all pumps when changed
+    IF System_Pressure_Changed THEN
+        "DB_HGU_Execution_V17".PUMP_1_PRESSURE_SETPOINT := "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT;
+        "DB_HGU_Execution_V17".PUMP_2_PRESSURE_SETPOINT := "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT;
+        "DB_HGU_Execution_V17".PUMP_3_PRESSURE_SETPOINT := "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT;
+        "DB_HGU_Execution_V17".PUMP_4_PRESSURE_SETPOINT := "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT;
+        "DB_HGU_Execution_V17".PUMP_5_PRESSURE_SETPOINT := "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT;
+        "DB_HGU_Execution_V17".PUMP_6_PRESSURE_SETPOINT := "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT;
+        // NOTE: Motor 7 is separate system - no auto-propagation
+    END_IF;
+    
+    // 3. Individual pump setpoint check (if any pump > SYSTEM, update SYSTEM and propagate)
+    // This creates automatic rising edge for propagation
+    FOR i := 1 TO 6 DO
+        CASE i OF
+            1: IF "DB_HGU_Execution_V17".PUMP_1_PRESSURE_SETPOINT > "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT THEN
+                   "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT := "DB_HGU_Execution_V17".PUMP_1_PRESSURE_SETPOINT;
+               END_IF;
+            2: IF "DB_HGU_Execution_V17".PUMP_2_PRESSURE_SETPOINT > "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT THEN
+                   "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT := "DB_HGU_Execution_V17".PUMP_2_PRESSURE_SETPOINT;
+               END_IF;
+            3: IF "DB_HGU_Execution_V17".PUMP_3_PRESSURE_SETPOINT > "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT THEN
+                   "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT := "DB_HGU_Execution_V17".PUMP_3_PRESSURE_SETPOINT;
+               END_IF;
+            4: IF "DB_HGU_Execution_V17".PUMP_4_PRESSURE_SETPOINT > "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT THEN
+                   "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT := "DB_HGU_Execution_V17".PUMP_4_PRESSURE_SETPOINT;
+               END_IF;
+            5: IF "DB_HGU_Execution_V17".PUMP_5_PRESSURE_SETPOINT > "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT THEN
+                   "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT := "DB_HGU_Execution_V17".PUMP_5_PRESSURE_SETPOINT;
+               END_IF;
+            6: IF "DB_HGU_Execution_V17".PUMP_6_PRESSURE_SETPOINT > "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT THEN
+                   "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT := "DB_HGU_Execution_V17".PUMP_6_PRESSURE_SETPOINT;
+               END_IF;
+        END_CASE;
+    END_FOR;
+    
+    // 4. Update last values for next cycle
+    Last_System_Pressure_Setpoint := "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT;
+    
+    // =============================================================================
+    // SYSTEM STATUS AND MONITORING (FIXED FOR MANIFOLD SYSTEM)
+    // =============================================================================
+    
+    // Count active motors (separate main system vs Motor 7)
+    Active_Motor_Count := 0;
+    TotalPressure := 0.0;
+    
+    // Main system (Motors 1-6): All connected to same manifold
+    FOR i := 1 TO 6 DO
+        IF Motor_Running_Array[i] THEN
+            Active_Motor_Count := Active_Motor_Count + 1;
+            
+            // For manifold system: use any active pump pressure (they should be same)
+            // Take the first active pump pressure as representative
+            IF TotalPressure = 0.0 THEN
+                CASE i OF
+                    1: TotalPressure := "DB_HGU_Execution_V17".PUMP_1_PRESSURE_ACTUAL;
+                    2: TotalPressure := "DB_HGU_Execution_V17".PUMP_2_PRESSURE_ACTUAL;
+                    3: TotalPressure := "DB_HGU_Execution_V17".PUMP_3_PRESSURE_ACTUAL;
+                    4: TotalPressure := "DB_HGU_Execution_V17".PUMP_4_PRESSURE_ACTUAL;
+                    5: TotalPressure := "DB_HGU_Execution_V17".PUMP_5_PRESSURE_ACTUAL;
+                    6: TotalPressure := "DB_HGU_Execution_V17".PUMP_6_PRESSURE_ACTUAL;
+                END_CASE;
+            END_IF;
+        END_IF;
+    END_FOR;
+    
+    // Motor 7 is separate system - count separately but don't add to main pressure
+    IF Motor_Running_Array[7] THEN
+        // Motor 7 active pump count separate tracking if needed
+        ; // No action for main system pressure calculation
+    END_IF;
+    
+    // Main system pressure (manifold pressure = any active pump pressure)
+    IF Active_Motor_Count > 0 THEN
+        "DB_HGU_Execution_V17".SYSTEM_PRESSURE_AVERAGE := TotalPressure; // Not average - actual manifold pressure
+    ELSE
+        "DB_HGU_Execution_V17".SYSTEM_PRESSURE_AVERAGE := 0.0;
+    END_IF;
+    
+    "DB_HGU_Execution_V17".SYSTEM_ACTIVE_PUMPS := USINT_TO_INT(Active_Motor_Count);
+    
+    // Update outputs
+    Total_System_Flow := Motor_Selector.Total_Available_Flow;
+    System_Control_Mode := 0; // Default flow control mode
+    
+    // =============================================================================
+    // SYSTEM STATE MACHINE
+    // =============================================================================
+    StateTimer(IN := TRUE, PT := T#2s);
+    
+    CASE SystemState OF
+        0: // Initialization
+           SystemReady := FALSE;
+           SystemError := FALSE;
+           IF StateTimer.Q THEN
+               SystemState := 1;
+               StateTimer(IN := FALSE, PT := T#2s);
+           END_IF;
+           
+        1: // Ready
+           SystemReady := TRUE;
+           SystemError := FALSE;
+           "DB_HGU_Execution_V17".SYSTEM_STATUS := 1; // Ready
+           IF Active_Motor_Count > 0 THEN
+               SystemState := 2;
+           END_IF;
+           
+        2: // Running
+           SystemReady := TRUE;
+           SystemError := FALSE;
+           "DB_HGU_Execution_V17".SYSTEM_STATUS := 2; // Running
+           IF Active_Motor_Count = 0 THEN
+               SystemState := 1;
+           END_IF;
+           
+           // Check for errors from motor selector
+           IF Motor_Selector.Error_Status THEN
+               SystemState := 3;
+               System_Error_Code := Motor_Selector.Error_Code;
+           END_IF;
+           
+           // Check for safety errors (local + Error Manager)
+           IF Controller_Errors > 0 OR Error_Manager.Current_Error_Priority >= 3 THEN
+               SystemState := 3; // Force error state for safety violations
+           END_IF;
+           
+           // Check for critical/emergency errors from Error Manager
+           IF Error_Manager.Current_Error_Priority >= 4 THEN
+               SystemState := 3; // Force error state for critical/emergency errors
+               System_Error_Code := Error_Manager.Master_Error_Code;
+           END_IF;
+           
+        3: // Error
+           SystemReady := FALSE;
+           SystemError := TRUE;
+           "DB_HGU_Execution_V17".SYSTEM_STATUS := 3; // Error
+           
+           // Enhanced error recovery logic with Error Manager integration
+           IF NOT Motor_Selector.Error_Status AND 
+              Controller_Errors = 0 AND 
+              Error_Manager.Current_Error_Priority < 3 AND
+              NOT Error_Manager.Emergency_Stop_Required THEN
+               SystemState := 1; // Return to ready state
+               System_Error_Code := 0;
+               "DB_HGU_Execution_V17".EMERGENCY_STOP := FALSE; // Reset emergency stop if safe
+           END_IF;
+    END_CASE;
+    
+    SystemStatus := USINT_TO_DINT(SystemState);
+    
+ELSE
+    // =============================================================================
+    // SYSTEM DISABLED STATE
+    // =============================================================================
+    SystemReady := FALSE;
+    SystemError := FALSE;
+    "DB_HGU_Execution_V17".SYSTEM_STATUS := 0; // Disabled
+    SystemState := 0;
+    
+    // Disable all controllers
+    Motor_Selector(Enable := FALSE);
+    Dual_Controller_1(Enable := FALSE);
+    Dual_Controller_2(Enable := FALSE);
+    Dual_Controller_3(Enable := FALSE);
+    Dual_Controller_4(Enable := FALSE);
+    Dual_Controller_5(Enable := FALSE);
+    Dual_Controller_6(Enable := FALSE);
+    Dual_Controller_7(Enable := FALSE);
+    
+    // Disable monitoring systems
+    Safety_Status_Manager(Enable := FALSE);
+    Error_Manager(Enable := FALSE);
+    
+    // Disable all G120C drives
+    G120C_Drive_1(Enable := FALSE);
+    G120C_Drive_2(Enable := FALSE);
+    G120C_Drive_3(Enable := FALSE);
+    G120C_Drive_4(Enable := FALSE);
+    G120C_Drive_5(Enable := FALSE);
+    G120C_Drive_6(Enable := FALSE);
+    
+    // Reset all motor outputs
+    FOR i := 1 TO 7 DO
+        Motor_Running_Array[i] := FALSE;
+        
+        CASE i OF
+            1: "DB_HGU_Execution_V17".MOTOR_1_RPM_SETPOINT := 0.0;
+               "DB_HGU_Execution_V17".PROP_REL_VLV_1_SETPOINT := 0;
+            2: "DB_HGU_Execution_V17".MOTOR_2_RPM_SETPOINT := 0.0;
+               "DB_HGU_Execution_V17".PROP_REL_VLV_2_SETPOINT := 0;
+            3: "DB_HGU_Execution_V17".MOTOR_3_RPM_SETPOINT := 0.0;
+               "DB_HGU_Execution_V17".PROP_REL_VLV_3_SETPOINT := 0;
+            4: "DB_HGU_Execution_V17".MOTOR_4_RPM_SETPOINT := 0.0;
+               "DB_HGU_Execution_V17".PROP_REL_VLV_4_SETPOINT := 0;
+            5: "DB_HGU_Execution_V17".MOTOR_5_RPM_SETPOINT := 0.0;
+               "DB_HGU_Execution_V17".PROP_REL_VLV_5_SETPOINT := 0;
+            6: "DB_HGU_Execution_V17".MOTOR_6_RPM_SETPOINT := 0.0;
+               "DB_HGU_Execution_V17".PROP_REL_VLV_6_SETPOINT := 0;
+            7: "DB_HGU_Execution_V17".MOTOR_7_RPM_SETPOINT := 0.0;
+               "DB_HGU_Execution_V17".PROP_REL_VLV_7_SETPOINT := 0;
+        END_CASE;
+    END_FOR;
+    
+    Hour_Update_Timer(IN := FALSE, PT := T#60s);
+END_IF;
+
+END_FUNCTION_BLOCK

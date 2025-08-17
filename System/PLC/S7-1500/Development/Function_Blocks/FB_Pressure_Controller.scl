@@ -1,0 +1,224 @@
+FUNCTION_BLOCK "FB_Pressure_Controller"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : '1.0'
+// =============================================================================
+// TUSAŞ HGU Pressure Controller V17
+// Purpose: Two-phase pressure control without PID
+// Phase 1: Lookup table fast approach (10% vicinity)
+// Phase 2: Time-based tracking for smooth transition
+// Features: Configurable response time, valve characteristic table
+// =============================================================================
+
+VAR_INPUT
+    Enable : Bool := FALSE;                    // Enable pressure controller
+    Target_Pressure : Real := 280.0;          // Target pressure (Bar)
+    Current_Pressure : Real := 0.0;           // Current pressure reading (Bar)
+    Valve_Response_Time : Time := T#40ms;     // Valve response time (configurable)
+    
+    // Algorithm parameters
+    Approach_Percentage : Real := 10.0;       // Fast approach percentage (10%)
+    Tracking_Step_Size : Real := 0.05;        // Tracking step size (5%)
+    Pressure_Threshold : Real := 95.0;        // Pressure threshold for mode switching (95%)
+END_VAR
+
+VAR_OUTPUT
+    Control_Phase : USInt := 0;               // Control phase (0=Disabled, 1=Approach, 2=Tracking)
+    Control_Active : Bool := FALSE;           // Controller active status
+    Error_Status : Bool := FALSE;             // Error condition
+    Error_Code : USInt := 0;                  // Error code
+END_VAR
+
+VAR
+    // Valve output (moved from VAR_OUTPUT for initialization)
+    Valve_Current : Real := 0.0;              // Valve current setpoint (0-10000)
+    
+    // Phase control
+    Current_Phase : USInt := 0;               // Current control phase
+    Approach_Target : Real := 0.0;            // Phase 1 approach target
+    Last_Enable : Bool := FALSE;              // Previous enable state
+    
+    // Timing control
+    Phase_Timer : TON := (PT := T#1s);        // Phase transition timer
+    Tracking_Timer : TON := (PT := T#40ms);   // Tracking step timer
+    Response_Timer : TON := (PT := T#40ms);   // Response delay timer
+    
+    // Lookup table for pressure to current conversion
+    // Simple linear characteristic: 50-300 Bar -> 0-10000 Current
+    Table_Min_Pressure : Real := 50.0;       // Minimum table pressure
+    Table_Max_Pressure : Real := 300.0;      // Maximum table pressure
+    Table_Min_Current : Real := 0.0;         // Minimum current output
+    Table_Max_Current : Real := 10000.0;     // Maximum current output
+    
+    // Error detection
+    Pressure_Error : Real := 0.0;            // Pressure error
+    Error_Timer : TON := (PT := T#10s);       // Error persistence timer
+    
+    // Step calculation
+    Time_Step_Current : Real := 0.0;         // Time-based step current
+    Previous_Current : Real := 0.0;          // Previous current value
+    
+    // Internal initialization flag
+    Init_Done : Bool := FALSE;               // Initialization complete flag
+END_VAR
+
+VAR_TEMP
+    Temp_Current : Real;                      // Temporary current calculation
+    Pressure_Range : Real;                   // Pressure range calculation
+    Current_Range : Real;                    // Current range calculation
+    Normalized_Pressure : Real;             // Normalized pressure value
+END_VAR
+
+BEGIN
+
+// =============================================================================
+// INITIALIZATION AND STARTUP
+// =============================================================================
+IF NOT Init_Done THEN
+    // First-time initialization
+    Valve_Current := 0.0;
+    Control_Phase := 0;
+    Control_Active := FALSE;
+    Error_Status := FALSE;
+    Error_Code := 0;
+    Current_Phase := 1;
+    Previous_Current := 0.0;
+    Init_Done := TRUE;
+END_IF;
+
+IF Enable AND NOT Last_Enable THEN
+    // Reset all outputs on startup
+    Valve_Current := 0.0;
+    Control_Phase := 0;
+    Control_Active := FALSE;
+    Error_Status := FALSE;
+    Error_Code := 0;
+    Current_Phase := 1; // Start with approach phase
+    Previous_Current := 0.0;
+END_IF;
+
+Last_Enable := Enable;
+
+// =============================================================================
+// MAIN CONTROL LOGIC
+// =============================================================================
+IF Enable THEN
+    
+    // Calculate pressure error
+    Pressure_Error := Target_Pressure - Current_Pressure;
+    
+    // Check if pressure is above threshold (switch to pressure limiting)
+    IF Current_Pressure > (Target_Pressure * Pressure_Threshold / 100.0) THEN
+        
+        // =============================================================================
+        // PHASE 1: FAST APPROACH (Lookup Table)
+        // =============================================================================
+        IF Current_Phase = 1 THEN
+            Control_Phase := 1; // Approach phase
+            
+            // Calculate approach target (90% of the way to setpoint)
+            IF Current_Pressure < Target_Pressure THEN
+                Approach_Target := Current_Pressure + (ABS(Pressure_Error) * (100.0 - Approach_Percentage) / 100.0);
+            ELSE
+                Approach_Target := Current_Pressure - (ABS(Pressure_Error) * (100.0 - Approach_Percentage) / 100.0);
+            END_IF;
+            
+            // Use lookup table to get current for approach target
+            // Linear interpolation: 50-300 Bar -> 0-10000 Current
+            IF Approach_Target <= Table_Min_Pressure THEN
+                Valve_Current := Table_Min_Current;
+            ELSIF Approach_Target >= Table_Max_Pressure THEN
+                Valve_Current := Table_Max_Current;
+            ELSE
+                Normalized_Pressure := (Approach_Target - Table_Min_Pressure) / (Table_Max_Pressure - Table_Min_Pressure);
+                Valve_Current := Normalized_Pressure * Table_Max_Current;
+            END_IF;
+            Previous_Current := Valve_Current;
+            
+            // Check if we're within 10% of target
+            IF ABS(Pressure_Error) <= (Target_Pressure * Approach_Percentage / 100.0) THEN
+                Current_Phase := 2; // Switch to tracking phase
+                Phase_Timer(IN := FALSE, PT := T#1s); // Reset timer
+            END_IF;
+            
+        // =============================================================================
+        // PHASE 2: TIME-BASED TRACKING (Smooth Transition)
+        // =============================================================================
+        ELSIF Current_Phase = 2 THEN
+            Control_Phase := 2; // Tracking phase
+            
+            // Time-based tracking with configurable response time
+            Tracking_Timer(IN := TRUE, PT := Valve_Response_Time);
+            IF Tracking_Timer.Q THEN
+                // Calculate step size based on remaining error
+                Time_Step_Current := Pressure_Error * Tracking_Step_Size * 100.0; // Scale to current range
+                
+                // Apply step to previous current
+                Temp_Current := Previous_Current + Time_Step_Current;
+                
+                // Limit current range
+                IF Temp_Current > Table_Max_Current THEN
+                    Valve_Current := Table_Max_Current;
+                ELSIF Temp_Current < Table_Min_Current THEN
+                    Valve_Current := Table_Min_Current;
+                ELSE
+                    Valve_Current := Temp_Current;
+                END_IF;
+                
+                Previous_Current := Valve_Current;
+                Tracking_Timer(IN := FALSE, PT := Valve_Response_Time); // Reset timer for next step
+            END_IF;
+            
+        END_IF;
+        
+        Control_Active := TRUE;
+        
+    ELSE
+        // =============================================================================
+        // PRESSURE BELOW THRESHOLD - FLOW CONTROL MODE
+        // =============================================================================
+        Control_Phase := 0; // Flow control mode
+        // Base opening calculation: 80% of target pressure
+        Temp_Current := Target_Pressure * 0.8;
+        IF Temp_Current <= Table_Min_Pressure THEN
+            Valve_Current := Table_Min_Current;
+        ELSIF Temp_Current >= Table_Max_Pressure THEN
+            Valve_Current := Table_Max_Current;
+        ELSE
+            Normalized_Pressure := (Temp_Current - Table_Min_Pressure) / (Table_Max_Pressure - Table_Min_Pressure);
+            Valve_Current := Normalized_Pressure * Table_Max_Current;
+        END_IF;
+        Current_Phase := 1; // Reset to approach phase for next time
+        Control_Active := FALSE;
+    END_IF;
+    
+    // =============================================================================
+    // ERROR MONITORING
+    // =============================================================================
+    Error_Timer(IN := (ABS(Pressure_Error) > (Target_Pressure * 0.2)), PT := T#10s);
+    IF Error_Timer.Q THEN
+        Error_Status := TRUE;
+        Error_Code := 1; // Persistent pressure error
+    ELSE
+        Error_Status := FALSE;
+        Error_Code := 0;
+    END_IF;
+    
+ELSE
+    // =============================================================================
+    // DISABLED STATE
+    // =============================================================================
+    Valve_Current := 0.0;
+    Control_Phase := 0;
+    Control_Active := FALSE;
+    Error_Status := FALSE;
+    Error_Code := 0;
+    Current_Phase := 1; // Reset to approach phase
+    
+    // Reset all timers
+    Phase_Timer(IN := FALSE, PT := T#1s);
+    Tracking_Timer(IN := FALSE, PT := Valve_Response_Time);
+    Response_Timer(IN := FALSE, PT := Valve_Response_Time);
+    Error_Timer(IN := FALSE, PT := T#10s);
+END_IF;
+
+END_FUNCTION_BLOCK

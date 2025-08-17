@@ -1,0 +1,355 @@
+FUNCTION_BLOCK "FB_G120C_Drive"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : '1.0'
+// =============================================================================
+// SIEMENS G120C Drive Controller for TUSAŞ HGU System
+// Purpose: 90kW G120C drive control with FREE telegram communication
+// Motors: 75kW hydraulic pump motors (6 units: Motor 1-6)
+// Communication: FREE telegram with RPM setpoint, status, diagnostics
+// 
+// PROFINET Configuration:
+// Motor 1: IP 192.168.100.3, I/O Range: %QW100-%QW106 / %IW100-%IW106
+// Motor 2: IP 192.168.100.4, I/O Range: %QW110-%QW116 / %IW110-%IW116  
+// Motor 3: IP 192.168.100.5, I/O Range: %QW120-%QW126 / %IW120-%IW126
+// Motor 4: IP 192.168.100.6, I/O Range: %QW130-%QW136 / %IW130-%IW136
+// Motor 5: IP 192.168.100.7, I/O Range: %QW140-%QW146 / %IW140-%IW146
+// Motor 6: IP 192.168.100.8, I/O Range: %QW150-%QW156 / %IW150-%IW156
+//
+// FREE Telegram Structure (PZD-6/6 format):
+// SEND TO DRIVE (Control Data - %QW):
+//   PZD[0] = Control Word       (%QW+0)  - Drive control bits
+//   PZD[1] = Speed Setpoint     (%QW+2)  - RPM setpoint scaled
+//   PZD[2] = Reserved           (%QW+4)  - Future use  
+//   PZD[3] = Reserved           (%QW+6)  - Future use
+//   PZD[4] = Reserved           (%QW+8)  - Future use
+//   PZD[5] = Reserved           (%QW+10) - Future use
+//
+// RECEIVE FROM DRIVE (Status Data - %IW):
+//   PZD[0] = Status Word        (%IW+0)  - Drive status bits
+//   PZD[1] = Speed Actual       (%IW+2)  - RPM actual scaled  
+//   PZD[2] = Current Actual     (%IW+4)  - Motor current scaled
+//   PZD[3] = Temperature        (%IW+6)  - Motor temperature
+//   PZD[4] = Error Word         (%IW+8)  - Error/warning codes
+//   PZD[5] = Reserved           (%IW+10) - Future diagnostics
+//
+// Drive Parameter Setup (G120C commissioning):
+//   P0918[0] = 6    ; FREE telegram, 6 PZD send
+//   P0918[1] = 6    ; FREE telegram, 6 PZD receive  
+//   P2079 = 3       ; PROFINET process data
+//   P0922 = 1       ; Telegram 1 enable
+//   P1000 = 1       ; Factory reset then set parameters
+// =============================================================================
+
+VAR_INPUT
+    Enable : Bool := FALSE;                    // Drive enable command
+    Motor_Number : USInt := 1;                // Motor number (1-6)
+    
+    // Control commands
+    RPM_Setpoint : Real := 0.0;               // RPM setpoint (0-1500 RPM)
+    Start_Command : Bool := FALSE;            // Start command (rising edge)
+    Stop_Command : Bool := FALSE;             // Stop command (rising edge)
+    Reset_Command : Bool := FALSE;            // Reset command (rising edge)
+    
+    // Safety inputs
+    Emergency_Stop : Bool := FALSE;           // Emergency stop input
+    Motor_Enable_Switch : Bool := TRUE;       // Motor enable switch
+    
+    // Configuration
+    Max_RPM : Real := 1500.0;                // Maximum RPM limit
+    Ramp_Up_Time : Time := T#5s;             // Acceleration time
+    Ramp_Down_Time : Time := T#3s;           // Deceleration time
+END_VAR
+
+VAR_OUTPUT
+    // Motor status
+    Motor_Running : Bool := FALSE;            // Motor running status
+    Motor_Ready : Bool := FALSE;              // Motor ready status
+    Motor_Fault : Bool := FALSE;              // Motor fault status
+    
+    // Actual values
+    RPM_Actual : Real := 0.0;                // Actual RPM
+    Current_A : Real := 0.0;                  // Motor current (Amperes)
+    Temperature_C : Real := 0.0;              // Motor temperature (Celsius)
+    
+    // Status and diagnostics
+    Drive_Status : DWord := 0;                // Drive status word
+    Error_Code : USInt := 0;                  // Error code
+    Warning_Code : USInt := 0;                // Warning code
+    
+    // Command acknowledgments
+    Start_Ack : Bool := FALSE;                // Start command acknowledged
+    Stop_Ack : Bool := FALSE;                 // Stop command acknowledged  
+    Reset_Ack : Bool := FALSE;                // Reset command acknowledged
+END_VAR
+
+VAR_IN_OUT
+    // FREE telegram communication (to be mapped to G120C)
+    Control_Word : Word;                      // Control word to drive
+    Status_Word : Word;                       // Status word from drive
+    RPM_Setpoint_Word : Int;                  // RPM setpoint to drive
+    RPM_Actual_Word : Int;                    // RPM actual from drive
+    Current_Word : Int;                       // Current from drive
+    Temperature_Word : Int;                   // Temperature from drive
+    Error_Word : Word;                        // Error word from drive
+END_VAR
+
+VAR
+    // Command processing
+    Last_Start_Command : Bool := FALSE;       // Previous start command
+    Last_Stop_Command : Bool := FALSE;        // Previous stop command  
+    Last_Reset_Command : Bool := FALSE;       // Previous reset command
+    
+    // State machine
+    Drive_State : USInt := 0;                 // Drive state (0=Init, 1=Ready, 2=Running, 3=Fault)
+    State_Timer : TON;                        // State transition timer
+    
+    // Command timers
+    Start_Timer : TON;                        // Start command timeout
+    Stop_Timer : TON;                         // Stop command timeout
+    Reset_Cmd_Timer : TON;                    // Reset command timeout
+    
+    // Safety and monitoring
+    Emergency_Stop_Delay : TON;               // Emergency stop delay timer
+    Fault_Reset_Delay : TON;                  // Fault reset delay timer
+    Watchdog_Timer : TON;                     // Communication watchdog timer
+    
+    // Scaling and conversion
+    RPM_Scale_Factor : Real := 10.0;          // RPM scaling (1500 RPM = 15000 in telegram)
+    Current_Scale_Factor : Real := 0.1;       // Current scaling (100A = 1000 in telegram)
+    Temperature_Offset : Real := 40.0;        // Temperature offset (°C)
+    
+    // Internal flags
+    Init_Complete : Bool := FALSE;            // Initialization complete
+    Communication_OK : Bool := FALSE;         // Communication status
+    Last_Enable : Bool := FALSE;              // Previous enable state
+    
+    // Error tracking
+    Communication_Error : Bool := FALSE;      // Communication error
+    Parameter_Error : Bool := FALSE;          // Parameter error
+    Safety_Error : Bool := FALSE;             // Safety error
+END_VAR
+
+VAR_TEMP
+    Temp_RPM : Real;                          // Temporary RPM calculation
+    Temp_Status : Word;                       // Temporary status processing
+    Control_Bits : Word;                      // Control word bits
+END_VAR
+
+BEGIN
+
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
+IF NOT Init_Complete THEN
+    // Initialize all outputs
+    Motor_Running := FALSE;
+    Motor_Ready := FALSE;
+    Motor_Fault := FALSE;
+    RPM_Actual := 0.0;
+    Current_A := 0.0;
+    Temperature_C := 0.0;
+    Drive_Status := 0;
+    Error_Code := 0;
+    Warning_Code := 0;
+    
+    // Initialize communication
+    Control_Word := 0;
+    RPM_Setpoint_Word := 0;
+    
+    // Initialize timers
+    Start_Timer(IN := FALSE, PT := T#1s);
+    Stop_Timer(IN := FALSE, PT := T#1s);
+    Reset_Cmd_Timer(IN := FALSE, PT := T#1s);
+    Emergency_Stop_Delay(IN := FALSE, PT := T#100ms);
+    State_Timer(IN := FALSE, PT := T#2s);
+    Watchdog_Timer(IN := FALSE, PT := T#5s);
+    
+    Drive_State := 0;
+    Init_Complete := TRUE;
+END_IF;
+
+IF Enable AND NOT Last_Enable THEN
+    // Reset on enable
+    Drive_State := 0;
+    Error_Code := 0;
+    Warning_Code := 0;
+END_IF;
+
+Last_Enable := Enable;
+
+// =============================================================================
+// MAIN CONTROL LOGIC
+// =============================================================================
+IF Enable THEN
+    
+    // =============================================================================
+    // SAFETY MONITORING
+    // =============================================================================
+    Emergency_Stop_Delay(IN := Emergency_Stop, PT := T#100ms);
+    Safety_Error := Emergency_Stop_Delay.Q OR NOT Motor_Enable_Switch;
+    
+    // =============================================================================
+    // COMMUNICATION PROCESSING
+    // =============================================================================
+    
+    // Process status word from drive
+    Temp_Status := Status_Word;
+    Motor_Ready := (Temp_Status.%X0);         // Bit 0: Ready
+    Motor_Running := (Temp_Status.%X2);       // Bit 2: Running  
+    Motor_Fault := (Temp_Status.%X3);         // Bit 3: Fault
+    Communication_OK := (Temp_Status.%X15);   // Bit 15: Communication OK
+    
+    // Process actual values from drive
+    RPM_Actual := INT_TO_REAL(RPM_Actual_Word) / RPM_Scale_Factor;
+    Current_A := INT_TO_REAL(Current_Word) * Current_Scale_Factor;
+    Temperature_C := INT_TO_REAL(Temperature_Word) + Temperature_Offset;
+    
+    // Drive status and error processing
+    Drive_Status := WORD_TO_DWORD(Status_Word);
+    IF Error_Word > 0 THEN
+        Error_Code := WORD_TO_USINT(Error_Word AND 16#00FF);
+        Warning_Code := WORD_TO_USINT((Error_Word AND 16#FF00) / 256);
+    ELSE
+        Error_Code := 0;
+        Warning_Code := 0;
+    END_IF;
+    
+    // =============================================================================
+    // COMMAND PROCESSING (RISING EDGE DETECTION)
+    // =============================================================================
+    
+    // Timer calls - TIA Portal V17 compliant
+    Start_Timer(IN := (Start_Command AND NOT Last_Start_Command), PT := T#1s);
+    Stop_Timer(IN := (Stop_Command AND NOT Last_Stop_Command), PT := T#1s);
+    Reset_Cmd_Timer(IN := (Reset_Command AND NOT Last_Reset_Command), PT := T#1s);
+    
+    // Command bit processing
+    IF Start_Command AND NOT Last_Start_Command THEN
+        Control_Bits.%X0 := TRUE;              // Set start bit
+    END_IF;
+    
+    IF Stop_Command AND NOT Last_Stop_Command THEN
+        Control_Bits.%X1 := TRUE;              // Set stop bit
+    END_IF;
+    
+    IF Reset_Command AND NOT Last_Reset_Command THEN
+        Control_Bits.%X7 := TRUE;              // Set reset bit
+    END_IF;
+    
+    // Update last command states
+    Last_Start_Command := Start_Command;
+    Last_Stop_Command := Stop_Command;
+    Last_Reset_Command := Reset_Command;
+    
+    // =============================================================================
+    // RPM SETPOINT PROCESSING
+    // =============================================================================
+    
+    // Limit and scale RPM setpoint
+    IF RPM_Setpoint > Max_RPM THEN
+        Temp_RPM := Max_RPM;
+    ELSIF RPM_Setpoint < 0.0 THEN
+        Temp_RPM := 0.0;
+    ELSE
+        Temp_RPM := RPM_Setpoint;
+    END_IF;
+    
+    // Convert to telegram format
+    RPM_Setpoint_Word := REAL_TO_INT(Temp_RPM * RPM_Scale_Factor);
+    
+    // =============================================================================
+    // DRIVE STATE MACHINE
+    // =============================================================================
+    State_Timer(IN := TRUE, PT := T#2s);
+    
+    CASE Drive_State OF
+        0: // Initialization
+           IF State_Timer.Q THEN
+               IF Communication_OK AND NOT Safety_Error THEN
+                   Drive_State := 1;
+               END_IF;
+               State_Timer(IN := FALSE, PT := T#2s);
+           END_IF;
+           
+        1: // Ready
+           IF Motor_Fault OR Safety_Error THEN
+               Drive_State := 3;
+           ELSIF Motor_Running THEN
+               Drive_State := 2;
+           END_IF;
+           
+        2: // Running
+           IF Motor_Fault OR Safety_Error THEN
+               Drive_State := 3;
+           ELSIF NOT Motor_Running THEN
+               Drive_State := 1;
+           END_IF;
+           
+        3: // Fault
+           IF NOT Motor_Fault AND NOT Safety_Error AND Reset_Cmd_Timer.Q THEN
+               Drive_State := 1;
+           END_IF;
+    END_CASE;
+    
+    // =============================================================================
+    // CONTROL WORD GENERATION
+    // =============================================================================
+    
+    // Emergency stop override
+    IF Safety_Error THEN
+        Control_Word := 0;                     // Emergency stop - all bits off
+    ELSE
+        // Enable bit
+        Control_Bits.%X15 := TRUE;             // Drive enable
+        
+        // Copy control bits to control word
+        Control_Word := Control_Bits;
+    END_IF;
+    
+    // =============================================================================
+    // COMMAND ACKNOWLEDGMENTS
+    // =============================================================================
+    // Timer outputs already called in command processing section
+    Start_Ack := Start_Timer.Q AND Motor_Running;
+    Stop_Ack := Stop_Timer.Q AND NOT Motor_Running;
+    Reset_Ack := Reset_Cmd_Timer.Q AND NOT Motor_Fault;
+    
+    // =============================================================================
+    // ERROR MONITORING
+    // =============================================================================
+    
+    // Communication watchdog
+    Watchdog_Timer(IN := NOT Communication_OK, PT := T#5s);
+    Communication_Error := Watchdog_Timer.Q;
+    
+    // Parameter validation
+    Parameter_Error := (Max_RPM <= 0.0) OR (RPM_Scale_Factor <= 0.0);
+    
+ELSE
+    // =============================================================================
+    // DISABLED STATE
+    // =============================================================================
+    Motor_Running := FALSE;
+    Motor_Ready := FALSE;
+    RPM_Actual := 0.0;
+    Current_A := 0.0;
+    Drive_State := 0;
+    
+    // Reset all commands and timers
+    Control_Word := 0;
+    RPM_Setpoint_Word := 0;
+    
+    Start_Timer(IN := FALSE, PT := T#1s);
+    Stop_Timer(IN := FALSE, PT := T#1s);
+    Reset_Cmd_Timer(IN := FALSE, PT := T#1s);
+    State_Timer(IN := FALSE, PT := T#2s);
+    Emergency_Stop_Delay(IN := FALSE, PT := T#100ms);
+    Fault_Reset_Delay(IN := FALSE, PT := T#500ms);
+    Watchdog_Timer(IN := FALSE, PT := T#5s);
+    
+    Start_Ack := FALSE;
+    Stop_Ack := FALSE;
+    Reset_Ack := FALSE;
+END_IF;
+
+END_FUNCTION_BLOCK

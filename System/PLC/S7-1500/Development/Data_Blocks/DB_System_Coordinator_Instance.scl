@@ -1,0 +1,22 @@
+DATA_BLOCK "DB_System_Coordinator_Instance"
+TITLE = 'System Coordinator Instance DB - TIA Portal V17 Compatible'
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 2.0
+AUTHOR : 'TUSAŞ HGU Control System'
+// =============================================================================
+// SYSTEM COORDINATOR INSTANCE DATA BLOCK - UPDATED
+// TIA Portal V17 Compatible Instance DB for System Level Coordination
+// Description: Load Sensing, Emergency Stop, System Status Management
+// =============================================================================
+   NON_RETAIN
+   "FB_System_Coordinator"
+   
+BEGIN
+   // =============================================================================
+   // INSTANCE DATA BLOCK - V2.0 UPDATED FOR FB INTERFACE CHANGES
+   // =============================================================================
+   // This Instance DB will be called from OB1 (Main)
+   // Updated to match FB_System_Coordinator V2.0 interface changes
+   // Control_Mode moved from OUTPUT to internal VAR
+   
+END_DATA_BLOCK

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wsl find:*)",
+      "Bash(wsl -d Ubuntu find / -name \"*forgejo*\" -type f 2>/dev/null)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(bash:*)",
+      "Bash(cat:*)",
+      "Bash(pgrep:*)",
+      "Bash(curl:*)",
+      "Bash(ss:*)",
+      "Bash(/usr/local/bin/forgejo:*)"
+    ],
+    "deny": []
+  }
+}

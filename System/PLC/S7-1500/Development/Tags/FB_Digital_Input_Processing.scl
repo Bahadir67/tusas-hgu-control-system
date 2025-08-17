@@ -1,0 +1,618 @@
+﻿FUNCTION_BLOCK "FB_Digital_Input_Processing"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 1.0
+// =============================================================================
+// TUSAÅž HGU Digital Input Processing V17
+// Purpose: Digital input reading and status processing for HGU system
+// 
+// Digital Input Signals:
+// - Motor Filter Warning/Error signals (1-6)
+// - CoilTube Filter Warning/Error signals
+// - Tank Level Switches (Min/Max)
+// - Motor Compensated Valves (1-7)
+// - Chiller Water Flow Sensor
+// - Suction Filters (1-7)
+//
+// Processing Steps:
+// 1. Read digital input tags directly
+// 2. Apply signal conditioning and debouncing
+// 3. Map to appropriate DB_HGU_Execution status variables
+// 4. Generate system status and error conditions
+// =============================================================================
+   VAR_INPUT 
+      Enable : Bool := FALSE;   // Enable digital input processing
+      Filter_Debounce_Time : Time := T#100MS;   // Filter signal debounce time
+      Level_Switch_Debounce_Time : Time := T#500MS;   // Level switch debounce time
+      Reset_Filter_Errors : Bool := FALSE;   // Manual reset for all filter errors Processing status
+   END_VAR
+
+   VAR_OUTPUT 
+      Processing_Active : Bool := FALSE;   // Processing active status
+      Error_Status : Bool := FALSE;   // Any digital input error active
+   END_VAR
+   VAR_OUTPUT RETAIN
+      Total_Filter_Warnings : USInt := 0;   // Aktif filter warning sayÄ±sÄ±
+      Total_Filter_Errors : USInt := 0;   // Aktif filter error sayÄ±sÄ±
+   END_VAR
+   VAR_OUTPUT 
+      Total_Valve_Status_OK : USInt := 0;   // Total valves OK Event counters (istatistik)
+      Warning_Event_Counter : UDInt := 0;   // Toplam warning olayÄ± sayÄ±sÄ±
+      Error_Event_Counter : UDInt := 0;   // Toplam error olayÄ± sayÄ±sÄ± System status summary
+      Tank_Level_Status : USInt := 0;   // 0=Unknown, 1=Min, 2=Normal, 3=Max
+      Chiller_Flow_OK : Bool := FALSE;   // Chiller water flow OK
+      Error_Code : USInt := 0;   // Error code ============================================================================= DEBOUNCE TIMERS FOR FILTER SIGNALS ============================================================================= Motor filter warning debounce timers
+   END_VAR
+
+   VAR 
+      Motor1_Filter_Warning_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor2_Filter_Warning_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor3_Filter_Warning_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor4_Filter_Warning_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor5_Filter_Warning_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor6_Filter_Warning_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      CoilTube_Filter_Warning_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;   // Motor filter error debounce timers
+      Motor1_Filter_Error_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor2_Filter_Error_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor3_Filter_Error_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor4_Filter_Error_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor5_Filter_Error_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor6_Filter_Error_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      CoilTube_Filter_Error_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;   // Level switch debounce timers
+      Tank_Min_Level_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Tank_Max_Level_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;   // Flow sensor debounce timer
+      Chiller_Flow_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;   // ============================================================================= SUCTION FILTER DEBOUNCE TIMERS =============================================================================
+      Suction_Filter_1_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Suction_Filter_2_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Suction_Filter_3_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Suction_Filter_4_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Suction_Filter_5_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Suction_Filter_6_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Suction_Filter_7_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;   // ============================================================================= COMPENSATED VALVE DEBOUNCE TIMERS =============================================================================
+      Motor1_Valve_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor2_Valve_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor3_Valve_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor4_Valve_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor5_Valve_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor6_Valve_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      Motor7_Valve_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;   // Processing control
+      Processing_Timer {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;   // Main processing cycle timer
+      Init_Complete : Bool := FALSE;   // Initialization complete flag Signal state tracking
+      Filter_Warning_Count : USInt := 0;   // Aktif warning sayÄ±sÄ±
+      Filter_Error_Count : USInt := 0;   // Aktif error sayÄ±sÄ±
+      Valve_OK_Count : USInt := 0;   // Event counters (kaÃ§ kere oldu) - RETAIN for statistics persistence
+      Total_Warning_Events : UDInt;   // Toplam warning olayÄ± sayÄ±sÄ±
+      Total_Error_Events : UDInt;   // Toplam error olayÄ± sayÄ±sÄ± Previous states for edge detection
+      Motor1_Filter_Error_Prev : Bool := FALSE;
+      Motor2_Filter_Error_Prev : Bool := FALSE;
+      Motor3_Filter_Error_Prev : Bool := FALSE;
+      Motor4_Filter_Error_Prev : Bool := FALSE;
+      Motor5_Filter_Error_Prev : Bool := FALSE;
+      Motor6_Filter_Error_Prev : Bool := FALSE;
+      CoilTube_Filter_Error_Prev : Bool := FALSE;
+      Motor1_Filter_Warning_Prev : Bool := FALSE;
+      Motor2_Filter_Warning_Prev : Bool := FALSE;
+      Motor3_Filter_Warning_Prev : Bool := FALSE;
+      Motor4_Filter_Warning_Prev : Bool := FALSE;
+      Motor5_Filter_Warning_Prev : Bool := FALSE;
+      Motor6_Filter_Warning_Prev : Bool := FALSE;
+      CoilTube_Filter_Warning_Prev : Bool := FALSE;
+      i : USInt;   // Loop counter
+   END_VAR
+
+   VAR_TEMP 
+      Signal_State : Bool;   // Temporary signal state
+      Timer_Output : Bool;   // Temporary timer output
+   END_VAR
+
+
+BEGIN
+	
+	// =============================================================================
+	// INITIALIZATION
+	// =============================================================================
+	IF NOT #Init_Complete THEN
+	    #Processing_Active := FALSE;
+	    #Error_Status := FALSE;
+	    #Total_Filter_Warnings := 0;
+	    #Total_Filter_Errors := 0;
+	    #Total_Valve_Status_OK := 0;
+	    #Tank_Level_Status := USINT#0;
+	    #Chiller_Flow_OK := FALSE;
+	    #Error_Code := USINT#0;
+	    
+	    #Processing_Timer(IN := FALSE,
+	                      PT := T#50ms);
+	    
+	    #Init_Complete := TRUE;
+	END_IF;
+	
+	// =============================================================================
+	// MAIN PROCESSING LOGIC
+	// =============================================================================
+	IF #Enable THEN
+	    #Processing_Active := TRUE;
+	    
+	    // Process every 50ms (faster than analog for better responsiveness)
+	    #Processing_Timer(IN := TRUE,
+	                      PT := T#50ms);
+	    
+	    IF #Processing_Timer.Q THEN
+	        #Filter_Warning_Count := 0;  // Her cycle'da sÄ±fÄ±rla ve aktif warning'larÄ± say
+	        #Filter_Error_Count := 0;    // Her cycle'da sÄ±fÄ±rla ve aktif error'larÄ± say
+	        #Valve_OK_Count := 0;
+	        #Error_Status := FALSE;
+	        
+	        // =============================================================================
+	        // PROCESS MOTOR FILTER WARNING/ERROR SIGNALS WITH STATE MACHINE
+	        // =============================================================================
+	        
+	        // Motor 1 Filter Status (Priority: Error > Warning > Normal)
+	        #Motor1_Filter_Warning_Timer(IN := "Motor1FilterWarning",
+	                                     PT := #Filter_Debounce_Time);
+	        #Motor1_Filter_Error_Timer(IN := "Motor1FilterError",
+	                                   PT := #Filter_Debounce_Time);
+	        
+	        // Rising edge detection for event counters
+	        IF #Motor1_Filter_Error_Timer.Q AND NOT #Motor1_Filter_Error_Prev THEN
+	            #Total_Error_Events := #Total_Error_Events + 1; // Yeni error olayÄ±
+	        END_IF;
+	        
+	        IF #Motor1_Filter_Warning_Timer.Q AND NOT #Motor1_Filter_Warning_Prev THEN
+	            #Total_Warning_Events := #Total_Warning_Events + 1; // Yeni warning olayÄ±
+	        END_IF;
+	        
+	        // Update previous states
+	        #Motor1_Filter_Error_Prev := #Motor1_Filter_Error_Timer.Q;
+	        #Motor1_Filter_Warning_Prev := #Motor1_Filter_Warning_Timer.Q;
+	        
+	        // Status priority logic
+	        IF #Motor1_Filter_Error_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_1_LINE_FILTER_STATUS := USINT#2; // Error (highest priority)
+	            #Filter_Error_Count := #Filter_Error_Count + USINT#1;  // Aktif error sayÄ±sÄ±nÄ± artÄ±r
+	            #Error_Status := TRUE;
+	            #Error_Code := USINT#1; // Motor 1 filter error
+	        ELSIF #Motor1_Filter_Warning_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_1_LINE_FILTER_STATUS := USINT#1; // Warning
+	            #Filter_Warning_Count := #Filter_Warning_Count + USINT#1;  // Aktif warning sayÄ±sÄ±nÄ± artÄ±r
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_1_LINE_FILTER_STATUS := USINT#0; // Normal/OK
+	        END_IF;
+	        
+	        // Motor 2 Filter Status (Priority: Error > Warning > Normal)
+	        #Motor2_Filter_Warning_Timer(IN := "Motor2FilterWarning",
+	                                     PT := #Filter_Debounce_Time);
+	        #Motor2_Filter_Error_Timer(IN := "Motor2FilterError",
+	                                   PT := #Filter_Debounce_Time);
+	        
+	        // Rising edge detection for event counters
+	        IF #Motor2_Filter_Error_Timer.Q AND NOT #Motor2_Filter_Error_Prev THEN
+	            #Total_Error_Events := #Total_Error_Events + 1; // Yeni error olayÄ±
+	        END_IF;
+	        
+	        IF #Motor2_Filter_Warning_Timer.Q AND NOT #Motor2_Filter_Warning_Prev THEN
+	            #Total_Warning_Events := #Total_Warning_Events + 1; // Yeni warning olayÄ±
+	        END_IF;
+	        
+	        // Update previous states
+	        #Motor2_Filter_Error_Prev := #Motor2_Filter_Error_Timer.Q;
+	        #Motor2_Filter_Warning_Prev := #Motor2_Filter_Warning_Timer.Q;
+	        
+	        // Status priority logic
+	        IF #Motor2_Filter_Error_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_2_LINE_FILTER_STATUS := USINT#2; // Error (highest priority)
+	            #Filter_Error_Count := #Filter_Error_Count + USINT#1;  // Aktif error sayÄ±sÄ±nÄ± artÄ±r
+	            #Error_Status := TRUE;
+	            #Error_Code := USINT#2; // Motor 2 filter error
+	        ELSIF #Motor2_Filter_Warning_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_2_LINE_FILTER_STATUS := USINT#1; // Warning
+	            #Filter_Warning_Count := #Filter_Warning_Count + USINT#1;  // Aktif warning sayÄ±sÄ±nÄ± artÄ±r
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_2_LINE_FILTER_STATUS := USINT#0; // Normal/OK
+	        END_IF;
+	        
+	        // Motor 3 Filter Status (Priority: Error > Warning > Normal)
+	        #Motor3_Filter_Warning_Timer(IN := "Motor3FilterWarning",
+	                                     PT := #Filter_Debounce_Time);
+	        #Motor3_Filter_Error_Timer(IN := "Motor3FilterError",
+	                                   PT := #Filter_Debounce_Time);
+	        
+	        // Rising edge detection for event counters
+	        IF #Motor3_Filter_Error_Timer.Q AND NOT #Motor3_Filter_Error_Prev THEN
+	            #Total_Error_Events := #Total_Error_Events + 1;
+	        END_IF;
+	        IF #Motor3_Filter_Warning_Timer.Q AND NOT #Motor3_Filter_Warning_Prev THEN
+	            #Total_Warning_Events := #Total_Warning_Events + 1;
+	        END_IF;
+	        #Motor3_Filter_Error_Prev := #Motor3_Filter_Error_Timer.Q;
+	        #Motor3_Filter_Warning_Prev := #Motor3_Filter_Warning_Timer.Q;
+	        
+	        IF #Motor3_Filter_Error_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_3_LINE_FILTER_STATUS := USINT#2; // Error
+	            #Filter_Error_Count := #Filter_Error_Count + USINT#1;
+	            #Error_Status := TRUE;
+	            #Error_Code := USINT#3;
+	        ELSIF #Motor3_Filter_Warning_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_3_LINE_FILTER_STATUS := USINT#1; // Warning
+	            #Filter_Warning_Count := #Filter_Warning_Count + USINT#1;
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_3_LINE_FILTER_STATUS := USINT#0; // Normal/OK
+	        END_IF;
+	        
+	        // Motor 4 Filter Status (Priority: Error > Warning > Normal)
+	        #Motor4_Filter_Warning_Timer(IN := "Motor4FilterWarning",
+	                                     PT := #Filter_Debounce_Time);
+	        #Motor4_Filter_Error_Timer(IN := "Motor4FilterError",
+	                                   PT := #Filter_Debounce_Time);
+	        
+	        // Rising edge detection for event counters
+	        IF #Motor4_Filter_Error_Timer.Q AND NOT #Motor4_Filter_Error_Prev THEN
+	            #Total_Error_Events := #Total_Error_Events + 1;
+	        END_IF;
+	        IF #Motor4_Filter_Warning_Timer.Q AND NOT #Motor4_Filter_Warning_Prev THEN
+	            #Total_Warning_Events := #Total_Warning_Events + 1;
+	        END_IF;
+	        #Motor4_Filter_Error_Prev := #Motor4_Filter_Error_Timer.Q;
+	        #Motor4_Filter_Warning_Prev := #Motor4_Filter_Warning_Timer.Q;
+	        
+	        IF #Motor4_Filter_Error_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_4_LINE_FILTER_STATUS := USINT#2; // Error
+	            #Filter_Error_Count := #Filter_Error_Count + USINT#1;
+	            #Error_Status := TRUE;
+	            #Error_Code := USINT#4;
+	        ELSIF #Motor4_Filter_Warning_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_4_LINE_FILTER_STATUS := USINT#1; // Warning
+	            #Filter_Warning_Count := #Filter_Warning_Count + USINT#1;
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_4_LINE_FILTER_STATUS := USINT#0; // Normal/OK
+	        END_IF;
+	        
+	        // Motor 5 Filter Status (Priority: Error > Warning > Normal)
+	        #Motor5_Filter_Warning_Timer(IN := "Motor5FilterWarning",
+	                                     PT := #Filter_Debounce_Time);
+	        #Motor5_Filter_Error_Timer(IN := "Motor5FilterError",
+	                                   PT := #Filter_Debounce_Time);
+	        
+	        // Rising edge detection for event counters
+	        IF #Motor5_Filter_Error_Timer.Q AND NOT #Motor5_Filter_Error_Prev THEN
+	            #Total_Error_Events := #Total_Error_Events + 1;
+	        END_IF;
+	        IF #Motor5_Filter_Warning_Timer.Q AND NOT #Motor5_Filter_Warning_Prev THEN
+	            #Total_Warning_Events := #Total_Warning_Events + 1;
+	        END_IF;
+	        #Motor5_Filter_Error_Prev := #Motor5_Filter_Error_Timer.Q;
+	        #Motor5_Filter_Warning_Prev := #Motor5_Filter_Warning_Timer.Q;
+	        
+	        IF #Motor5_Filter_Error_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_5_LINE_FILTER_STATUS := USINT#2; // Error
+	            #Filter_Error_Count := #Filter_Error_Count + USINT#1;
+	            #Error_Status := TRUE;
+	            #Error_Code := USINT#5;
+	        ELSIF #Motor5_Filter_Warning_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_5_LINE_FILTER_STATUS := USINT#1; // Warning
+	            #Filter_Warning_Count := #Filter_Warning_Count + USINT#1;
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_5_LINE_FILTER_STATUS := USINT#0; // Normal/OK
+	        END_IF;
+	        
+	        // Motor 6 Filter Status (Priority: Error > Warning > Normal)
+	        #Motor6_Filter_Warning_Timer(IN := "Motor6FilterWarning",
+	                                     PT := #Filter_Debounce_Time);
+	        #Motor6_Filter_Error_Timer(IN := "Motor6FilterError",
+	                                   PT := #Filter_Debounce_Time);
+	        
+	        // Rising edge detection for event counters
+	        IF #Motor6_Filter_Error_Timer.Q AND NOT #Motor6_Filter_Error_Prev THEN
+	            #Total_Error_Events := #Total_Error_Events + 1;
+	        END_IF;
+	        IF #Motor6_Filter_Warning_Timer.Q AND NOT #Motor6_Filter_Warning_Prev THEN
+	            #Total_Warning_Events := #Total_Warning_Events + 1;
+	        END_IF;
+	        #Motor6_Filter_Error_Prev := #Motor6_Filter_Error_Timer.Q;
+	        #Motor6_Filter_Warning_Prev := #Motor6_Filter_Warning_Timer.Q;
+	        
+	        IF #Motor6_Filter_Error_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_6_LINE_FILTER_STATUS := USINT#2; // Error
+	            #Filter_Error_Count := #Filter_Error_Count + USINT#1;
+	            #Error_Status := TRUE;
+	            #Error_Code := USINT#6;
+	        ELSIF #Motor6_Filter_Warning_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_6_LINE_FILTER_STATUS := USINT#1; // Warning
+	            #Filter_Warning_Count := #Filter_Warning_Count + USINT#1;
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_6_LINE_FILTER_STATUS := USINT#0; // Normal/OK
+	        END_IF;
+	        
+	        // CoilTube Filter Status (Priority: Error > Warning > Normal)
+	        #CoilTube_Filter_Warning_Timer(IN := "CoilTubeFilterWarning",
+	                                       PT := #Filter_Debounce_Time);
+	        #CoilTube_Filter_Error_Timer(IN := "CoilTubeFilterError",
+	                                     PT := #Filter_Debounce_Time);
+	        
+	        // Rising edge detection for event counters
+	        IF #CoilTube_Filter_Error_Timer.Q AND NOT #CoilTube_Filter_Error_Prev THEN
+	            #Total_Error_Events := #Total_Error_Events + 1;
+	        END_IF;
+	        IF #CoilTube_Filter_Warning_Timer.Q AND NOT #CoilTube_Filter_Warning_Prev THEN
+	            #Total_Warning_Events := #Total_Warning_Events + 1;
+	        END_IF;
+	        #CoilTube_Filter_Error_Prev := #CoilTube_Filter_Error_Timer.Q;
+	        #CoilTube_Filter_Warning_Prev := #CoilTube_Filter_Warning_Timer.Q;
+	        
+	        IF #CoilTube_Filter_Error_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_7_LINE_FILTER_STATUS := USINT#2; // Error
+	            #Filter_Error_Count := #Filter_Error_Count + USINT#1;
+	            #Error_Status := TRUE;
+	            #Error_Code := USINT#7;
+	        ELSIF #CoilTube_Filter_Warning_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_7_LINE_FILTER_STATUS := USINT#1; // Warning
+	            #Filter_Warning_Count := #Filter_Warning_Count + USINT#1;
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_7_LINE_FILTER_STATUS := USINT#0; // Normal/OK
+	        END_IF;
+	        
+	        
+	        // =============================================================================
+	        // PROCESS TANK LEVEL SWITCHES
+	        // =============================================================================
+	        #Tank_Min_Level_Timer(IN := "TankMinLevelSwitch",
+	                              PT := #Level_Switch_Debounce_Time);
+	        #Tank_Max_Level_Timer(IN := "TankMaxLevelSwitch",
+	                              PT := #Level_Switch_Debounce_Time);
+	        
+	        // Determine tank level status
+	        IF #Tank_Max_Level_Timer.Q THEN
+	            #Tank_Level_Status := USINT#3; // Max level
+	            "DB_HGU_Execution_V17".TANK_MAX_LEVEL := TRUE;
+	            "DB_HGU_Execution_V17".TANK_MIN_LEVEL := FALSE;
+	        ELSIF #Tank_Min_Level_Timer.Q THEN
+	            #Tank_Level_Status := USINT#1; // Min level
+	            "DB_HGU_Execution_V17".TANK_MIN_LEVEL := TRUE;
+	            "DB_HGU_Execution_V17".TANK_MAX_LEVEL := FALSE;
+	            #Error_Status := TRUE;
+	            #Error_Code := USINT#10; // Low tank level
+	        ELSE
+	            #Tank_Level_Status := USINT#2; // Normal level
+	            "DB_HGU_Execution_V17".TANK_MIN_LEVEL := FALSE;
+	            "DB_HGU_Execution_V17".TANK_MAX_LEVEL := FALSE;
+	        END_IF;
+	        
+	        // =============================================================================
+	        // PROCESS MOTOR COMPENSATED VALVES
+	        // =============================================================================
+	        
+	        // Motor 1 Compensated Valve
+	        #Motor1_Valve_Timer(IN := "Motor1CompensatedValve",
+	                            PT := #Filter_Debounce_Time);
+	        IF #Motor1_Valve_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_1_MANUAL_VALVE_STATUS := USINT#1;
+	            #Valve_OK_Count := #Valve_OK_Count + 1;
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_1_MANUAL_VALVE_STATUS := USINT#0;
+	        END_IF;
+	        
+	        // Motor 2 Compensated Valve
+	        #Motor2_Valve_Timer(IN := "Motor2CompensatedValve",
+	                            PT := #Filter_Debounce_Time);
+	        IF #Motor2_Valve_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_2_MANUAL_VALVE_STATUS := USINT#1;
+	            #Valve_OK_Count := #Valve_OK_Count + 1;
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_2_MANUAL_VALVE_STATUS := USINT#0;
+	        END_IF;
+	        
+	        // Motor 3 Compensated Valve
+	        #Motor3_Valve_Timer(IN := "Motor3CompensatedValve",
+	                            PT := #Filter_Debounce_Time);
+	        IF #Motor3_Valve_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_3_MANUAL_VALVE_STATUS := USINT#1;
+	            #Valve_OK_Count := #Valve_OK_Count + 1;
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_3_MANUAL_VALVE_STATUS := USINT#0;
+	        END_IF;
+	        
+	        // Motor 4 Compensated Valve
+	        #Motor4_Valve_Timer(IN := "Motor4CompensatedValve",
+	                            PT := #Filter_Debounce_Time);
+	        IF #Motor4_Valve_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_4_MANUAL_VALVE_STATUS := USINT#1;
+	            #Valve_OK_Count := #Valve_OK_Count + 1;
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_4_MANUAL_VALVE_STATUS := USINT#0;
+	        END_IF;
+	        
+	        // Motor 5 Compensated Valve
+	        #Motor5_Valve_Timer(IN := "Motor5CompensatedValve",
+	                            PT := #Filter_Debounce_Time);
+	        IF #Motor5_Valve_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_5_MANUAL_VALVE_STATUS := USINT#1;
+	            #Valve_OK_Count := #Valve_OK_Count + 1;
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_5_MANUAL_VALVE_STATUS := USINT#0;
+	        END_IF;
+	        
+	        // Motor 6 Compensated Valve
+	        #Motor6_Valve_Timer(IN := "Motor6CompensatedValve",
+	                            PT := #Filter_Debounce_Time);
+	        IF #Motor6_Valve_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_6_MANUAL_VALVE_STATUS := USINT#1;
+	            #Valve_OK_Count := #Valve_OK_Count + 1;
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_6_MANUAL_VALVE_STATUS := USINT#0;
+	        END_IF;
+	        
+	        // Motor 7 Compensated Valve
+	        #Motor7_Valve_Timer(IN := "Motor7CompensatedValve",
+	                            PT := #Filter_Debounce_Time);
+	        IF #Motor7_Valve_Timer.Q THEN
+	            "DB_HGU_Execution_V17".PUMP_7_MANUAL_VALVE_STATUS := USINT#1;
+	            #Valve_OK_Count := #Valve_OK_Count + 1;
+	        ELSE
+	            "DB_HGU_Execution_V17".PUMP_7_MANUAL_VALVE_STATUS := USINT#0;
+	        END_IF;
+	        
+	        // =============================================================================
+	        // PROCESS CHILLER WATER FLOW SENSOR
+	        // =============================================================================
+	        #Chiller_Flow_Timer(IN := "ChillerWaterFlowSensor",
+	                            PT := #Filter_Debounce_Time);
+	        #Chiller_Flow_OK := #Chiller_Flow_Timer.Q;
+	        "DB_HGU_Execution_V17".CHILLER_WATER_FLOW_STATUS := #Chiller_Flow_OK;
+	        
+	        IF NOT #Chiller_Flow_OK THEN
+	            #Error_Status := TRUE;
+	            #Error_Code := USINT#11; // Chiller flow error
+	        END_IF;
+	        
+	        // =============================================================================
+	        // PROCESS SUCTION FILTERS
+	        // =============================================================================
+	        
+	        // Suction Filter 1
+	        #Suction_Filter_1_Timer(IN := "Suction_Filter_1",
+	                                PT := #Filter_Debounce_Time);
+	        "DB_HGU_Execution_V17".SUCTION_FILTER_1_STATUS := #Suction_Filter_1_Timer.Q;
+	        
+	        // Suction Filter 2
+	        #Suction_Filter_2_Timer(IN := "Suction_Filter_2",
+	                                PT := #Filter_Debounce_Time);
+	        "DB_HGU_Execution_V17".SUCTION_FILTER_2_STATUS := #Suction_Filter_2_Timer.Q;
+	        
+	        // Suction Filter 3
+	        #Suction_Filter_3_Timer(IN := "Suction_Filter_3",
+	                                PT := #Filter_Debounce_Time);
+	        "DB_HGU_Execution_V17".SUCTION_FILTER_3_STATUS := #Suction_Filter_3_Timer.Q;
+	        
+	        // Suction Filter 4
+	        #Suction_Filter_4_Timer(IN := "Suction_Filter_4",
+	                                PT := #Filter_Debounce_Time);
+	        "DB_HGU_Execution_V17".SUCTION_FILTER_4_STATUS := #Suction_Filter_4_Timer.Q;
+	        
+	        // Suction Filter 5
+	        #Suction_Filter_5_Timer(IN := "Suction_Filter_5",
+	                                PT := #Filter_Debounce_Time);
+	        "DB_HGU_Execution_V17".SUCTION_FILTER_5_STATUS := #Suction_Filter_5_Timer.Q;
+	        
+	        // Suction Filter 6
+	        #Suction_Filter_6_Timer(IN := "Suction_Filter_6",
+	                                PT := #Filter_Debounce_Time);
+	        "DB_HGU_Execution_V17".SUCTION_FILTER_6_STATUS := #Suction_Filter_6_Timer.Q;
+	        
+	        // Suction Filter 7
+	        #Suction_Filter_7_Timer(IN := "Suction_Filter_7",
+	                                PT := #Filter_Debounce_Time);
+	        "DB_HGU_Execution_V17".SUCTION_FILTER_7_STATUS := #Suction_Filter_7_Timer.Q;
+	        
+	        // Individual suction filter errors will be handled in motor control logic
+	        // No need for combined status here
+	        
+	        // =============================================================================
+	        // UPDATE SUMMARY OUTPUTS
+	        // =============================================================================
+	        #Total_Filter_Warnings := #Filter_Warning_Count;    // Aktif warning sayÄ±sÄ±
+	        #Total_Filter_Errors := #Filter_Error_Count;        // Aktif error sayÄ±sÄ±
+	        #Total_Valve_Status_OK := #Valve_OK_Count;
+	        #Warning_Event_Counter := #Total_Warning_Events;    // Toplam warning olayÄ±
+	        #Error_Event_Counter := #Total_Error_Events;        // Toplam error olayÄ±
+	        
+	        // Update DB status variables
+	        "DB_HGU_Execution_V17".DIGITAL_INPUT_PROCESSING_ACTIVE := #Processing_Active;
+	        "DB_HGU_Execution_V17".DIGITAL_INPUT_ERROR_STATUS := #Error_Status;
+	        "DB_HGU_Execution_V17".TOTAL_FILTER_WARNINGS := #Total_Filter_Warnings;
+	        "DB_HGU_Execution_V17".TOTAL_FILTER_ERRORS := #Total_Filter_Errors;
+	        
+	        #Processing_Timer(IN := FALSE,
+	                          PT := T#50ms);
+	    END_IF;
+	    
+	ELSE
+	    // =============================================================================
+	    // DISABLED STATE
+	    // =============================================================================
+	    #Processing_Active := FALSE;
+	    #Error_Status := FALSE;
+	    #Total_Filter_Warnings := 0;
+	    #Total_Filter_Errors := 0;
+	    #Total_Valve_Status_OK := 0;
+	    #Tank_Level_Status := USINT#0;
+	    #Chiller_Flow_OK := FALSE;
+	    #Error_Code := USINT#0;
+	    
+	    #Processing_Timer(IN := FALSE,
+	                      PT := T#50ms);
+	    
+	    // Reset all timer states
+	    #Motor1_Filter_Warning_Timer(IN := FALSE,
+	                                 PT := #Filter_Debounce_Time);
+	    #Motor2_Filter_Warning_Timer(IN := FALSE,
+	                                 PT := #Filter_Debounce_Time);
+	    #Motor3_Filter_Warning_Timer(IN := FALSE,
+	                                 PT := #Filter_Debounce_Time);
+	    #Motor4_Filter_Warning_Timer(IN := FALSE,
+	                                 PT := #Filter_Debounce_Time);
+	    #Motor5_Filter_Warning_Timer(IN := FALSE,
+	                                 PT := #Filter_Debounce_Time);
+	    #Motor6_Filter_Warning_Timer(IN := FALSE,
+	                                 PT := #Filter_Debounce_Time);
+	    #CoilTube_Filter_Warning_Timer(IN := FALSE,
+	                                   PT := #Filter_Debounce_Time);
+	    
+	    #Motor1_Filter_Error_Timer(IN := FALSE,
+	                               PT := #Filter_Debounce_Time);
+	    #Motor2_Filter_Error_Timer(IN := FALSE,
+	                               PT := #Filter_Debounce_Time);
+	    #Motor3_Filter_Error_Timer(IN := FALSE,
+	                               PT := #Filter_Debounce_Time);
+	    #Motor4_Filter_Error_Timer(IN := FALSE,
+	                               PT := #Filter_Debounce_Time);
+	    #Motor5_Filter_Error_Timer(IN := FALSE,
+	                               PT := #Filter_Debounce_Time);
+	    #Motor6_Filter_Error_Timer(IN := FALSE,
+	                               PT := #Filter_Debounce_Time);
+	    #CoilTube_Filter_Error_Timer(IN := FALSE,
+	                                 PT := #Filter_Debounce_Time);
+	    
+	    #Tank_Min_Level_Timer(IN := FALSE,
+	                          PT := #Level_Switch_Debounce_Time);
+	    #Tank_Max_Level_Timer(IN := FALSE,
+	                          PT := #Level_Switch_Debounce_Time);
+	    #Chiller_Flow_Timer(IN := FALSE,
+	                        PT := #Filter_Debounce_Time);
+	    
+	    #Suction_Filter_1_Timer(IN := FALSE,
+	                            PT := #Filter_Debounce_Time);
+	    #Suction_Filter_2_Timer(IN := FALSE,
+	                            PT := #Filter_Debounce_Time);
+	    #Suction_Filter_3_Timer(IN := FALSE,
+	                            PT := #Filter_Debounce_Time);
+	    #Suction_Filter_4_Timer(IN := FALSE,
+	                            PT := #Filter_Debounce_Time);
+	    #Suction_Filter_5_Timer(IN := FALSE,
+	                            PT := #Filter_Debounce_Time);
+	    #Suction_Filter_6_Timer(IN := FALSE,
+	                            PT := #Filter_Debounce_Time);
+	    #Suction_Filter_7_Timer(IN := FALSE,
+	                            PT := #Filter_Debounce_Time);
+	    
+	    #Motor1_Valve_Timer(IN := FALSE,
+	                        PT := #Filter_Debounce_Time);
+	    #Motor2_Valve_Timer(IN := FALSE,
+	                        PT := #Filter_Debounce_Time);
+	    #Motor3_Valve_Timer(IN := FALSE,
+	                        PT := #Filter_Debounce_Time);
+	    #Motor4_Valve_Timer(IN := FALSE,
+	                        PT := #Filter_Debounce_Time);
+	    #Motor5_Valve_Timer(IN := FALSE,
+	                        PT := #Filter_Debounce_Time);
+	    #Motor6_Valve_Timer(IN := FALSE,
+	                        PT := #Filter_Debounce_Time);
+	    #Motor7_Valve_Timer(IN := FALSE,
+	                        PT := #Filter_Debounce_Time);
+	    
+	    // Reset DB outputs
+	    "DB_HGU_Execution_V17".DIGITAL_INPUT_PROCESSING_ACTIVE := FALSE;
+	    "DB_HGU_Execution_V17".DIGITAL_INPUT_ERROR_STATUS := FALSE;
+	    
+	END_IF;
+	
+END_FUNCTION_BLOCK
+

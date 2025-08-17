@@ -1,0 +1,470 @@
+FUNCTION_BLOCK "FB_Pressure_Safety_Valves"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : '1.0'
+// =============================================================================
+// TUSAŞ HGU Pressure Safety Valves Controller V17
+// Purpose: 7 proportional pressure safety valves + bypass valves control
+// Protocol: Ethernet TCP/IP communication to valve controller
+// IP: 192.168.100.22, Port: 40001
+//
+// SEND FRAMES (Control Commands):
+// Frame 1: WORD 1-4 (Proportional valve commands 1-4, 0-3000 mA)
+// Frame 2: WORD 5-7 + BYPASS (Proportional valve commands 5-7 + bypass valve bits)
+//   - WORD 5-7: Proportional commands 5-7 (0-3000 mA)
+//   - Byte 6-7: Bypass valve bits (7 bits, 0=No energy/no pressure, 1=Enable proportional)
+//
+// RECEIVE FRAMES (Feedback Status):
+// Frame 1: WORD 1-4 (Current feedback 1-4, 0-3000 mA)
+// Frame 2: WORD 5-7 (Current feedback 5-7, 0-3000 mA)
+// Frame 3: Status (28 bits = 4 bytes for 7 valves, 2 bits per valve + 14 bits bypass status)
+//   - Status per valve: 0=Undefined, 1=Normal, 2=Short circuit, 3=Overcurrent, 4=Open circuit
+//   - Bypass status: 2 bits per valve (14 bits total)
+//
+// Safety: 250ms watchdog timeout - if no frames received, emergency motor stop!
+// =============================================================================
+
+VAR_INPUT
+    Enable : Bool := FALSE;                    // Enable valve controller
+    Valve_Controller_IP : String[15] := '192.168.100.22'; // Valve controller IP
+    TCP_Port : UInt := 40001;                 // TCP port for valve control
+    Watchdog_Timeout : Time := T#250ms;       // Critical watchdog timeout
+END_VAR
+
+VAR_IN_OUT
+    // No VAR_IN_OUT parameters needed - using direct DB access
+END_VAR
+
+VAR_OUTPUT
+    // Communication status
+    Communication_OK : Bool := FALSE;          // Overall communication status
+    Connection_Established : Bool := FALSE;    // TCP connection status
+    
+    // Critical error status
+    Watchdog_Error : Bool := FALSE;            // CRITICAL: 250ms watchdog error
+    Emergency_Stop_Required : Bool := FALSE;   // CRITICAL: Emergency motor stop required
+    Error_Code : USInt := 0;                  // Error code
+END_VAR
+
+VAR
+    // TCP communication with TRCV_C (TIA Portal V17 compatible)
+    TCP_Receive : TRCV_C;                     // TCP receive function block
+    TCP_Send : TSEND_C;                       // TCP send function block
+    Connect_Param : TCON_IP_v4;               // Connection parameters
+    Connection_Request : Bool := FALSE;        // Connection request flag
+    Connection_Established : Bool := FALSE;    // Connection status
+    Last_Enable : Bool := FALSE;              // Previous enable state
+    
+    // Send buffers (2 frames to send)
+    TX_Buffer_Frame1 : Array[0..7] of Byte;   // Frame 1: Commands 1-4 (8 bytes)
+    TX_Buffer_Frame2 : Array[0..7] of Byte;   // Frame 2: Commands 5-7 + Bypass (8 bytes)
+    Send_Frame_Index : USInt := 1;            // Current frame to send (1 or 2)
+    
+    // Receive buffers (3 frames to receive)
+    RX_Buffer : Array[0..7] of Byte;          // Current receive buffer (8 bytes)
+    Frame_Received : Bool := FALSE;           // New frame received flag
+    Received_Frame_Count : USInt := 0;        // Received frame counter
+    
+    // Send/Receive control
+    Send_Timer : TON;                         // Send timing control
+    Send_Request : Bool := FALSE;             // Send request flag
+    
+    // Watchdog system (CRITICAL SAFETY)
+    Watchdog_Timer : TON;                     // Main watchdog timer
+    Watchdog_Counter : UInt := 0;             // Watchdog counter
+    Last_Communication_OK : Bool := FALSE;    // Previous communication state
+    
+    // State machine
+    State : USInt := 0;                       // 0=Init, 1=Connecting, 2=Connected, 3=Error
+    State_Timer : TON;                        // State transition timer
+    Error_Counter : USInt := 0;               // Consecutive error counter
+    
+    // Statistics
+    Frame_Count_TX : UDInt := 0;              // Transmitted frames
+    Frame_Count_RX : UDInt := 0;              // Received frames
+    
+    // Initialization
+    Init_Complete : Bool := FALSE;            // Initialization complete flag
+    
+    // Temporary conversion variables
+    Temp_Word : Word;
+    Temp_Real : Real;
+    Temp_Byte : Byte;
+    i : USInt;                                // Loop counter
+END_VAR
+
+VAR_TEMP
+    Command_mA : Real;                        // Temporary command in mA
+    Command_Word : Word;                      // Temporary command word
+    Feedback_Word : Word;                     // Temporary feedback word
+    Status_DWord : DWord;                     // Temporary status processing
+    Bypass_Byte : Byte;                       // Temporary bypass byte
+END_VAR
+
+BEGIN
+
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
+IF NOT Init_Complete THEN
+    
+    Communication_OK := FALSE;
+    Connection_Established := FALSE;
+    Watchdog_Error := FALSE;
+    Emergency_Stop_Required := FALSE;
+    Error_Code := 0;
+    
+    // Setup connection parameters for TRCV_C (TCON_IP_v4 structure)
+    Connect_Param.InterfaceId := 64;
+    Connect_Param.ID := 3;                    // Different ID from flowmeter
+    Connect_Param.ConnectionType := BYTE#17;  // TCP connection
+    Connect_Param.ActiveEstablished := TRUE;
+    
+    Connect_Param.RemoteAddress.ADDR[1] := 192; // IP 192.168.100.22
+    Connect_Param.RemoteAddress.ADDR[2] := 168;
+    Connect_Param.RemoteAddress.ADDR[3] := 100;
+    Connect_Param.RemoteAddress.ADDR[4] := 22;
+    Connect_Param.RemotePort := TCP_Port;
+    Connect_Param.LocalPort := UINT#0;
+    
+    State := 0;
+    Send_Frame_Index := 1;
+    Frame_Count_TX := 0;
+    Frame_Count_RX := 0;
+    
+    Init_Complete := TRUE;
+END_IF;
+
+IF Enable AND NOT Last_Enable THEN
+    // Reset on enable
+    State := 0;
+    Error_Code := 0;
+    Watchdog_Error := FALSE;
+    Emergency_Stop_Required := FALSE;
+    Error_Counter := 0;
+    
+    // Reset DB status flags on enable
+    "DB_HGU_Execution_V17".PRESSURE_VALVES_COMMUNICATION_OK := FALSE;
+    "DB_HGU_Execution_V17".PRESSURE_VALVES_CONNECTION_ESTABLISHED := FALSE;
+    "DB_HGU_Execution_V17".PRESSURE_VALVES_TCP_ERROR := FALSE;
+END_IF;
+
+Last_Enable := Enable;
+
+// =============================================================================
+// MAIN CONTROL LOGIC
+// =============================================================================
+IF Enable THEN
+    
+    // =============================================================================
+    // COMMUNICATION STATUS MONITORING (Error logic moved to Error Manager)
+    // =============================================================================
+    Watchdog_Timer(IN := NOT Communication_OK, PT := Watchdog_Timeout);
+    
+    // Report status to DB for Error Manager processing
+    "DB_HGU_Execution_V17".PRESSURE_VALVES_COMMUNICATION_OK := Communication_OK;
+    "DB_HGU_Execution_V17".PRESSURE_VALVES_CONNECTION_ESTABLISHED := Connection_Established;
+    
+    // Simple status flags (Error Manager handles logic)
+    Watchdog_Error := Watchdog_Timer.Q;  // Simple timeout flag
+    Emergency_Stop_Required := Watchdog_Timer.Q;  // Emergency required when watchdog timeout
+    IF Watchdog_Timer.Q THEN
+        Error_Code := 1; // Watchdog timeout
+    END_IF;
+    
+    // =============================================================================
+    // PREPARE SEND FRAMES
+    // =============================================================================
+    
+    // Frame 1: Commands 1-4 (8 bytes = 4 words)
+    // Use DB_HGU_Execution proportional relief valve setpoints (0-10000)
+    Command_Word := UINT_TO_WORD("DB_HGU_Execution_V17".PROP_REL_VLV_1_SETPOINT);
+    TX_Buffer_Frame1[0] := WORD_TO_BYTE(Command_Word);
+    TX_Buffer_Frame1[1] := WORD_TO_BYTE(SHR(IN := Command_Word, N := 8));
+    
+    Command_Word := UINT_TO_WORD("DB_HGU_Execution_V17".PROP_REL_VLV_2_SETPOINT);
+    TX_Buffer_Frame1[2] := WORD_TO_BYTE(Command_Word);
+    TX_Buffer_Frame1[3] := WORD_TO_BYTE(SHR(IN := Command_Word, N := 8));
+    
+    Command_Word := UINT_TO_WORD("DB_HGU_Execution_V17".PROP_REL_VLV_3_SETPOINT);
+    TX_Buffer_Frame1[4] := WORD_TO_BYTE(Command_Word);
+    TX_Buffer_Frame1[5] := WORD_TO_BYTE(SHR(IN := Command_Word, N := 8));
+    
+    Command_Word := UINT_TO_WORD("DB_HGU_Execution_V17".PROP_REL_VLV_4_SETPOINT);
+    TX_Buffer_Frame1[6] := WORD_TO_BYTE(Command_Word);
+    TX_Buffer_Frame1[7] := WORD_TO_BYTE(SHR(IN := Command_Word, N := 8));
+    
+    // Frame 2: Commands 5-7 + Bypass valves
+    Command_Word := UINT_TO_WORD("DB_HGU_Execution_V17".PROP_REL_VLV_5_SETPOINT);
+    TX_Buffer_Frame2[0] := WORD_TO_BYTE(Command_Word);
+    TX_Buffer_Frame2[1] := WORD_TO_BYTE(SHR(IN := Command_Word, N := 8));
+    
+    Command_Word := UINT_TO_WORD("DB_HGU_Execution_V17".PROP_REL_VLV_6_SETPOINT);
+    TX_Buffer_Frame2[2] := WORD_TO_BYTE(Command_Word);
+    TX_Buffer_Frame2[3] := WORD_TO_BYTE(SHR(IN := Command_Word, N := 8));
+    
+    Command_Word := UINT_TO_WORD("DB_HGU_Execution_V17".PROP_REL_VLV_7_SETPOINT);
+    TX_Buffer_Frame2[4] := WORD_TO_BYTE(Command_Word);
+    TX_Buffer_Frame2[5] := WORD_TO_BYTE(SHR(IN := Command_Word, N := 8));
+    
+    // Bypass valve bits (byte 6-7) - use DB bypass commands
+    Bypass_Byte := 0;
+    IF "DB_HGU_Execution_V17".BYPASS_VLV_1 THEN Bypass_Byte := Bypass_Byte OR 2#00000001; END_IF;
+    IF "DB_HGU_Execution_V17".BYPASS_VLV_2 THEN Bypass_Byte := Bypass_Byte OR 2#00000010; END_IF;
+    IF "DB_HGU_Execution_V17".BYPASS_VLV_3 THEN Bypass_Byte := Bypass_Byte OR 2#00000100; END_IF;
+    IF "DB_HGU_Execution_V17".BYPASS_VLV_4 THEN Bypass_Byte := Bypass_Byte OR 2#00001000; END_IF;
+    IF "DB_HGU_Execution_V17".BYPASS_VLV_5 THEN Bypass_Byte := Bypass_Byte OR 2#00010000; END_IF;
+    IF "DB_HGU_Execution_V17".BYPASS_VLV_6 THEN Bypass_Byte := Bypass_Byte OR 2#00100000; END_IF;
+    IF "DB_HGU_Execution_V17".BYPASS_VLV_7 THEN Bypass_Byte := Bypass_Byte OR 2#01000000; END_IF;
+    
+    TX_Buffer_Frame2[6] := Bypass_Byte;
+    TX_Buffer_Frame2[7] := 0; // Reserved
+    
+    // =============================================================================
+    // TCP COMMUNICATION STATE MACHINE
+    // =============================================================================
+    CASE State OF
+        0: // Initialization
+           Connection_Request := TRUE;
+           State_Timer(IN := TRUE, PT := T#2s);
+           IF State_Timer.Q THEN
+               State := 1;
+               State_Timer(IN := FALSE, PT := T#2s);
+           END_IF;
+           
+        1: // Connecting
+           TCP_Receive(
+               EN_R := TRUE,
+               CONT := Connection_Request,
+               LEN := UDINT#8,                  // 8-byte frames
+               CONNECT := Connect_Param,
+               DATA := RX_Buffer
+           );
+           
+           TCP_Send(
+               REQ := FALSE,  // No send request during connection establishment
+               CONT := Connection_Request,
+               LEN := UDINT#8,
+               CONNECT := Connect_Param,
+               DATA := TX_Buffer_Frame1        // Start with frame 1
+           );
+           
+           Connection_Established := NOT TCP_Receive.ERROR AND NOT TCP_Send.ERROR;
+           
+           IF Connection_Established THEN
+               State := 2;
+               Error_Counter := 0;
+               Send_Timer(IN := FALSE, PT := T#100ms);
+               Error_Code := 0; // Clear error when connected
+           ELSIF TCP_Receive.ERROR OR TCP_Send.ERROR THEN
+               State := 3;
+               Error_Code := 2; // Communication error
+               Error_Counter := Error_Counter + 1;
+           END_IF;
+           
+           // Report TCP error status to DB for Error Manager
+           "DB_HGU_Execution_V17".PRESSURE_VALVES_TCP_ERROR := (TCP_Receive.ERROR OR TCP_Send.ERROR);
+           
+        2: // Connected and running
+           // Send control with timing
+           Send_Timer(IN := TRUE, PT := T#100ms); // 100ms send cycle
+           
+           IF Send_Timer.Q THEN
+               Send_Request := TRUE;  // Generate rising edge for REQ
+               Send_Timer(IN := FALSE, PT := T#100ms);
+           ELSE
+               Send_Request := FALSE; // Reset after one cycle
+           END_IF;
+           
+           // Alternate between frame 1 and frame 2
+           IF Send_Frame_Index = 1 THEN
+               TCP_Send(
+                   REQ := Send_Request,
+                   CONT := TRUE,
+                   LEN := UDINT#8,
+                   CONNECT := Connect_Param,
+                   DATA := TX_Buffer_Frame1
+               );
+               IF Send_Request THEN
+                   Send_Frame_Index := 2;
+                   Frame_Count_TX := Frame_Count_TX + 1;
+               END_IF;
+           ELSE
+               TCP_Send(
+                   REQ := Send_Request,
+                   CONT := TRUE,
+                   LEN := UDINT#8,
+                   CONNECT := Connect_Param,
+                   DATA := TX_Buffer_Frame2
+               );
+               IF Send_Request THEN
+                   Send_Frame_Index := 1;
+                   Frame_Count_TX := Frame_Count_TX + 1;
+               END_IF;
+           END_IF;
+           
+           // Receive feedback
+           TCP_Receive(
+               EN_R := TRUE,
+               CONT := TRUE,
+               LEN := UDINT#8,
+               CONNECT := Connect_Param,
+               DATA := RX_Buffer
+           );
+           
+           Frame_Received := TCP_Receive.DONE;
+           Connection_Established := NOT TCP_Receive.ERROR AND NOT TCP_Send.ERROR;
+           Communication_OK := Connection_Established;
+           
+           // Report TCP error status to DB for Error Manager
+           "DB_HGU_Execution_V17".PRESSURE_VALVES_TCP_ERROR := (TCP_Receive.ERROR OR TCP_Send.ERROR);
+           
+           IF TCP_Receive.ERROR OR TCP_Send.ERROR THEN
+               State := 3;
+               Error_Code := 2; // Communication error
+               Error_Counter := Error_Counter + 1;
+           ELSE
+               Error_Code := 0; // Clear error when communication OK
+           END_IF;
+           
+        3: // Error state
+           Connection_Established := FALSE;
+           Communication_OK := FALSE;
+           
+           // Try to reconnect after delay
+           State_Timer(IN := TRUE, PT := T#5s);
+           IF State_Timer.Q AND Error_Counter < 5 THEN
+               State := 0; // Return to initialization
+               State_Timer(IN := FALSE, PT := T#5s);
+           END_IF;
+    END_CASE;
+    
+    // =============================================================================
+    // RECEIVE FRAME PROCESSING
+    // =============================================================================
+    IF Frame_Received THEN
+        Frame_Count_RX := Frame_Count_RX + 1;
+        Received_Frame_Count := Received_Frame_Count + 1;
+        
+        // Process received frame based on expected sequence
+        CASE (Received_Frame_Count MOD 3) OF
+            1: // Frame 1: Feedback currents 1-4
+               Feedback_Word := BYTE_TO_WORD(RX_Buffer[0]) OR SHL(IN := BYTE_TO_WORD(RX_Buffer[1]), N := 8);
+               "DB_HGU_Execution_V17".PROP_REL_VLV_1_FEEDBACK_CURRENT := WORD_TO_UINT(Feedback_Word);
+               
+               Feedback_Word := BYTE_TO_WORD(RX_Buffer[2]) OR SHL(IN := BYTE_TO_WORD(RX_Buffer[3]), N := 8);
+               "DB_HGU_Execution_V17".PROP_REL_VLV_2_FEEDBACK_CURRENT := WORD_TO_UINT(Feedback_Word);
+               
+               Feedback_Word := BYTE_TO_WORD(RX_Buffer[4]) OR SHL(IN := BYTE_TO_WORD(RX_Buffer[5]), N := 8);
+               "DB_HGU_Execution_V17".PROP_REL_VLV_3_FEEDBACK_CURRENT := WORD_TO_UINT(Feedback_Word);
+               
+               Feedback_Word := BYTE_TO_WORD(RX_Buffer[6]) OR SHL(IN := BYTE_TO_WORD(RX_Buffer[7]), N := 8);
+               "DB_HGU_Execution_V17".PROP_REL_VLV_4_FEEDBACK_CURRENT := WORD_TO_UINT(Feedback_Word);
+               
+            2: // Frame 2: Feedback currents 5-7
+               Feedback_Word := BYTE_TO_WORD(RX_Buffer[0]) OR SHL(IN := BYTE_TO_WORD(RX_Buffer[1]), N := 8);
+               "DB_HGU_Execution_V17".PROP_REL_VLV_5_FEEDBACK_CURRENT := WORD_TO_UINT(Feedback_Word);
+               
+               Feedback_Word := BYTE_TO_WORD(RX_Buffer[2]) OR SHL(IN := BYTE_TO_WORD(RX_Buffer[3]), N := 8);
+               "DB_HGU_Execution_V17".PROP_REL_VLV_6_FEEDBACK_CURRENT := WORD_TO_UINT(Feedback_Word);
+               
+               Feedback_Word := BYTE_TO_WORD(RX_Buffer[4]) OR SHL(IN := BYTE_TO_WORD(RX_Buffer[5]), N := 8);
+               "DB_HGU_Execution_V17".PROP_REL_VLV_7_FEEDBACK_CURRENT := WORD_TO_UINT(Feedback_Word);
+               
+            0: // Frame 3: Status information (28 bits for 7 valves + 14 bits bypass)
+               Status_DWord := BYTE_TO_DWORD(RX_Buffer[0]) OR 
+                              SHL(IN := BYTE_TO_DWORD(RX_Buffer[1]), N := 8) OR
+                              SHL(IN := BYTE_TO_DWORD(RX_Buffer[2]), N := 16) OR
+                              SHL(IN := BYTE_TO_DWORD(RX_Buffer[3]), N := 24);
+               
+               // Extract status for each valve (2 bits per valve, 0-4 status codes)
+               "DB_HGU_Execution_V17".PROP_REL_VLV_1_STATUS := DWORD_TO_USINT(Status_DWord AND 16#00000003);
+               "DB_HGU_Execution_V17".PROP_REL_VLV_2_STATUS := DWORD_TO_USINT((Status_DWord AND 16#0000000C) / 4);
+               "DB_HGU_Execution_V17".PROP_REL_VLV_3_STATUS := DWORD_TO_USINT((Status_DWord AND 16#00000030) / 16);
+               "DB_HGU_Execution_V17".PROP_REL_VLV_4_STATUS := DWORD_TO_USINT((Status_DWord AND 16#000000C0) / 64);
+               "DB_HGU_Execution_V17".PROP_REL_VLV_5_STATUS := DWORD_TO_USINT((Status_DWord AND 16#00000300) / 256);
+               "DB_HGU_Execution_V17".PROP_REL_VLV_6_STATUS := DWORD_TO_USINT((Status_DWord AND 16#00000C00) / 1024);
+               "DB_HGU_Execution_V17".PROP_REL_VLV_7_STATUS := DWORD_TO_USINT((Status_DWord AND 16#00003000) / 4096);
+               
+               // Extract bypass valve status (2 bits per valve, starting from bit 14)
+               "DB_HGU_Execution_V17".BYPASS_VLV_1_STATUS := DWORD_TO_USINT((Status_DWord AND 16#0000C000) / 16384);
+               "DB_HGU_Execution_V17".BYPASS_VLV_2_STATUS := DWORD_TO_USINT((Status_DWord AND 16#00030000) / 65536);
+               "DB_HGU_Execution_V17".BYPASS_VLV_3_STATUS := DWORD_TO_USINT((Status_DWord AND 16#000C0000) / 262144);
+               "DB_HGU_Execution_V17".BYPASS_VLV_4_STATUS := DWORD_TO_USINT((Status_DWord AND 16#00300000) / 1048576);
+               "DB_HGU_Execution_V17".BYPASS_VLV_5_STATUS := DWORD_TO_USINT((Status_DWord AND 16#00C00000) / 4194304);
+               "DB_HGU_Execution_V17".BYPASS_VLV_6_STATUS := DWORD_TO_USINT((Status_DWord AND 16#03000000) / 16777216);
+               "DB_HGU_Execution_V17".BYPASS_VLV_7_STATUS := DWORD_TO_USINT((Status_DWord AND 16#0C000000) / 67108864);
+        END_CASE;
+        
+        // Reset status flags on successful communication
+        Error_Code := 0; // Clear errors on successful communication
+    END_IF;
+    
+ELSE
+    // =============================================================================
+    // DISABLED STATE
+    // =============================================================================
+    
+    // Disable TCP communication
+    TCP_Receive(
+        EN_R := FALSE,
+        CONT := FALSE,
+        LEN := UDINT#0,
+        CONNECT := Connect_Param,
+        DATA := RX_Buffer
+    );
+    
+    TCP_Send(
+        REQ := FALSE,
+        CONT := FALSE,
+        LEN := UDINT#0,
+        CONNECT := Connect_Param,
+        DATA := TX_Buffer_Frame1
+    );
+    
+    Connection_Established := FALSE;
+    Communication_OK := FALSE;
+    State := 0;
+    
+    // Reset all DB outputs
+    "DB_HGU_Execution_V17".PROP_REL_VLV_1_FEEDBACK_CURRENT := 0;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_2_FEEDBACK_CURRENT := 0;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_3_FEEDBACK_CURRENT := 0;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_4_FEEDBACK_CURRENT := 0;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_5_FEEDBACK_CURRENT := 0;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_6_FEEDBACK_CURRENT := 0;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_7_FEEDBACK_CURRENT := 0;
+    
+    "DB_HGU_Execution_V17".PROP_REL_VLV_1_STATUS := 0;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_2_STATUS := 0;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_3_STATUS := 0;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_4_STATUS := 0;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_5_STATUS := 0;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_6_STATUS := 0;
+    "DB_HGU_Execution_V17".PROP_REL_VLV_7_STATUS := 0;
+    
+    "DB_HGU_Execution_V17".BYPASS_VLV_1_STATUS := 0;
+    "DB_HGU_Execution_V17".BYPASS_VLV_2_STATUS := 0;
+    "DB_HGU_Execution_V17".BYPASS_VLV_3_STATUS := 0;
+    "DB_HGU_Execution_V17".BYPASS_VLV_4_STATUS := 0;
+    "DB_HGU_Execution_V17".BYPASS_VLV_5_STATUS := 0;
+    "DB_HGU_Execution_V17".BYPASS_VLV_6_STATUS := 0;
+    "DB_HGU_Execution_V17".BYPASS_VLV_7_STATUS := 0;
+    
+    // Reset status flags in disabled state
+    Watchdog_Error := FALSE;
+    Emergency_Stop_Required := FALSE;
+    Error_Code := 0;
+    
+    // Reset DB status flags
+    "DB_HGU_Execution_V17".PRESSURE_VALVES_COMMUNICATION_OK := FALSE;
+    "DB_HGU_Execution_V17".PRESSURE_VALVES_CONNECTION_ESTABLISHED := FALSE;
+    "DB_HGU_Execution_V17".PRESSURE_VALVES_TCP_ERROR := FALSE;
+    
+    // Stop timers
+    Watchdog_Timer(IN := FALSE, PT := Watchdog_Timeout);
+    Send_Timer(IN := FALSE, PT := T#100ms);
+    State_Timer(IN := FALSE, PT := T#2s);
+    
+END_IF;
+
+END_FUNCTION_BLOCK

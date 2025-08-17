@@ -1,0 +1,394 @@
+FUNCTION_BLOCK "FB_Motor_Selection"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : '1.0'
+// =============================================================================
+// TUSAŞ HGU Motor Selection V17
+// Purpose: Wear leveling algorithm for motor selection (Motors 1-6)
+// Features: Balanced wear, minimum motor count, maintenance tracking
+// Motor 7: Fixed displacement - separate control
+// =============================================================================
+
+VAR_INPUT
+    Enable : Bool := FALSE;                    // Enable motor selection
+    Wear_Leveling_Enable : Bool := TRUE;      // Enable wear leveling algorithm
+    Required_Total_Flow : Real := 0.0;        // Total required flow (L/min)
+    
+    // Motor enable status (1-6)
+    Motor_1_Enable : Bool := FALSE;
+    Motor_2_Enable : Bool := FALSE;
+    Motor_3_Enable : Bool := FALSE;
+    Motor_4_Enable : Bool := FALSE;
+    Motor_5_Enable : Bool := FALSE;
+    Motor_6_Enable : Bool := FALSE;
+    Motor_7_Enable : Bool := FALSE;           // Motor 7 separate
+    
+    // Motor operating hours (1-6)
+    Motor_1_Hours : Real := 0.0;
+    Motor_2_Hours : Real := 0.0;
+    Motor_3_Hours : Real := 0.0;
+    Motor_4_Hours : Real := 0.0;
+    Motor_5_Hours : Real := 0.0;
+    Motor_6_Hours : Real := 0.0;
+    
+    // Motor maintenance status (1-6)
+    Motor_1_Maintenance_Due : Bool := FALSE;
+    Motor_2_Maintenance_Due : Bool := FALSE;
+    Motor_3_Maintenance_Due : Bool := FALSE;
+    Motor_4_Maintenance_Due : Bool := FALSE;
+    Motor_5_Maintenance_Due : Bool := FALSE;
+    Motor_6_Maintenance_Due : Bool := FALSE;
+    
+    // Safety status inputs (1-7)
+    Pump_1_Line_Filter_Status : USInt := 2;
+    Pump_1_Suction_Filter_Status : USInt := 1;
+    Pump_1_Manual_Valve_Status : USInt := 1;
+    
+    Pump_2_Line_Filter_Status : USInt := 2;
+    Pump_2_Suction_Filter_Status : USInt := 1;
+    Pump_2_Manual_Valve_Status : USInt := 1;
+    
+    Pump_3_Line_Filter_Status : USInt := 2;
+    Pump_3_Suction_Filter_Status : USInt := 1;
+    Pump_3_Manual_Valve_Status : USInt := 1;
+    
+    Pump_4_Line_Filter_Status : USInt := 2;
+    Pump_4_Suction_Filter_Status : USInt := 1;
+    Pump_4_Manual_Valve_Status : USInt := 1;
+    
+    Pump_5_Line_Filter_Status : USInt := 2;
+    Pump_5_Suction_Filter_Status : USInt := 1;
+    Pump_5_Manual_Valve_Status : USInt := 1;
+    
+    Pump_6_Line_Filter_Status : USInt := 2;
+    Pump_6_Suction_Filter_Status : USInt := 1;
+    Pump_6_Manual_Valve_Status : USInt := 1;
+    
+    Pump_7_Line_Filter_Status : USInt := 2;
+    Pump_7_Suction_Filter_Status : USInt := 1;
+    Pump_7_Manual_Valve_Status : USInt := 1;
+    
+    // System parameters
+    Motor_Displacement : Real := 100.0;       // Motor displacement (cc/rev)
+    Max_Motor_RPM : Real := 1500.0;          // Maximum motor RPM
+    Motor_7_Fixed_Flow : Real := 34.0;       // Motor 7 fixed flow (L/min)
+END_VAR
+
+VAR_OUTPUT
+    // Motor selection results (1-6)
+    Motor_1_Selected : Bool := FALSE;
+    Motor_2_Selected : Bool := FALSE;
+    Motor_3_Selected : Bool := FALSE;
+    Motor_4_Selected : Bool := FALSE;
+    Motor_5_Selected : Bool := FALSE;
+    Motor_6_Selected : Bool := FALSE;
+    Motor_7_Selected : Bool := FALSE;         // Motor 7 selection
+    
+    // Selection information
+    Selected_Motor_Count : USInt := 0;        // Number of selected motors
+    Total_Available_Flow : Real := 0.0;      // Total available flow capacity
+    Selection_Valid : Bool := FALSE;          // Selection is valid for required flow
+    
+    // Error outputs
+    Error_Status : Bool := FALSE;             // Error condition
+    Error_Code : USInt := 0;                  // Error code
+END_VAR
+
+VAR
+    // Initialize flag  
+    Init_Complete : Bool := FALSE;            // Initialization complete
+    // Motor selection arrays
+    Motor_Available : Array[1..6] of Bool;   // Available motors (enabled & not in maintenance)
+    Motor_Hours_Array : Array[1..6] of Real; // Operating hours array
+    Motor_Priority : Array[1..6] of USInt;   // Selection priority (0=highest)
+    Motor_Selected_Array : Array[1..6] of Bool; // Selected motors array
+    
+    // Calculation variables
+    Max_Flow_Per_Motor : Real := 0.0;        // Maximum flow per motor (L/min)
+    Required_Motor_Count : USInt := 0;        // Required number of motors
+    Available_Motor_Count : USInt := 0;       // Number of available motors
+    Total_Required_Flow : Real := 0.0;       // Total flow including Motor 7
+    
+    // Wear leveling variables
+    Min_Hours : Real := 0.0;                 // Minimum operating hours
+    Max_Hours : Real := 0.0;                 // Maximum operating hours
+    Temp_Hours : Real := 0.0;                // Temporary hours for sorting
+    
+    // Loop counters
+    i : USInt;
+    j : USInt;
+    k : USInt;
+    Selected_Count : USInt;
+    
+    // Status tracking
+    Last_Enable : Bool := FALSE;              // Previous enable state
+    Selection_Timer : TON;                    // Selection calculation timer
+END_VAR
+
+VAR_TEMP
+    Temp_Bool : Bool;                         // Temporary boolean
+    Temp_USInt : USInt;                       // Temporary USInt
+    Flow_Deficit : Real;                      // Remaining flow to be covered
+END_VAR
+
+BEGIN
+
+// Force initialization of outputs first
+Motor_7_Selected := FALSE;
+
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
+IF NOT Init_Complete THEN
+    // First-time initialization
+    FOR i := 1 TO 6 DO
+        Motor_Selected_Array[i] := FALSE;
+        Motor_Available[i] := FALSE;
+        Motor_Hours_Array[i] := 0.0;
+        Motor_Priority[i] := i;
+    END_FOR;
+    Motor_7_Selected := FALSE;
+    Selected_Motor_Count := 0;
+    Total_Available_Flow := 0.0;
+    Selection_Valid := FALSE;
+    Error_Status := FALSE;
+    Error_Code := 0;
+    Init_Complete := TRUE;
+END_IF;
+
+IF Enable AND NOT Last_Enable THEN
+    // Reset all selections
+    FOR i := 1 TO 6 DO
+        Motor_Selected_Array[i] := FALSE;
+    END_FOR;
+    Motor_7_Selected := FALSE;
+    Selected_Motor_Count := 0;
+    Error_Status := FALSE;
+    Error_Code := 0;
+END_IF;
+
+Last_Enable := Enable;
+
+// =============================================================================
+// MAIN SELECTION ALGORITHM
+// =============================================================================
+IF Enable THEN
+    
+    // =============================================================================
+    // STEP 1: PREPARE MOTOR AVAILABILITY MATRIX WITH SAFETY CHECKS
+    // =============================================================================
+    
+    // Motor 1 Safety Check
+    Motor_Available[1] := Motor_1_Enable AND 
+                         NOT Motor_1_Maintenance_Due AND
+                         (Pump_1_Line_Filter_Status <> 0) AND      // Line filter OK
+                         (Pump_1_Suction_Filter_Status <> 0) AND   // Suction filter OK
+                         (Pump_1_Manual_Valve_Status = 1);         // Manual valve open
+    
+    // Motor 2 Safety Check
+    Motor_Available[2] := Motor_2_Enable AND 
+                         NOT Motor_2_Maintenance_Due AND
+                         (Pump_2_Line_Filter_Status <> 0) AND      // Line filter OK
+                         (Pump_2_Suction_Filter_Status <> 0) AND   // Suction filter OK
+                         (Pump_2_Manual_Valve_Status = 1);         // Manual valve open
+    
+    // Motor 3 Safety Check
+    Motor_Available[3] := Motor_3_Enable AND 
+                         NOT Motor_3_Maintenance_Due AND
+                         (Pump_3_Line_Filter_Status <> 0) AND      // Line filter OK
+                         (Pump_3_Suction_Filter_Status <> 0) AND   // Suction filter OK
+                         (Pump_3_Manual_Valve_Status = 1);         // Manual valve open
+    
+    // Motor 4 Safety Check
+    Motor_Available[4] := Motor_4_Enable AND 
+                         NOT Motor_4_Maintenance_Due AND
+                         (Pump_4_Line_Filter_Status <> 0) AND      // Line filter OK
+                         (Pump_4_Suction_Filter_Status <> 0) AND   // Suction filter OK
+                         (Pump_4_Manual_Valve_Status = 1);         // Manual valve open
+    
+    // Motor 5 Safety Check
+    Motor_Available[5] := Motor_5_Enable AND 
+                         NOT Motor_5_Maintenance_Due AND
+                         (Pump_5_Line_Filter_Status <> 0) AND      // Line filter OK
+                         (Pump_5_Suction_Filter_Status <> 0) AND   // Suction filter OK
+                         (Pump_5_Manual_Valve_Status = 1);         // Manual valve open
+    
+    // Motor 6 Safety Check
+    Motor_Available[6] := Motor_6_Enable AND 
+                         NOT Motor_6_Maintenance_Due AND
+                         (Pump_6_Line_Filter_Status <> 0) AND      // Line filter OK
+                         (Pump_6_Suction_Filter_Status <> 0) AND   // Suction filter OK
+                         (Pump_6_Manual_Valve_Status = 1);         // Manual valve open
+    
+    Motor_Hours_Array[1] := Motor_1_Hours;
+    Motor_Hours_Array[2] := Motor_2_Hours;
+    Motor_Hours_Array[3] := Motor_3_Hours;
+    Motor_Hours_Array[4] := Motor_4_Hours;
+    Motor_Hours_Array[5] := Motor_5_Hours;
+    Motor_Hours_Array[6] := Motor_6_Hours;
+    
+    // Count available motors
+    Available_Motor_Count := 0;
+    FOR i := 1 TO 6 DO
+        IF Motor_Available[i] THEN
+            Available_Motor_Count := Available_Motor_Count + 1;
+        END_IF;
+    END_FOR;
+    
+    // =============================================================================
+    // STEP 2: CALCULATE FLOW REQUIREMENTS
+    // =============================================================================
+    Max_Flow_Per_Motor := (Max_Motor_RPM * Motor_Displacement) / 1000.0; // L/min
+    Total_Required_Flow := Required_Total_Flow;
+    
+    // Check if Motor 7 is needed and available
+    IF Motor_7_Enable AND (Total_Required_Flow > 0.0) THEN
+        Motor_7_Selected := TRUE;
+        Total_Required_Flow := Total_Required_Flow - Motor_7_Fixed_Flow;
+    ELSE
+        Motor_7_Selected := FALSE;
+    END_IF;
+    
+    // Ensure non-negative flow requirement
+    IF Total_Required_Flow < 0.0 THEN
+        Total_Required_Flow := 0.0;
+    END_IF;
+    
+    // Calculate required motor count for remaining flow
+    IF Total_Required_Flow > 0.0 THEN
+        Required_Motor_Count := REAL_TO_USINT(CEIL(Total_Required_Flow / Max_Flow_Per_Motor));
+        IF Required_Motor_Count > 6 THEN
+            Required_Motor_Count := 6; // Maximum 6 variable motors
+        END_IF;
+    ELSE
+        Required_Motor_Count := 0;
+    END_IF;
+    
+    // =============================================================================
+    // STEP 3: MOTOR SELECTION ALGORITHM
+    // =============================================================================
+    
+    // Reset selection
+    FOR i := 1 TO 6 DO
+        Motor_Selected_Array[i] := FALSE;
+        Motor_Priority[i] := 99; // High number = low priority
+    END_FOR;
+    
+    IF Required_Motor_Count > 0 AND Available_Motor_Count >= Required_Motor_Count THEN
+        
+        IF Wear_Leveling_Enable THEN
+            // =============================================================================
+            // WEAR LEVELING MODE: Select motors with least operating hours
+            // =============================================================================
+            
+            // Assign priority based on operating hours (lower hours = higher priority)
+            FOR i := 1 TO 6 DO
+                IF Motor_Available[i] THEN
+                    Motor_Priority[i] := 0; // Initialize as available
+                END_IF;
+            END_FOR;
+            
+            // Sort available motors by operating hours (bubble sort)
+            FOR i := 1 TO 5 DO
+                FOR j := i + 1 TO 6 DO
+                    IF Motor_Available[i] AND Motor_Available[j] THEN
+                        IF Motor_Hours_Array[i] > Motor_Hours_Array[j] THEN
+                            // Swap hours
+                            Temp_Hours := Motor_Hours_Array[i];
+                            Motor_Hours_Array[i] := Motor_Hours_Array[j];
+                            Motor_Hours_Array[j] := Temp_Hours;
+                            
+                            // Swap availability
+                            Temp_Bool := Motor_Available[i];
+                            Motor_Available[i] := Motor_Available[j];
+                            Motor_Available[j] := Temp_Bool;
+                        END_IF;
+                    END_IF;
+                END_FOR;
+            END_FOR;
+            
+            // Select required number of motors with lowest hours
+            Selected_Count := 0;
+            FOR i := 1 TO 6 DO
+                IF Motor_Available[i] AND Selected_Count < Required_Motor_Count THEN
+                    Motor_Selected_Array[i] := TRUE;
+                    Selected_Count := Selected_Count + 1;
+                END_IF;
+            END_FOR;
+            
+        ELSE
+            // =============================================================================
+            // MANUAL MODE: Select first available motors
+            // =============================================================================
+            Selected_Count := 0;
+            FOR i := 1 TO 6 DO
+                IF Motor_Available[i] AND Selected_Count < Required_Motor_Count THEN
+                    Motor_Selected_Array[i] := TRUE;
+                    Selected_Count := Selected_Count + 1;
+                END_IF;
+            END_FOR;
+        END_IF;
+        
+        Selected_Motor_Count := Selected_Count;
+        
+        // Check if selection is sufficient
+        Total_Available_Flow := USINT_TO_REAL(Selected_Count) * Max_Flow_Per_Motor;
+        IF Motor_7_Selected THEN
+            Total_Available_Flow := Total_Available_Flow + Motor_7_Fixed_Flow;
+        END_IF;
+        
+        Selection_Valid := (Total_Available_Flow >= Required_Total_Flow);
+        
+        IF NOT Selection_Valid THEN
+            Error_Status := TRUE;
+            Error_Code := 1; // Insufficient motor capacity
+        ELSE
+            Error_Status := FALSE;
+            Error_Code := 0;
+        END_IF;
+        
+    ELSE
+        // =============================================================================
+        // ERROR CONDITIONS
+        // =============================================================================
+        Selected_Motor_Count := 0;
+        Selection_Valid := FALSE;
+        
+        IF Available_Motor_Count < Required_Motor_Count THEN
+            Error_Status := TRUE;
+            Error_Code := 2; // Not enough available motors
+        ELSE
+            Error_Status := FALSE;
+            Error_Code := 0;
+        END_IF;
+    END_IF;
+    
+    // =============================================================================
+    // STEP 4: OUTPUT ASSIGNMENT
+    // =============================================================================
+    Motor_1_Selected := Motor_Selected_Array[1];
+    Motor_2_Selected := Motor_Selected_Array[2];
+    Motor_3_Selected := Motor_Selected_Array[3];
+    Motor_4_Selected := Motor_Selected_Array[4];
+    Motor_5_Selected := Motor_Selected_Array[5];
+    Motor_6_Selected := Motor_Selected_Array[6];
+    
+ELSE
+    // =============================================================================
+    // DISABLED STATE
+    // =============================================================================
+    Motor_1_Selected := FALSE;
+    Motor_2_Selected := FALSE;
+    Motor_3_Selected := FALSE;
+    Motor_4_Selected := FALSE;
+    Motor_5_Selected := FALSE;
+    Motor_6_Selected := FALSE;
+    Motor_7_Selected := FALSE;
+    
+    Selected_Motor_Count := 0;
+    Total_Available_Flow := 0.0;
+    Selection_Valid := FALSE;
+    Error_Status := FALSE;
+    Error_Code := 0;
+END_IF;
+
+END_FUNCTION_BLOCK

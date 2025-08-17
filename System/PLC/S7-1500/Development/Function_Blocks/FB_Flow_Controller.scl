@@ -1,0 +1,169 @@
+FUNCTION_BLOCK "FB_Flow_Controller"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : '1.0'
+// =============================================================================
+// TUSAŞ HGU Flow Controller V17
+// Purpose: Flow-based motor RPM control with correction algorithm
+// Motor 1-6: Variable displacement (100cc), Motor 7: Fixed displacement
+// Features: Basic RPM calculation + fine-tuning correction
+// =============================================================================
+
+VAR_INPUT
+    Enable : Bool := FALSE;                    // Enable flow controller
+    Flow_Setpoint : Real := 0.0;              // Target flow (L/min)
+    Flow_Actual : Real := 0.0;                // Flow meter reading (L/min)
+    Motor_Displacement : Real := 100.0;       // Motor displacement (cc/rev)
+    Motor_Number : USInt := 1;                // Motor number (1-7)
+    
+    // Correction algorithm parameters
+    Error_Threshold : Real := 2.0;            // ±2 L/min tolerance
+    Correction_Factor : Real := 0.1;          // Correction gain (0.1 default)
+    Max_Correction : Real := 50.0;            // Maximum RPM correction
+    Max_RPM : Real := 1500.0;                 // Maximum motor RPM
+END_VAR
+
+VAR_OUTPUT
+    Motor_RPM : Real := 0.0;                  // Calculated motor RPM
+    Flow_Error : Real := 0.0;                 // Flow error (L/min)
+    Control_Active : Bool := FALSE;           // Controller active status
+    Error_Status : Bool := FALSE;             // Error condition
+    Error_Code : USInt := 0;                  // Error code
+END_VAR
+
+VAR
+    // Internal calculations
+    Basic_RPM : Real := 0.0;                  // Basic RPM from flow setpoint
+    Correction_RPM : Real := 0.0;             // RPM correction value
+    Displacement_L_per_Rev : Real := 0.0;     // Displacement in L/rev
+    
+    // Status tracking
+    Last_Enable : Bool := FALSE;              // Previous enable state
+    Startup_Timer : TON;                      // Startup delay timer
+    
+    // Error detection
+    Flow_Error_Timer : TON;                   // Flow error persistence timer
+    Out_of_Range_Timer : TON;                 // Out of range timer
+END_VAR
+
+VAR_TEMP
+    Temp_RPM : Real;                          // Temporary RPM calculation
+    Temp_Error : Real;                        // Temporary error calculation
+END_VAR
+
+BEGIN
+
+// =============================================================================
+// INITIALIZATION AND STARTUP
+// =============================================================================
+IF Enable AND NOT Last_Enable THEN
+    // Reset all outputs on startup
+    Motor_RPM := 0.0;
+    Flow_Error := 0.0;
+    Control_Active := FALSE;
+    Error_Status := FALSE;
+    Error_Code := 0;
+    Correction_RPM := 0.0;
+END_IF;
+
+Last_Enable := Enable;
+
+// Startup delay (100ms)
+Startup_Timer(IN := Enable, PT := T#100ms);
+
+// =============================================================================
+// MAIN CONTROL LOGIC
+// =============================================================================
+IF Enable AND Startup_Timer.Q THEN
+    
+    // Convert displacement from cc/rev to L/rev
+    Displacement_L_per_Rev := Motor_Displacement / 1000.0;
+    
+    // =============================================================================
+    // BASIC RPM CALCULATION
+    // =============================================================================
+    IF Displacement_L_per_Rev > 0.0 THEN
+        Basic_RPM := Flow_Setpoint / Displacement_L_per_Rev;
+    ELSE
+        Basic_RPM := 0.0;
+        Error_Status := TRUE;
+        Error_Code := 1; // Invalid displacement
+    END_IF;
+    
+    // =============================================================================
+    // FLOW ERROR CALCULATION
+    // =============================================================================
+    Flow_Error := Flow_Setpoint - Flow_Actual;
+    
+    // =============================================================================
+    // CORRECTION ALGORITHM (Fine Tuning)
+    // =============================================================================
+    IF ABS(Flow_Error) > Error_Threshold THEN
+        // Calculate correction based on error
+        Correction_RPM := Flow_Error * Correction_Factor;
+        
+        // Apply correction limits
+        IF Correction_RPM > Max_Correction THEN
+            Correction_RPM := Max_Correction;
+        ELSIF Correction_RPM < -Max_Correction THEN
+            Correction_RPM := -Max_Correction;
+        END_IF;
+    ELSE
+        // Within tolerance - no correction needed
+        Correction_RPM := 0.0;
+    END_IF;
+    
+    // =============================================================================
+    // FINAL RPM CALCULATION
+    // =============================================================================
+    Temp_RPM := Basic_RPM + Correction_RPM;
+    
+    // Apply motor limits
+    IF Temp_RPM > Max_RPM THEN
+        Motor_RPM := Max_RPM;
+        Error_Status := TRUE;
+        Error_Code := 2; // RPM limit exceeded
+    ELSIF Temp_RPM < 0.0 THEN
+        Motor_RPM := 0.0;
+    ELSE
+        Motor_RPM := Temp_RPM;
+        Error_Status := FALSE;
+        Error_Code := 0;
+    END_IF;
+    
+    // =============================================================================
+    // STATUS AND ERROR MONITORING
+    // =============================================================================
+    Control_Active := TRUE;
+    
+    // Persistent flow error detection (>5 seconds)
+    Flow_Error_Timer(IN := (ABS(Flow_Error) > (Error_Threshold * 2.0)), PT := T#5s);
+    IF Flow_Error_Timer.Q THEN
+        Error_Status := TRUE;
+        Error_Code := 3; // Persistent flow error
+    END_IF;
+    
+    // Out of range detection
+    Out_of_Range_Timer(IN := (Flow_Setpoint > (Max_RPM * Displacement_L_per_Rev)), PT := T#1s);
+    IF Out_of_Range_Timer.Q THEN
+        Error_Status := TRUE;
+        Error_Code := 4; // Flow setpoint out of motor range
+    END_IF;
+    
+ELSE
+    // =============================================================================
+    // DISABLED STATE
+    // =============================================================================
+    Motor_RPM := 0.0;
+    Flow_Error := 0.0;
+    Control_Active := FALSE;
+    Error_Status := FALSE;
+    Error_Code := 0;
+    Correction_RPM := 0.0;
+    
+    // Reset timers
+    Startup_Timer(IN := FALSE, PT := T#100ms);
+    Flow_Error_Timer(IN := FALSE, PT := T#2s);
+    Out_of_Range_Timer(IN := FALSE, PT := T#1s);
+END_IF;
+
+END_FUNCTION_BLOCK

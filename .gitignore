@@ -80,6 +80,9 @@ investigate_*.cs
 
 # System folder (existing PLC project files)
 System/
+# But track Development folder contents (SCL source files)
+!System/PLC/S7-1500/Development/
+!System/PLC/S7-1500/Development/**
 
 # Rust/Tauri build artifacts
 **/target/

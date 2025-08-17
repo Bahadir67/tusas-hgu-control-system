@@ -1,0 +1,731 @@
+FUNCTION_BLOCK "FB_Analog_Input_Processing"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : '1.0'
+// =============================================================================
+// TUSAŞ HGU Analog Input Processing V17
+// Purpose: 4-20 mA analog input reading, calibration, and accreditation drift compensation
+// Module: 6ES7 134-6HD01-0BA1 (4-20 mA analog input module)
+// 
+// Sensor Types and Ranges:
+// - Pump Pressure Transmitters 1-6: 0-400 bar (4-20 mA)
+// - CoilTube Pressure Transmitter (Pump 7): 0-600 bar (4-20 mA) 
+// - HSM Pressure Transmitters 1-7: 0-400 bar (4-20 mA)
+// - Temperature Sensors: -10 to +80°C (4-20 mA)
+// - Level Sensors: 0-100% (4-20 mA)
+//
+// Processing Steps:
+// 1. Read raw analog values from I/O module
+// 2. Convert 4-20 mA signal to engineering units
+// 3. Apply calibration factors (span/zero adjustment)
+// 4. Apply accreditation drift compensation
+// 5. Range limiting and fault detection
+// 6. Update DB_HGU_Execution variables
+// =============================================================================
+
+VAR_INPUT
+    Enable : Bool := FALSE;                    // Enable analog input processing
+    Calibration_Mode : Bool := FALSE;          // Calibration mode enable
+    Zero_Calibration : Bool := FALSE;          // Zero point calibration command
+    Span_Calibration : Bool := FALSE;          // Span calibration command
+    Reset_Drift_Values : Bool := FALSE;        // Reset accreditation drift values
+END_VAR
+
+VAR_OUTPUT
+    // Processing status
+    Processing_Active : Bool := FALSE;         // Processing active status
+    Calibration_Active : Bool := FALSE;        // Calibration mode active
+    Error_Status : Bool := FALSE;              // Any sensor error active
+    Total_Sensors_OK : USInt := 0;             // Number of sensors OK
+    Total_Sensors_Error : USInt := 0;          // Number of sensors in error
+    
+    // Diagnostic information
+    Last_Calibration_Time : DTL;               // Last calibration timestamp
+    Processing_Cycle_Time : UDInt := 0;        // Processing cycle time (ms)
+    Error_Code : USInt := 0;                   // Error code
+END_VAR
+
+VAR_IN_OUT
+    // No VAR_IN_OUT parameters needed - reading tags directly
+END_VAR
+
+VAR
+    // =============================================================================
+    // CALIBRATION AND DRIFT COMPENSATION PARAMETERS
+    // =============================================================================
+    
+    // Temperature sensors calibration (°C range: -10 to +80°C)
+    Temp_Sensor_Zero_Offset : Real := 0.0;           // Zero point offset (°C)
+    Temp_Sensor_Span_Factor : Real := 1.0;           // Span correction factor
+    Temp_Sensor_Drift_Comp : Real := 0.0;            // Accreditation drift compensation (°C)
+    
+    Chiller_Inlet_Zero_Offset : Real := 0.0;         // Chiller inlet zero offset (°C)
+    Chiller_Inlet_Span_Factor : Real := 1.0;         // Chiller inlet span factor
+    Chiller_Inlet_Drift_Comp : Real := 0.0;          // Chiller inlet drift compensation (°C)
+    
+    Chiller_Outlet_Zero_Offset : Real := 0.0;        // Chiller outlet zero offset (°C)
+    Chiller_Outlet_Span_Factor : Real := 1.0;        // Chiller outlet span factor
+    Chiller_Outlet_Drift_Comp : Real := 0.0;         // Chiller outlet drift compensation (°C)
+    
+    // Level sensors calibration (% range: 0-100%)
+    Level_Sensor_Zero_Offset : Real := 0.0;          // Level sensor zero offset (%)
+    Level_Sensor_Span_Factor : Real := 1.0;          // Level sensor span factor
+    Level_Sensor_Drift_Comp : Real := 0.0;           // Level sensor drift compensation (%)
+    
+    Aqua_Sensor_Zero_Offset : Real := 0.0;           // Aqua sensor zero offset (%)
+    Aqua_Sensor_Span_Factor : Real := 1.0;           // Aqua sensor span factor
+    Aqua_Sensor_Drift_Comp : Real := 0.0;            // Aqua sensor drift compensation (%)
+    
+    // Pressure transmitters calibration (bar range: 0-400 bar for pumps 1-6, HSM 1-7)
+    Pressure_Zero_Offset : Array[1..6] of Real := [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];      // Pump pressure zero offsets
+    Pressure_Span_Factor : Array[1..6] of Real := [1.0, 1.0, 1.0, 1.0, 1.0, 1.0];      // Pump pressure span factors
+    Pressure_Drift_Comp : Array[1..6] of Real := [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];       // Pump pressure drift compensation
+    
+    // CoilTube pressure transmitter calibration (bar range: 0-600 bar for pump 7)
+    CoilTube_Zero_Offset : Real := 0.0;              // CoilTube pressure zero offset (bar)
+    CoilTube_Span_Factor : Real := 1.0;              // CoilTube pressure span factor
+    CoilTube_Drift_Comp : Real := 0.0;               // CoilTube pressure drift compensation (bar)
+    
+    // HSM pressure transmitters calibration (bar range: 0-400 bar for HSM 1-7)
+    HSM_Zero_Offset : Array[1..7] of Real := [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];      // HSM pressure zero offsets
+    HSM_Span_Factor : Array[1..7] of Real := [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];      // HSM pressure span factors
+    HSM_Drift_Comp : Array[1..7] of Real := [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];       // HSM pressure drift compensation
+    
+    // =============================================================================
+    // SENSOR FAULT DETECTION PARAMETERS
+    // =============================================================================
+    Sensor_Fault_Low_Limit : Int := 6400;            // 4mA fault detection (approx.)
+    Sensor_Fault_High_Limit : Int := 32000;          // 20mA+ fault detection (approx.)
+    Sensor_Fault_Counter : Array[1..19] of USInt;    // Fault counters for all 19 sensors
+    Sensor_Fault_Threshold : USInt := 5;             // Consecutive faults before error
+    
+    // =============================================================================
+    // PROCESSING VARIABLES
+    // =============================================================================
+    Processing_Timer : TON;                           // Processing cycle timer
+    Calibration_Timer : TON;                          // Calibration timeout timer
+    Last_Zero_Calibration : Bool := FALSE;            // Previous zero calibration state
+    Last_Span_Calibration : Bool := FALSE;            // Previous span calibration state
+    
+    // Temporary calculation variables
+    Raw_Value : Int;                                  // Current raw value being processed
+    Engineering_Value : Real;                        // Converted engineering value
+    Calibrated_Value : Real;                         // Calibrated and drift-compensated value
+    
+    // Conversion constants for 4-20 mA signals (Siemens S7-1500 Standard)
+    Analog_Input_Range : Real := 27648.0;            // S7-1500 analog input range (0-27648 for 4-20mA)
+    Raw_Value_4mA : Real := 0.0;                     // Raw value for 4 mA (minimum)
+    Raw_Value_20mA : Real := 27648.0;                // Raw value for 20 mA (maximum)
+    Raw_Value_Span : Real := 27648.0;                // Raw value span (27648-0 = 27648)
+    
+    // Sensor range constants
+    Temp_Range_Min : Real := -10.0;                  // Temperature minimum (°C)
+    Temp_Range_Max : Real := 80.0;                   // Temperature maximum (°C)
+    Temp_Range_Span : Real := 90.0;                  // Temperature span (80-(-10) = 90°C)
+    
+    Level_Range_Min : Real := 0.0;                   // Level minimum (%)
+    Level_Range_Max : Real := 100.0;                 // Level maximum (%)
+    Level_Range_Span : Real := 100.0;                // Level span (100-0 = 100%)
+    
+    Pressure_Range_Min : Real := 0.0;                // Pressure minimum (bar)
+    Pressure_Range_Max : Real := 400.0;              // Pressure maximum for pumps 1-6, HSM (bar)
+    Pressure_Range_Span : Real := 400.0;             // Pressure span (400-0 = 400 bar)
+    
+    CoilTube_Range_Min : Real := 0.0;                // CoilTube pressure minimum (bar)
+    CoilTube_Range_Max : Real := 600.0;              // CoilTube pressure maximum (bar)
+    CoilTube_Range_Span : Real := 600.0;             // CoilTube pressure span (600-0 = 600 bar)
+    
+    // Initialization and status
+    Init_Complete : Bool := FALSE;                    // Initialization complete flag
+    Sensor_Index : USInt := 1;                       // Current sensor being processed
+    Current_Time : DTL;                               // Current system time
+    Time_Status : Int;                                // RD_SYS_T status
+    
+    i : USInt;                                        // Loop counter
+END_VAR
+
+VAR_TEMP
+    Current_Percent : Real;                           // Current percentage (0-100%)
+    Engineering_Percent : Real;                      // Engineering value percentage
+    Sensor_OK : Bool;                                 // Current sensor OK status
+END_VAR
+
+BEGIN
+
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
+IF NOT Init_Complete THEN
+    Processing_Active := FALSE;
+    Calibration_Active := FALSE;
+    Error_Status := FALSE;
+    Total_Sensors_OK := 0;
+    Total_Sensors_Error := 0;
+    Error_Code := 0;
+    
+    // Initialize fault counters
+    FOR i := 1 TO 19 DO
+        Sensor_Fault_Counter[i] := 0;
+    END_FOR;
+    
+    Processing_Timer(IN := FALSE, PT := T#100ms);
+    Calibration_Timer(IN := FALSE, PT := T#10s);
+    
+    Init_Complete := TRUE;
+END_IF;
+
+// =============================================================================
+// MAIN PROCESSING LOGIC
+// =============================================================================
+IF Enable THEN
+    Processing_Active := TRUE;
+    Time_Status := RD_SYS_T(OUT => Current_Time);
+    
+    // =============================================================================
+    // CALIBRATION MODE HANDLING
+    // =============================================================================
+    Calibration_Active := Calibration_Mode;
+    
+    IF Calibration_Mode THEN
+        Calibration_Timer(IN := TRUE, PT := T#10s);
+        
+        // Zero calibration (rising edge detection)
+        IF Zero_Calibration AND NOT Last_Zero_Calibration THEN
+            // Perform zero point calibration for current sensor
+            // This would typically capture current raw values as zero references
+            // Implementation depends on specific calibration procedure
+            ;
+        END_IF;
+        
+        // Span calibration (rising edge detection)
+        IF Span_Calibration AND NOT Last_Span_Calibration THEN
+            // Perform span calibration for current sensor
+            // This would typically capture current raw values as span references
+            // Implementation depends on specific calibration procedure
+            ;
+        END_IF;
+        
+        Last_Zero_Calibration := Zero_Calibration;
+        Last_Span_Calibration := Span_Calibration;
+        
+        // Auto-exit calibration mode after timeout
+        IF Calibration_Timer.Q THEN
+            Calibration_Active := FALSE;
+            Time_Status := RD_SYS_T(OUT => Last_Calibration_Time); // Set current time
+        END_IF;
+    ELSE
+        Calibration_Timer(IN := FALSE, PT := T#10s);
+    END_IF;
+    
+    // =============================================================================
+    // RESET DRIFT VALUES COMMAND
+    // =============================================================================
+    IF Reset_Drift_Values THEN
+        // Reset all drift compensation values to zero
+        Temp_Sensor_Drift_Comp := 0.0;
+        Chiller_Inlet_Drift_Comp := 0.0;
+        Chiller_Outlet_Drift_Comp := 0.0;
+        Level_Sensor_Drift_Comp := 0.0;
+        Aqua_Sensor_Drift_Comp := 0.0;
+        CoilTube_Drift_Comp := 0.0;
+        
+        FOR i := 1 TO 6 DO
+            Pressure_Drift_Comp[i] := 0.0;
+        END_FOR;
+        
+        FOR i := 1 TO 7 DO
+            HSM_Drift_Comp[i] := 0.0;
+        END_FOR;
+    END_IF;
+    
+    // =============================================================================
+    // ANALOG INPUT PROCESSING CYCLE
+    // =============================================================================
+    Processing_Timer(IN := TRUE, PT := T#100ms);
+    
+    IF Processing_Timer.Q THEN
+        Total_Sensors_OK := 0;
+        Total_Sensors_Error := 0;
+        Error_Status := FALSE;  // Initialize error status
+        
+        // =============================================================================
+        // PROCESS TEMPERATURE SENSOR
+        // =============================================================================
+        Raw_Value := "TemperatureSensor";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        // Range check: 0±5% to 27648±5% (approximately -1382 to 29030)
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering -10 to +80°C
+            Engineering_Value := Temp_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Temp_Range_Span);
+            Calibrated_Value := (Engineering_Value + Temp_Sensor_Zero_Offset) * Temp_Sensor_Span_Factor + Temp_Sensor_Drift_Comp;
+            
+            // Update DB_HGU_Execution
+            "DB_HGU_Execution_V17".SYSTEM_TEMPERATURE := Calibrated_Value;
+            
+            Sensor_Fault_Counter[1] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[1] := Sensor_Fault_Counter[1] + 1;
+            IF Sensor_Fault_Counter[1] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 1; // Temperature sensor fault
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // PROCESS CONTINUOUS LEVEL SENSOR
+        // =============================================================================
+        Raw_Value := "ContinuousLevelSensor";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering 0 to 100%
+            Engineering_Value := Level_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Level_Range_Span);
+            Calibrated_Value := (Engineering_Value + Level_Sensor_Zero_Offset) * Level_Sensor_Span_Factor + Level_Sensor_Drift_Comp;
+            
+            // Update DB_HGU_Execution
+            "DB_HGU_Execution_V17".TANK_LEVEL_PERCENT := Calibrated_Value;
+            
+            Sensor_Fault_Counter[2] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[2] := Sensor_Fault_Counter[2] + 1;
+            IF Sensor_Fault_Counter[2] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 2; // Level sensor fault
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // PROCESS AQUA SENSOR
+        // =============================================================================
+        Raw_Value := "AquaSensor";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Level_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Level_Range_Span);
+            Calibrated_Value := (Engineering_Value + Aqua_Sensor_Zero_Offset) * Aqua_Sensor_Span_Factor + Aqua_Sensor_Drift_Comp;
+            
+            // Update DB_HGU_Execution
+            "DB_HGU_Execution_V17".AQUA_SENSOR_LEVEL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[3] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[3] := Sensor_Fault_Counter[3] + 1;
+            IF Sensor_Fault_Counter[3] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 3; // Aqua sensor fault
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // PROCESS PUMP PRESSURE TRANSMITTERS 1-6 (0-400 bar)
+        // =============================================================================
+        
+        // Pump 1 Pressure
+        Raw_Value := "PressureTransmitter1";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Pressure_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Pressure_Range_Span);
+            Calibrated_Value := (Engineering_Value + Pressure_Zero_Offset[1]) * Pressure_Span_Factor[1] + Pressure_Drift_Comp[1];
+            
+            "DB_HGU_Execution_V17".PUMP_1_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[4] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[4] := Sensor_Fault_Counter[4] + 1;
+            IF Sensor_Fault_Counter[4] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 4; // Pump 1 pressure fault
+            END_IF;
+        END_IF;
+        
+        // Pump 2 Pressure
+        Raw_Value := "PressureTransmitter2";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Pressure_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Pressure_Range_Span);
+            Calibrated_Value := (Engineering_Value + Pressure_Zero_Offset[2]) * Pressure_Span_Factor[2] + Pressure_Drift_Comp[2];
+            
+            "DB_HGU_Execution_V17".PUMP_2_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[5] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[5] := Sensor_Fault_Counter[5] + 1;
+            IF Sensor_Fault_Counter[5] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 5; // Pump 2 pressure fault
+            END_IF;
+        END_IF;
+        
+        // Pump 3 Pressure
+        Raw_Value := "PressureTransmitter3";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Pressure_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Pressure_Range_Span);
+            Calibrated_Value := (Engineering_Value + Pressure_Zero_Offset[3]) * Pressure_Span_Factor[3] + Pressure_Drift_Comp[3];
+            
+            "DB_HGU_Execution_V17".PUMP_3_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[6] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[6] := Sensor_Fault_Counter[6] + 1;
+            IF Sensor_Fault_Counter[6] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 6; // Pump 3 pressure fault
+            END_IF;
+        END_IF;
+        
+        // Pump 4 Pressure
+        Raw_Value := "PressureTransmitter4";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Pressure_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Pressure_Range_Span);
+            Calibrated_Value := (Engineering_Value + Pressure_Zero_Offset[4]) * Pressure_Span_Factor[4] + Pressure_Drift_Comp[4];
+            
+            "DB_HGU_Execution_V17".PUMP_4_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[7] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[7] := Sensor_Fault_Counter[7] + 1;
+            IF Sensor_Fault_Counter[7] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 7; // Pump 4 pressure fault
+            END_IF;
+        END_IF;
+        
+        // Pump 5 Pressure
+        Raw_Value := "PressureTransmitter5";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Pressure_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Pressure_Range_Span);
+            Calibrated_Value := (Engineering_Value + Pressure_Zero_Offset[5]) * Pressure_Span_Factor[5] + Pressure_Drift_Comp[5];
+            
+            "DB_HGU_Execution_V17".PUMP_5_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[8] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[8] := Sensor_Fault_Counter[8] + 1;
+            IF Sensor_Fault_Counter[8] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 8; // Pump 5 pressure fault
+            END_IF;
+        END_IF;
+        
+        // Pump 6 Pressure
+        Raw_Value := "PressureTransmitter6";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Pressure_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Pressure_Range_Span);
+            Calibrated_Value := (Engineering_Value + Pressure_Zero_Offset[6]) * Pressure_Span_Factor[6] + Pressure_Drift_Comp[6];
+            
+            "DB_HGU_Execution_V17".PUMP_6_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[9] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[9] := Sensor_Fault_Counter[9] + 1;
+            IF Sensor_Fault_Counter[9] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 9; // Pump 6 pressure fault
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // PROCESS COILTUBE PRESSURE TRANSMITTER (PUMP 7, 0-600 bar)
+        // =============================================================================
+        Raw_Value := "CoilTubePressureTransmitter";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := CoilTube_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * CoilTube_Range_Span);
+            Calibrated_Value := (Engineering_Value + CoilTube_Zero_Offset) * CoilTube_Span_Factor + CoilTube_Drift_Comp;
+            
+            "DB_HGU_Execution_V17".PUMP_7_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[10] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[10] := Sensor_Fault_Counter[10] + 1;
+            IF Sensor_Fault_Counter[10] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 10; // CoilTube pressure fault
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // PROCESS HSM PRESSURE TRANSMITTERS 1-7 (0-400 bar)
+        // =============================================================================
+        
+        // HSM 1 Pressure
+        Raw_Value := "Hsm1PressureTransmitter";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Pressure_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Pressure_Range_Span);
+            Calibrated_Value := (Engineering_Value + HSM_Zero_Offset[1]) * HSM_Span_Factor[1] + HSM_Drift_Comp[1];
+            
+            // Update DB_HGU_Execution
+            "DB_HGU_Execution_V17".HSM_1_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[11] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[11] := Sensor_Fault_Counter[11] + 1;
+            IF Sensor_Fault_Counter[11] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 11; // HSM 1 pressure fault
+            END_IF;
+        END_IF;
+        
+        // HSM 2 Pressure  
+        Raw_Value := "Hsm2PressureTransmitter";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Pressure_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Pressure_Range_Span);
+            Calibrated_Value := (Engineering_Value + HSM_Zero_Offset[2]) * HSM_Span_Factor[2] + HSM_Drift_Comp[2];
+            
+            "DB_HGU_Execution_V17".HSM_2_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[12] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[12] := Sensor_Fault_Counter[12] + 1;
+            IF Sensor_Fault_Counter[12] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 12; // HSM 2 pressure fault
+            END_IF;
+        END_IF;
+        
+        // HSM 3 Pressure
+        Raw_Value := "Hsm3PressureTransmitter";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Pressure_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Pressure_Range_Span);
+            Calibrated_Value := (Engineering_Value + HSM_Zero_Offset[3]) * HSM_Span_Factor[3] + HSM_Drift_Comp[3];
+            
+            "DB_HGU_Execution_V17".HSM_3_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[13] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[13] := Sensor_Fault_Counter[13] + 1;
+            IF Sensor_Fault_Counter[13] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 13; // HSM 3 pressure fault
+            END_IF;
+        END_IF;
+        
+        // HSM 4 Pressure
+        Raw_Value := "Hsm4PressureTransmitter";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Pressure_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Pressure_Range_Span);
+            Calibrated_Value := (Engineering_Value + HSM_Zero_Offset[4]) * HSM_Span_Factor[4] + HSM_Drift_Comp[4];
+            
+            "DB_HGU_Execution_V17".HSM_4_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[14] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[14] := Sensor_Fault_Counter[14] + 1;
+            IF Sensor_Fault_Counter[14] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 14; // HSM 4 pressure fault
+            END_IF;
+        END_IF;
+        
+        // HSM 5 Pressure
+        Raw_Value := "Hsm5PressureTransmitter";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Pressure_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Pressure_Range_Span);
+            Calibrated_Value := (Engineering_Value + HSM_Zero_Offset[5]) * HSM_Span_Factor[5] + HSM_Drift_Comp[5];
+            
+            "DB_HGU_Execution_V17".HSM_5_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[15] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[15] := Sensor_Fault_Counter[15] + 1;
+            IF Sensor_Fault_Counter[15] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 15; // HSM 5 pressure fault
+            END_IF;
+        END_IF;
+        
+        // HSM 6 Pressure
+        Raw_Value := "Hsm6PressureTransmitter";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Pressure_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Pressure_Range_Span);
+            Calibrated_Value := (Engineering_Value + HSM_Zero_Offset[6]) * HSM_Span_Factor[6] + HSM_Drift_Comp[6];
+            
+            "DB_HGU_Execution_V17".HSM_6_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[16] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[16] := Sensor_Fault_Counter[16] + 1;
+            IF Sensor_Fault_Counter[16] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 16; // HSM 6 pressure fault
+            END_IF;
+        END_IF;
+        
+        // HSM 7 Pressure
+        Raw_Value := "Hsm7PressureTransmitter";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Pressure_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Pressure_Range_Span);
+            Calibrated_Value := (Engineering_Value + HSM_Zero_Offset[7]) * HSM_Span_Factor[7] + HSM_Drift_Comp[7];
+            
+            "DB_HGU_Execution_V17".HSM_7_PRESSURE_ACTUAL := Calibrated_Value;
+            
+            Sensor_Fault_Counter[17] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[17] := Sensor_Fault_Counter[17] + 1;
+            IF Sensor_Fault_Counter[17] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 17; // HSM 7 pressure fault
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // PROCESS CHILLER TEMPERATURE SENSORS
+        // =============================================================================
+        
+        // Chiller Inlet Temperature
+        Raw_Value := "ChillerInletTemperature";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Temp_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Temp_Range_Span);
+            Calibrated_Value := (Engineering_Value + Chiller_Inlet_Zero_Offset) * Chiller_Inlet_Span_Factor + Chiller_Inlet_Drift_Comp;
+            
+            // Update DB_HGU_Execution
+            "DB_HGU_Execution_V17".CHILLER_INLET_TEMPERATURE := Calibrated_Value;
+            
+            Sensor_Fault_Counter[18] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[18] := Sensor_Fault_Counter[18] + 1;
+            IF Sensor_Fault_Counter[18] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 18; // Chiller inlet temperature fault
+            END_IF;
+        END_IF;
+        
+        // Chiller Outlet Temperature
+        Raw_Value := "ChillerOutletTemperature";
+        
+        // Convert raw value (0-27648) to engineering units for 4-20mA signal
+        IF Raw_Value >= -1400 AND Raw_Value <= 29000 THEN  // 4-20mA ±5% tolerance
+            // Scale: Raw 0-27648 → Engineering units
+            Engineering_Value := Temp_Range_Min + ((INT_TO_REAL(Raw_Value) / Raw_Value_Span) * Temp_Range_Span);
+            Calibrated_Value := (Engineering_Value + Chiller_Outlet_Zero_Offset) * Chiller_Outlet_Span_Factor + Chiller_Outlet_Drift_Comp;
+            
+            "DB_HGU_Execution_V17".CHILLER_OUTLET_TEMPERATURE := Calibrated_Value;
+            
+            Sensor_Fault_Counter[19] := 0;
+            Total_Sensors_OK := Total_Sensors_OK + 1;
+        ELSE
+            Sensor_Fault_Counter[19] := Sensor_Fault_Counter[19] + 1;
+            IF Sensor_Fault_Counter[19] >= Sensor_Fault_Threshold THEN
+                Total_Sensors_Error := Total_Sensors_Error + 1;
+                Error_Status := TRUE;
+                Error_Code := 19; // Chiller outlet temperature fault
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // UPDATE DB STATUS VARIABLES
+        // =============================================================================
+        "DB_HGU_Execution_V17".ANALOG_PROCESSING_ACTIVE := Processing_Active;
+        "DB_HGU_Execution_V17".ANALOG_SENSORS_OK_COUNT := Total_Sensors_OK;
+        "DB_HGU_Execution_V17".ANALOG_SENSORS_ERROR_COUNT := Total_Sensors_Error;
+        "DB_HGU_Execution_V17".ANALOG_PROCESSING_ERROR := Error_Status;
+        
+        // =============================================================================
+        // PROCESSING CYCLE COMPLETED
+        // =============================================================================
+        Processing_Cycle_Time := 100;  // Fixed 100ms cycle time
+        
+        Processing_Timer(IN := FALSE, PT := T#100ms);
+    END_IF;
+    
+ELSE
+    // =============================================================================
+    // DISABLED STATE
+    // =============================================================================
+    Processing_Active := FALSE;
+    Calibration_Active := FALSE;
+    Total_Sensors_OK := 0;
+    Total_Sensors_Error := 0;
+    
+    Processing_Timer(IN := FALSE, PT := T#100ms);
+    Calibration_Timer(IN := FALSE, PT := T#10s);
+    
+    // Reset all fault counters
+    FOR i := 1 TO 19 DO
+        Sensor_Fault_Counter[i] := 0;
+    END_FOR;
+    
+    Error_Status := FALSE;
+    Error_Code := 0;
+END_IF;
+
+END_FUNCTION_BLOCK
