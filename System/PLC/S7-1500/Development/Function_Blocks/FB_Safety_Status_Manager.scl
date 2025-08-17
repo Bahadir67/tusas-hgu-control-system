@@ -2,10 +2,8 @@ FUNCTION_BLOCK "FB_Safety_Status_Manager"
 { S7_Optimized_Access := 'TRUE' }
 VERSION : '1.0'
 // =============================================================================
-// TUSAŞ HGU Status Manager V17
-// Purpose: Operational status bit processing only
-// 
-// NOTE: Safety and Motor Error processing moved to FB_Error_Manager.scl
+// TUSAŞ HGU Safety Status Manager V17
+// Purpose: Operational status processing and DO command-feedback mismatch detection
 // 
 // Status Word (16 bits):
 //   Bit 0:  CoilTubeSoftStarterRunning    - Coiltube Yumuşak Yol Verici Çalışıyor
@@ -16,6 +14,13 @@ VERSION : '1.0'
 //   Bit 5:  PhaseProtectionOk             - Faz Koruma Rölesi OK
 //   Bit 6:  SafetyRelayOk                 - Emniyet Rölesi OK
 //   Bit 7-15: Reserved
+//
+// DO Command-Feedback Error Detection:
+//   - ParticleMotorCmd ↔ ParticleContactorEngaged
+//   - CircContactorCmd ↔ CircSoftStarterContactor  
+//   - CircSoftStarterCmd ↔ CircSoftStarterRunning
+//   - CoilTubeContactorCmd ↔ CoilTubeSoftStarterContactor
+//   - CoilTubeSoftStarterCmd ↔ CoilTubeSoftStarterRunning
 // =============================================================================
 
 VAR_INPUT
@@ -28,6 +33,18 @@ VAR_OUTPUT
     
     // Status summary
     Active_Status_Count : USInt := 0;         // Number of active status signals (0-7)
+    
+    // DO Command-Feedback Error Outputs
+    Particle_Contactor_Error : Bool := FALSE;    // Particle contactor mismatch error
+    Circ_Contactor_Error : Bool := FALSE;        // Circulation contactor mismatch error
+    Circ_SoftStarter_Error : Bool := FALSE;      // Circulation soft starter mismatch error
+    CoilTube_Contactor_Error : Bool := FALSE;    // CoilTube contactor mismatch error
+    CoilTube_SoftStarter_Error : Bool := FALSE;  // CoilTube soft starter mismatch error
+    
+    // Overall MCC (Motor Control Center) error status
+    MCC_Error_Status : Bool := FALSE;            // Any MCC command-feedback error active
+    MCC_Error_Code : USInt := 0;                 // MCC error code (1-5)
+    Total_MCC_Errors : USInt := 0;               // Total number of active MCC errors
 END_VAR
 
 VAR
@@ -37,6 +54,32 @@ VAR
     // Processing control
     Processing_Timer : TON;                    // Main processing cycle timer
     Init_Complete : Bool := FALSE;             // Initialization complete flag
+    
+    // DO Command-Feedback Error Detection
+    // Particle Contactor Control
+    Particle_Cmd_Timer : TON;                  // Particle contactor command timeout (3s)
+    Particle_Last_Cmd : Bool := FALSE;         // Previous particle command state
+    Particle_Cmd_Change : Bool := FALSE;       // Command change detection
+    
+    // Circulation Contactor Control  
+    Circ_Contactor_Timer : TON;                // Circulation contactor timeout (3s)
+    Circ_Contactor_Last_Cmd : Bool := FALSE;   // Previous circulation contactor command
+    Circ_Contactor_Cmd_Change : Bool := FALSE; // Command change detection
+    
+    // Circulation Soft Starter Control
+    Circ_SoftStarter_Timer : TON;              // Circulation soft starter timeout (8s)
+    Circ_SoftStarter_Last_Cmd : Bool := FALSE; // Previous circulation soft starter command
+    Circ_SoftStarter_Cmd_Change : Bool := FALSE; // Command change detection
+    
+    // CoilTube Contactor Control
+    CoilTube_Contactor_Timer : TON;            // CoilTube contactor timeout (3s)
+    CoilTube_Contactor_Last_Cmd : Bool := FALSE; // Previous CoilTube contactor command
+    CoilTube_Contactor_Cmd_Change : Bool := FALSE; // Command change detection
+    
+    // CoilTube Soft Starter Control
+    CoilTube_SoftStarter_Timer : TON;          // CoilTube soft starter timeout (8s)
+    CoilTube_SoftStarter_Last_Cmd : Bool := FALSE; // Previous CoilTube soft starter command
+    CoilTube_SoftStarter_Cmd_Change : Bool := FALSE; // Command change detection
     
     i : USInt;                                // Loop counter
 END_VAR
@@ -55,7 +98,30 @@ IF NOT Init_Complete THEN
     Processing_Active := FALSE;
     Active_Status_Count := USINT#0;
     
+    // Initialize error outputs
+    Particle_Contactor_Error := FALSE;
+    Circ_Contactor_Error := FALSE;
+    Circ_SoftStarter_Error := FALSE;
+    CoilTube_Contactor_Error := FALSE;
+    CoilTube_SoftStarter_Error := FALSE;
+    MCC_Error_Status := FALSE;
+    MCC_Error_Code := 0;
+    Total_MCC_Errors := 0;
+    
+    // Initialize timers
     Processing_Timer(IN := FALSE, PT := T#100ms);
+    Particle_Cmd_Timer(IN := FALSE, PT := T#3s);
+    Circ_Contactor_Timer(IN := FALSE, PT := T#3s);
+    Circ_SoftStarter_Timer(IN := FALSE, PT := T#8s);
+    CoilTube_Contactor_Timer(IN := FALSE, PT := T#3s);
+    CoilTube_SoftStarter_Timer(IN := FALSE, PT := T#8s);
+    
+    // Initialize command tracking
+    Particle_Last_Cmd := FALSE;
+    Circ_Contactor_Last_Cmd := FALSE;
+    Circ_SoftStarter_Last_Cmd := FALSE;
+    CoilTube_Contactor_Last_Cmd := FALSE;
+    CoilTube_SoftStarter_Last_Cmd := FALSE;
     
     Init_Complete := TRUE;
 END_IF;
@@ -115,6 +181,111 @@ IF Enable THEN
         
         // Write to DB
         "DB_HGU_Execution_V17".MCC_STATUS_WORD := Status_Word_Temp;
+        
+        // =============================================================================
+        // DO COMMAND-FEEDBACK ERROR DETECTION
+        // =============================================================================
+        
+        // Reset all errors at start of cycle
+        Particle_Contactor_Error := FALSE;
+        Circ_Contactor_Error := FALSE;
+        Circ_SoftStarter_Error := FALSE;
+        CoilTube_Contactor_Error := FALSE;
+        CoilTube_SoftStarter_Error := FALSE;
+        
+        // =============================================================================
+        // PARTICLE CONTACTOR ERROR DETECTION (Error Code 1)
+        // =============================================================================
+        Particle_Cmd_Change := ("ParticleMotorCmd" <> Particle_Last_Cmd);
+        Particle_Last_Cmd := "ParticleMotorCmd";
+        
+        // Start timer on command change
+        Particle_Cmd_Timer(IN := Particle_Cmd_Change, PT := T#3s);
+        
+        // Check for mismatch after timeout
+        IF Particle_Cmd_Timer.Q THEN
+            IF "ParticleMotorCmd" <> "ParticleContactorEngaged" THEN
+                Particle_Contactor_Error := TRUE;
+                MCC_Error_Code := 1; // Particle contactor error
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // CIRCULATION CONTACTOR ERROR DETECTION (Error Code 2)
+        // =============================================================================
+        Circ_Contactor_Cmd_Change := ("CircContactorCmd" <> Circ_Contactor_Last_Cmd);
+        Circ_Contactor_Last_Cmd := "CircContactorCmd";
+        
+        Circ_Contactor_Timer(IN := Circ_Contactor_Cmd_Change, PT := T#3s);
+        
+        IF Circ_Contactor_Timer.Q THEN
+            IF "CircContactorCmd" <> "CircSoftStarterContactor" THEN
+                Circ_Contactor_Error := TRUE;
+                MCC_Error_Code := 2; // Circulation contactor error
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // CIRCULATION SOFT STARTER ERROR DETECTION (Error Code 3)
+        // =============================================================================
+        Circ_SoftStarter_Cmd_Change := ("CircSoftStarterCmd" <> Circ_SoftStarter_Last_Cmd);
+        Circ_SoftStarter_Last_Cmd := "CircSoftStarterCmd";
+        
+        Circ_SoftStarter_Timer(IN := Circ_SoftStarter_Cmd_Change, PT := T#8s);
+        
+        IF Circ_SoftStarter_Timer.Q THEN
+            IF "CircSoftStarterCmd" <> "CircSoftStarterRunning" THEN
+                Circ_SoftStarter_Error := TRUE;
+                MCC_Error_Code := 3; // Circulation soft starter error
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // COILTUBE CONTACTOR ERROR DETECTION (Error Code 4)
+        // =============================================================================
+        CoilTube_Contactor_Cmd_Change := ("CoilTubeContactorCmd" <> CoilTube_Contactor_Last_Cmd);
+        CoilTube_Contactor_Last_Cmd := "CoilTubeContactorCmd";
+        
+        CoilTube_Contactor_Timer(IN := CoilTube_Contactor_Cmd_Change, PT := T#3s);
+        
+        IF CoilTube_Contactor_Timer.Q THEN
+            IF "CoilTubeContactorCmd" <> "CoilTubeSoftStarterContactor" THEN
+                CoilTube_Contactor_Error := TRUE;
+                MCC_Error_Code := 4; // CoilTube contactor error
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // COILTUBE SOFT STARTER ERROR DETECTION (Error Code 5)
+        // =============================================================================
+        CoilTube_SoftStarter_Cmd_Change := ("CoilTubeSoftStarterCmd" <> CoilTube_SoftStarter_Last_Cmd);
+        CoilTube_SoftStarter_Last_Cmd := "CoilTubeSoftStarterCmd";
+        
+        CoilTube_SoftStarter_Timer(IN := CoilTube_SoftStarter_Cmd_Change, PT := T#8s);
+        
+        IF CoilTube_SoftStarter_Timer.Q THEN
+            IF "CoilTubeSoftStarterCmd" <> "CoilTubeSoftStarterRunning" THEN
+                CoilTube_SoftStarter_Error := TRUE;
+                MCC_Error_Code := 5; // CoilTube soft starter error
+            END_IF;
+        END_IF;
+        
+        // =============================================================================
+        // MCC ERROR SUMMARY
+        // =============================================================================
+        Total_MCC_Errors := 0;
+        IF Particle_Contactor_Error THEN Total_MCC_Errors := Total_MCC_Errors + 1; END_IF;
+        IF Circ_Contactor_Error THEN Total_MCC_Errors := Total_MCC_Errors + 1; END_IF;
+        IF Circ_SoftStarter_Error THEN Total_MCC_Errors := Total_MCC_Errors + 1; END_IF;
+        IF CoilTube_Contactor_Error THEN Total_MCC_Errors := Total_MCC_Errors + 1; END_IF;
+        IF CoilTube_SoftStarter_Error THEN Total_MCC_Errors := Total_MCC_Errors + 1; END_IF;
+        
+        MCC_Error_Status := (Total_MCC_Errors > 0);
+        
+        // Reset error code if no errors
+        IF NOT MCC_Error_Status THEN
+            MCC_Error_Code := 0;
+        END_IF;
         
         Processing_Timer(IN := FALSE, PT := T#100ms);
     END_IF;

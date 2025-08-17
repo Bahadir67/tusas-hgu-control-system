@@ -20,7 +20,7 @@ VAR_INPUT
     Motor_4_Enable : Bool := FALSE;
     Motor_5_Enable : Bool := FALSE;
     Motor_6_Enable : Bool := FALSE;
-    Motor_7_Enable : Bool := FALSE;           // Motor 7 separate
+    // Motor 7: Fixed displacement - controlled separately via FB_System_Coordinator
     
     // Motor operating hours (1-6)
     Motor_1_Hours : Real := 0.0;
@@ -63,14 +63,9 @@ VAR_INPUT
     Pump_6_Suction_Filter_Status : USInt := 1;
     Pump_6_Manual_Valve_Status : USInt := 1;
     
-    Pump_7_Line_Filter_Status : USInt := 2;
-    Pump_7_Suction_Filter_Status : USInt := 1;
-    Pump_7_Manual_Valve_Status : USInt := 1;
-    
     // System parameters
     Motor_Displacement : Real := 100.0;       // Motor displacement (cc/rev)
     Max_Motor_RPM : Real := 1500.0;          // Maximum motor RPM
-    Motor_7_Fixed_Flow : Real := 34.0;       // Motor 7 fixed flow (L/min)
 END_VAR
 
 VAR_OUTPUT
@@ -81,7 +76,7 @@ VAR_OUTPUT
     Motor_4_Selected : Bool := FALSE;
     Motor_5_Selected : Bool := FALSE;
     Motor_6_Selected : Bool := FALSE;
-    Motor_7_Selected : Bool := FALSE;         // Motor 7 selection
+    // Motor 7: Fixed displacement - controlled separately via FB_System_Coordinator
     
     // Selection information
     Selected_Motor_Count : USInt := 0;        // Number of selected motors
@@ -106,7 +101,7 @@ VAR
     Max_Flow_Per_Motor : Real := 0.0;        // Maximum flow per motor (L/min)
     Required_Motor_Count : USInt := 0;        // Required number of motors
     Available_Motor_Count : USInt := 0;       // Number of available motors
-    Total_Required_Flow : Real := 0.0;       // Total flow including Motor 7
+    Total_Required_Flow : Real := 0.0;       // Total flow for Motors 1-6 only
     
     // Wear leveling variables
     Min_Hours : Real := 0.0;                 // Minimum operating hours
@@ -133,7 +128,7 @@ END_VAR
 BEGIN
 
 // Force initialization of outputs first
-Motor_7_Selected := FALSE;
+// Motor 7 is controlled separately via FB_System_Coordinator
 
 // =============================================================================
 // INITIALIZATION
@@ -146,7 +141,7 @@ IF NOT Init_Complete THEN
         Motor_Hours_Array[i] := 0.0;
         Motor_Priority[i] := i;
     END_FOR;
-    Motor_7_Selected := FALSE;
+    // Motor 7 controlled separately - no initialization needed
     Selected_Motor_Count := 0;
     Total_Available_Flow := 0.0;
     Selection_Valid := FALSE;
@@ -160,7 +155,7 @@ IF Enable AND NOT Last_Enable THEN
     FOR i := 1 TO 6 DO
         Motor_Selected_Array[i] := FALSE;
     END_FOR;
-    Motor_7_Selected := FALSE;
+    // Motor 7 controlled separately - no reset needed
     Selected_Motor_Count := 0;
     Error_Status := FALSE;
     Error_Code := 0;
@@ -240,18 +235,8 @@ IF Enable THEN
     Max_Flow_Per_Motor := (Max_Motor_RPM * Motor_Displacement) / 1000.0; // L/min
     Total_Required_Flow := Required_Total_Flow;
     
-    // Check if Motor 7 is needed and available
-    IF Motor_7_Enable AND (Total_Required_Flow > 0.0) THEN
-        Motor_7_Selected := TRUE;
-        Total_Required_Flow := Total_Required_Flow - Motor_7_Fixed_Flow;
-    ELSE
-        Motor_7_Selected := FALSE;
-    END_IF;
-    
-    // Ensure non-negative flow requirement
-    IF Total_Required_Flow < 0.0 THEN
-        Total_Required_Flow := 0.0;
-    END_IF;
+    // Motor 7 is controlled separately - all flow handled by Motors 1-6
+    // No adjustment needed for Total_Required_Flow
     
     // Calculate required motor count for remaining flow
     IF Total_Required_Flow > 0.0 THEN
@@ -330,11 +315,8 @@ IF Enable THEN
         
         Selected_Motor_Count := Selected_Count;
         
-        // Check if selection is sufficient
+        // Check if selection is sufficient (Motors 1-6 only)
         Total_Available_Flow := USINT_TO_REAL(Selected_Count) * Max_Flow_Per_Motor;
-        IF Motor_7_Selected THEN
-            Total_Available_Flow := Total_Available_Flow + Motor_7_Fixed_Flow;
-        END_IF;
         
         Selection_Valid := (Total_Available_Flow >= Required_Total_Flow);
         
@@ -382,7 +364,7 @@ ELSE
     Motor_4_Selected := FALSE;
     Motor_5_Selected := FALSE;
     Motor_6_Selected := FALSE;
-    Motor_7_Selected := FALSE;
+    // Motor 7 controlled separately - no reset needed
     
     Selected_Motor_Count := 0;
     Total_Available_Flow := 0.0;

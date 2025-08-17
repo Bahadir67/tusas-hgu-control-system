@@ -532,6 +532,11 @@ VERSION : 3.0
       ANALOG_SENSORS_ERROR_COUNT : USInt := 0;      // Number of sensors in error
       ANALOG_PROCESSING_ERROR : Bool := FALSE;      // Analog processing error status
       
+      // Analog sensor error details (from FB_Error_Manager)
+      ANALOG_SENSOR_ERROR : Bool := FALSE;          // Any analog sensor error active
+      ANALOG_ERROR_WORD : Word := 0;                // Analog Error Word (16 bits) - Individual sensor errors
+      ANALOG_ERROR_CODE : USInt := 0;               // Current analog sensor error code (1-19)
+      
       // =============================================================================
       // DIGITAL INPUT PROCESSING STATUS
       // =============================================================================
@@ -551,6 +556,48 @@ VERSION : 3.0
       CRITICAL_SAFETY_ERROR : Bool := FALSE;        // Any emergency stop or protection failure
       ANY_MOTOR_ERROR : Bool := FALSE;              // Any motor thermal error active
       SAFETY_ERROR_CODE : USInt := 0;               // Safety error priority code
+      
+      // System Error Summary (from FB_Error_Manager)
+      SYSTEM_ERROR_ACTIVE : Bool := FALSE;          // Overall system error status (Emergency + Motor + Analog + Dual Controller)
+      
+      // Dual Controller Error Summary (from FB_Error_Manager via FB_Dual_Controller)
+      DUAL_CONTROLLER_ERROR : Bool := FALSE;        // Any dual controller error active (Flow or Pressure)
+      FLOW_CONTROLLER_ERROR : Bool := FALSE;        // Flow controller errors (Error codes 11-14)
+      PRESSURE_CONTROLLER_ERROR : Bool := FALSE;    // Pressure controller errors (Error codes 21-24)
+      
+      // Flowmeter Communication Error Summary (from FB_Error_Manager via FB_Flowmeter_CANOPEN)
+      FLOWMETER_COMMUNICATION_ERROR : Bool := FALSE; // Flowmeter communication error active
+      FLOWMETER_WATCHDOG_ERROR : Bool := FALSE;     // Any flowmeter watchdog timeout error
+      
+      // G120C Drive Error Summary (from FB_Error_Manager via FB_G120C_Drive instances)
+      G120C_MOTOR_FAULT : Bool := FALSE;            // Any G120C motor fault active (Status = 3)
+      G120C_COMMUNICATION_ERROR : Bool := FALSE;    // Any G120C communication error active
+      G120C_SAFETY_ERROR : Bool := FALSE;           // Any G120C safety error active
+      G120C_PARAMETER_ERROR : Bool := FALSE;        // Any G120C parameter error active
+      
+      // Pressure Safety Valve Error Summary (from FB_Error_Manager via FB_Pressure_Safety_Valves)
+      VALVE_WATCHDOG_ERROR : Bool := FALSE;         // CRITICAL: 250ms valve watchdog timeout
+      VALVE_EMERGENCY_STOP_REQUIRED : Bool := FALSE; // CRITICAL: Emergency stop required by valve controller
+      VALVE_COMMUNICATION_ERROR : Bool := FALSE;    // Valve controller communication error
+      
+      // Digital Input and Filter Error Summary (from FB_Error_Manager via FB_Digital_Input_Processing)
+      DIGITAL_INPUT_ERROR : Bool := FALSE;          // Any digital input error active
+      FILTER_ERROR : Bool := FALSE;                 // Any motor filter error active (1-7)
+      TANK_LEVEL_ERROR : Bool := FALSE;             // Tank level error (low level)
+      CHILLER_FLOW_ERROR : Bool := FALSE;           // Chiller water flow error
+      
+      // Motor Selection Error Summary (from FB_Error_Manager via FB_Motor_Selection)
+      MOTOR_SELECTION_ERROR : Bool := FALSE;        // Motor selection algorithm error
+      INSUFFICIENT_MOTOR_CAPACITY : Bool := FALSE;  // Insufficient motor flow capacity
+      INSUFFICIENT_AVAILABLE_MOTORS : Bool := FALSE; // Not enough motors available
+      
+      // MCC (Motor Control Center) Error Summary (from FB_Error_Manager via FB_Safety_Status_Manager)
+      MCC_ERROR_STATUS : Bool := FALSE;             // Any MCC command-feedback error active
+      PARTICLE_CONTACTOR_ERROR : Bool := FALSE;     // Particle contactor command-feedback mismatch error
+      CIRC_CONTACTOR_ERROR : Bool := FALSE;         // Circulation contactor command-feedback mismatch error
+      CIRC_SOFTSTARTER_ERROR : Bool := FALSE;       // Circulation soft starter command-feedback mismatch error
+      COILTUBE_CONTACTOR_ERROR : Bool := FALSE;     // CoilTube contactor command-feedback mismatch error
+      COILTUBE_SOFTSTARTER_ERROR : Bool := FALSE;   // CoilTube soft starter command-feedback mismatch error
       
       // =============================================================================
       // TANK LEVEL SWITCHES (Digital Inputs)

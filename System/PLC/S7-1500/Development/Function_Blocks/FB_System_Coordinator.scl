@@ -214,7 +214,7 @@ IF Enable THEN
         Motor_4_Enable := "DB_HGU_Execution_V17".MOTOR_4_ENABLE,
         Motor_5_Enable := "DB_HGU_Execution_V17".MOTOR_5_ENABLE,
         Motor_6_Enable := "DB_HGU_Execution_V17".MOTOR_6_ENABLE,
-        Motor_7_Enable := "DB_HGU_Execution_V17".MOTOR_7_ENABLE,
+        // Motor 7 controlled separately - not part of selection algorithm
         
         // Operating hours
         Motor_1_Hours := "DB_HGU_Execution_V17".MOTOR_1_OPERATING_HOURS,
@@ -256,26 +256,20 @@ IF Enable THEN
         Pump_6_Line_Filter_Status := "DB_HGU_Execution_V17".PUMP_6_LINE_FILTER_STATUS,
         Pump_6_Suction_Filter_Status := "DB_HGU_Execution_V17".PUMP_6_SUCTION_FILTER_STATUS,
         Pump_6_Manual_Valve_Status := "DB_HGU_Execution_V17".PUMP_6_MANUAL_VALVE_STATUS,
+        // Motor 7 safety status handled separately
         
-        Pump_7_Line_Filter_Status := "DB_HGU_Execution_V17".PUMP_7_LINE_FILTER_STATUS,
-        Pump_7_Suction_Filter_Status := "DB_HGU_Execution_V17".PUMP_7_SUCTION_FILTER_STATUS,
-        Pump_7_Manual_Valve_Status := "DB_HGU_Execution_V17".PUMP_7_MANUAL_VALVE_STATUS,
-        
-        // System parameters
+        // System parameters (Motors 1-6 only)
         Motor_Displacement := 100.0,           // cc/rev
-        Max_Motor_RPM := 1500.0,              // RPM
-        Motor_7_Fixed_Flow := 34.0            // L/min
+        Max_Motor_RPM := 1500.0               // RPM
     );
     
     // =============================================================================
     // FLOW DISTRIBUTION CALCULATION
     // =============================================================================
     
-    // Calculate flow for variable motors (excluding Motor 7)
+    // Calculate flow for variable motors (Motors 1-6 only)
+    // Motor 7 is controlled separately with fixed displacement
     Selected_Motor_Flow := System_Total_Flow_Setpoint;
-    IF Motor_Selector.Motor_7_Selected THEN
-        Selected_Motor_Flow := Selected_Motor_Flow - 34.0; // Subtract Motor 7 flow
-    END_IF;
     
     // Ensure non-negative flow
     IF Selected_Motor_Flow < 0.0 THEN
@@ -598,7 +592,7 @@ IF Enable THEN
     // =============================================================================
     Dual_Controller_7(
         Enable := TRUE,
-        Motor_Enable := Motor_Selector.Motor_7_Selected,
+        Motor_Enable := "DB_HGU_Execution_V17".MOTOR_7_ENABLE,
         Pressure_Setpoint := "DB_HGU_Execution_V17".PUMP_7_PRESSURE_SETPOINT,
         Pressure_Actual := "DB_HGU_Execution_V17".PUMP_7_PRESSURE_ACTUAL,
         Flow_Setpoint := 34.0,                // Fixed flow for Motor 7
@@ -608,8 +602,8 @@ IF Enable THEN
         Valve_Response_Time := "DB_HGU_Execution_V17".VALVE_RESPONSE_TIME
     );
     
-    // Motor 7 always runs at 1500 RPM when selected
-    IF Motor_Selector.Motor_7_Selected THEN
+    // Motor 7 always runs at 1500 RPM when enabled (fixed displacement)
+    IF "DB_HGU_Execution_V17".MOTOR_7_ENABLE THEN
         "DB_HGU_Execution_V17".MOTOR_7_RPM_SETPOINT := 1500.0;
     ELSE
         "DB_HGU_Execution_V17".MOTOR_7_RPM_SETPOINT := 0.0;
@@ -617,7 +611,7 @@ IF Enable THEN
     
     "DB_HGU_Execution_V17".PROP_REL_VLV_7_SETPOINT := REAL_TO_UINT(Dual_Controller_7.Valve_Current);
     // "DB_HGU_Execution_V17".PUMP_7_CONTROL_MODE := 0; // Manual mode assignment if needed
-    Motor_Running_Array[7] := Motor_Selector.Motor_7_Selected;
+    Motor_Running_Array[7] := "DB_HGU_Execution_V17".MOTOR_7_ENABLE;
     
     // =============================================================================
     // MOTOR OPERATING HOURS TRACKING

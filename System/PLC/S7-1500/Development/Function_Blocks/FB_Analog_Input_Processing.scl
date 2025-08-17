@@ -91,12 +91,10 @@ VAR
     HSM_Drift_Comp : Array[1..7] of Real := [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];       // HSM pressure drift compensation
     
     // =============================================================================
-    // SENSOR FAULT DETECTION PARAMETERS
+    // SENSOR FAULT DETECTION PARAMETERS (simplified - direct error on range fault)
     // =============================================================================
     Sensor_Fault_Low_Limit : Int := 6400;            // 4mA fault detection (approx.)
     Sensor_Fault_High_Limit : Int := 32000;          // 20mA+ fault detection (approx.)
-    Sensor_Fault_Counter : Array[1..19] of USInt;    // Fault counters for all 19 sensors
-    Sensor_Fault_Threshold : USInt := 5;             // Consecutive faults before error
     
     // =============================================================================
     // PROCESSING VARIABLES
@@ -140,6 +138,10 @@ VAR
     Current_Time : DTL;                               // Current system time
     Time_Status : Int;                                // RD_SYS_T status
     
+    // Error word processing (bit mapping for 19 sensors)
+    Error_Word_Temp : Word := 0;                     // Temporary error word construction
+    Any_Sensor_Error : Bool := FALSE;                // Any sensor error active flag
+    
     i : USInt;                                        // Loop counter
 END_VAR
 
@@ -162,10 +164,7 @@ IF NOT Init_Complete THEN
     Total_Sensors_Error := 0;
     Error_Code := 0;
     
-    // Initialize fault counters
-    FOR i := 1 TO 19 DO
-        Sensor_Fault_Counter[i] := 0;
-    END_FOR;
+    // Direct error detection - no fault counters needed
     
     Processing_Timer(IN := FALSE, PT := T#100ms);
     Calibration_Timer(IN := FALSE, PT := T#10s);
@@ -247,6 +246,10 @@ IF Enable THEN
         Total_Sensors_Error := 0;
         Error_Status := FALSE;  // Initialize error status
         
+        // Initialize error word for this cycle
+        Error_Word_Temp := WORD#0;
+        Any_Sensor_Error := FALSE;
+        
         // =============================================================================
         // PROCESS TEMPERATURE SENSOR
         // =============================================================================
@@ -262,15 +265,13 @@ IF Enable THEN
             // Update DB_HGU_Execution
             "DB_HGU_Execution_V17".SYSTEM_TEMPERATURE := Calibrated_Value;
             
-            Sensor_Fault_Counter[1] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[1] := Sensor_Fault_Counter[1] + 1;
-            IF Sensor_Fault_Counter[1] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 1; // Temperature sensor fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 1; // Temperature sensor fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0000000000000001; // Bit 0
         END_IF;
         
         // =============================================================================
@@ -287,15 +288,13 @@ IF Enable THEN
             // Update DB_HGU_Execution
             "DB_HGU_Execution_V17".TANK_LEVEL_PERCENT := Calibrated_Value;
             
-            Sensor_Fault_Counter[2] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[2] := Sensor_Fault_Counter[2] + 1;
-            IF Sensor_Fault_Counter[2] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 2; // Level sensor fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 2; // Level sensor fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0000000000000010; // Bit 1
         END_IF;
         
         // =============================================================================
@@ -312,15 +311,13 @@ IF Enable THEN
             // Update DB_HGU_Execution
             "DB_HGU_Execution_V17".AQUA_SENSOR_LEVEL := Calibrated_Value;
             
-            Sensor_Fault_Counter[3] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[3] := Sensor_Fault_Counter[3] + 1;
-            IF Sensor_Fault_Counter[3] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 3; // Aqua sensor fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 3; // Aqua sensor fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0000000000000100; // Bit 2
         END_IF;
         
         // =============================================================================
@@ -341,12 +338,11 @@ IF Enable THEN
             Sensor_Fault_Counter[4] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[4] := Sensor_Fault_Counter[4] + 1;
-            IF Sensor_Fault_Counter[4] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 4; // Pump 1 pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 4; // Pump 1 pressure fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0000000000001000; // Bit 3
         END_IF;
         
         // Pump 2 Pressure
@@ -363,12 +359,11 @@ IF Enable THEN
             Sensor_Fault_Counter[5] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[5] := Sensor_Fault_Counter[5] + 1;
-            IF Sensor_Fault_Counter[5] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 5; // Pump 2 pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 5; // Pump 2 pressure fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0000000000010000; // Bit 4
         END_IF;
         
         // Pump 3 Pressure
@@ -385,12 +380,11 @@ IF Enable THEN
             Sensor_Fault_Counter[6] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[6] := Sensor_Fault_Counter[6] + 1;
-            IF Sensor_Fault_Counter[6] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 6; // Pump 3 pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 6; // Pump 3 pressure fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0000000000100000; // Bit 5
         END_IF;
         
         // Pump 4 Pressure
@@ -407,12 +401,11 @@ IF Enable THEN
             Sensor_Fault_Counter[7] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[7] := Sensor_Fault_Counter[7] + 1;
-            IF Sensor_Fault_Counter[7] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 7; // Pump 4 pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 7; // Pump 4 pressure fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0000000001000000; // Bit 6
         END_IF;
         
         // Pump 5 Pressure
@@ -429,12 +422,11 @@ IF Enable THEN
             Sensor_Fault_Counter[8] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[8] := Sensor_Fault_Counter[8] + 1;
-            IF Sensor_Fault_Counter[8] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 8; // Pump 5 pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 8; // Pump 5 pressure fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0000000010000000; // Bit 7
         END_IF;
         
         // Pump 6 Pressure
@@ -451,12 +443,11 @@ IF Enable THEN
             Sensor_Fault_Counter[9] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[9] := Sensor_Fault_Counter[9] + 1;
-            IF Sensor_Fault_Counter[9] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 9; // Pump 6 pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 9; // Pump 6 pressure fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0000000100000000; // Bit 8
         END_IF;
         
         // =============================================================================
@@ -475,12 +466,11 @@ IF Enable THEN
             Sensor_Fault_Counter[10] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[10] := Sensor_Fault_Counter[10] + 1;
-            IF Sensor_Fault_Counter[10] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 10; // CoilTube pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 10; // CoilTube pressure fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0000001000000000; // Bit 9
         END_IF;
         
         // =============================================================================
@@ -502,12 +492,11 @@ IF Enable THEN
             Sensor_Fault_Counter[11] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[11] := Sensor_Fault_Counter[11] + 1;
-            IF Sensor_Fault_Counter[11] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 11; // HSM 1 pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 11; // HSM 1 pressure fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0000010000000000; // Bit 10
         END_IF;
         
         // HSM 2 Pressure  
@@ -524,12 +513,11 @@ IF Enable THEN
             Sensor_Fault_Counter[12] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[12] := Sensor_Fault_Counter[12] + 1;
-            IF Sensor_Fault_Counter[12] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 12; // HSM 2 pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 12; // HSM 2 pressure fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0000100000000000; // Bit 11
         END_IF;
         
         // HSM 3 Pressure
@@ -546,12 +534,11 @@ IF Enable THEN
             Sensor_Fault_Counter[13] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[13] := Sensor_Fault_Counter[13] + 1;
-            IF Sensor_Fault_Counter[13] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 13; // HSM 3 pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 13; // HSM 3 pressure fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0001000000000000; // Bit 12
         END_IF;
         
         // HSM 4 Pressure
@@ -568,12 +555,11 @@ IF Enable THEN
             Sensor_Fault_Counter[14] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[14] := Sensor_Fault_Counter[14] + 1;
-            IF Sensor_Fault_Counter[14] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 14; // HSM 4 pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 14; // HSM 4 pressure fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0010000000000000; // Bit 13
         END_IF;
         
         // HSM 5 Pressure
@@ -590,12 +576,11 @@ IF Enable THEN
             Sensor_Fault_Counter[15] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[15] := Sensor_Fault_Counter[15] + 1;
-            IF Sensor_Fault_Counter[15] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 15; // HSM 5 pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 15; // HSM 5 pressure fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#0100000000000000; // Bit 14
         END_IF;
         
         // HSM 6 Pressure
@@ -612,12 +597,11 @@ IF Enable THEN
             Sensor_Fault_Counter[16] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[16] := Sensor_Fault_Counter[16] + 1;
-            IF Sensor_Fault_Counter[16] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 16; // HSM 6 pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 16; // HSM 6 pressure fault
+            Any_Sensor_Error := TRUE;
+            Error_Word_Temp := Error_Word_Temp OR WORD#2#1000000000000000; // Bit 15
         END_IF;
         
         // HSM 7 Pressure
@@ -634,12 +618,11 @@ IF Enable THEN
             Sensor_Fault_Counter[17] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[17] := Sensor_Fault_Counter[17] + 1;
-            IF Sensor_Fault_Counter[17] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 17; // HSM 7 pressure fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 17; // HSM 7 pressure fault
+            Any_Sensor_Error := TRUE;
+            // Note: HSM 7 exceeds Word bit limit, use Error_Code for identification
         END_IF;
         
         // =============================================================================
@@ -661,12 +644,11 @@ IF Enable THEN
             Sensor_Fault_Counter[18] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[18] := Sensor_Fault_Counter[18] + 1;
-            IF Sensor_Fault_Counter[18] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 18; // Chiller inlet temperature fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 18; // Chiller inlet temperature fault
+            Any_Sensor_Error := TRUE;
+            // Note: Chiller inlet temp exceeds Word bit limit, use Error_Code for identification
         END_IF;
         
         // Chiller Outlet Temperature
@@ -683,12 +665,11 @@ IF Enable THEN
             Sensor_Fault_Counter[19] := 0;
             Total_Sensors_OK := Total_Sensors_OK + 1;
         ELSE
-            Sensor_Fault_Counter[19] := Sensor_Fault_Counter[19] + 1;
-            IF Sensor_Fault_Counter[19] >= Sensor_Fault_Threshold THEN
-                Total_Sensors_Error := Total_Sensors_Error + 1;
-                Error_Status := TRUE;
-                Error_Code := 19; // Chiller outlet temperature fault
-            END_IF;
+            Total_Sensors_Error := Total_Sensors_Error + 1;
+            Error_Status := TRUE;
+            Error_Code := 19; // Chiller outlet temperature fault
+            Any_Sensor_Error := TRUE;
+            // Note: Chiller outlet temp exceeds Word bit limit, use Error_Code for identification
         END_IF;
         
         // =============================================================================
@@ -698,6 +679,11 @@ IF Enable THEN
         "DB_HGU_Execution_V17".ANALOG_SENSORS_OK_COUNT := Total_Sensors_OK;
         "DB_HGU_Execution_V17".ANALOG_SENSORS_ERROR_COUNT := Total_Sensors_Error;
         "DB_HGU_Execution_V17".ANALOG_PROCESSING_ERROR := Error_Status;
+        
+        // Update ANALOG_ERROR_WORD with bit mapping (bits 0-15 for sensors 1-16)
+        "DB_HGU_Execution_V17".ANALOG_ERROR_WORD := Error_Word_Temp;
+        "DB_HGU_Execution_V17".ANALOG_SENSOR_ERROR := Any_Sensor_Error;
+        "DB_HGU_Execution_V17".ANALOG_ERROR_CODE := Error_Code;
         
         // =============================================================================
         // PROCESSING CYCLE COMPLETED
@@ -719,13 +705,19 @@ ELSE
     Processing_Timer(IN := FALSE, PT := T#100ms);
     Calibration_Timer(IN := FALSE, PT := T#10s);
     
-    // Reset all fault counters
-    FOR i := 1 TO 19 DO
-        Sensor_Fault_Counter[i] := 0;
-    END_FOR;
+    // Direct error detection - no fault counters to reset
     
     Error_Status := FALSE;
     Error_Code := 0;
+    
+    // Reset error word variables
+    Error_Word_Temp := WORD#0;
+    Any_Sensor_Error := FALSE;
+    
+    // Reset DB error variables
+    "DB_HGU_Execution_V17".ANALOG_ERROR_WORD := WORD#0;
+    "DB_HGU_Execution_V17".ANALOG_SENSOR_ERROR := FALSE;
+    "DB_HGU_Execution_V17".ANALOG_ERROR_CODE := USINT#0;
 END_IF;
 
 END_FUNCTION_BLOCK
