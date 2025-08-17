@@ -615,7 +615,6 @@ ELSE
     "DB_HGU_Execution_V17".EMERGENCY_STOP_REQUIRED := FALSE;
     "DB_HGU_Execution_V17".MASTER_ERROR_CODE := 0;
     
-    "DB_HGU_Execution_V17".SAFETY_ERROR_WORD := DWord#0;
     "DB_HGU_Execution_V17".COMMUNICATION_ERROR_WORD := DWord#0;
     "DB_HGU_Execution_V17".HARDWARE_ERROR_WORD := DWord#0;
     "DB_HGU_Execution_V17".PROCESS_WARNING_WORD := DWord#0;
@@ -624,7 +623,6 @@ ELSE
     // Reset Safety and Motor error processing (moved from Safety_Status_Manager)
     "DB_HGU_Execution_V17".SAFETY_ERROR_WORD := WORD#0;
     "DB_HGU_Execution_V17".MOTOR_ERROR_WORD := WORD#0;
-    "DB_HGU_Execution_V17".STATUS_WORD := WORD#0;
     "DB_HGU_Execution_V17".CRITICAL_SAFETY_ERROR := FALSE;
     "DB_HGU_Execution_V17".ANY_MOTOR_ERROR := FALSE;
     "DB_HGU_Execution_V17".SAFETY_ERROR_CODE := USINT#0;
