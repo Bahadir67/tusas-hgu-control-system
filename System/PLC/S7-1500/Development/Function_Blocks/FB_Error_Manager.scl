@@ -57,10 +57,18 @@ END_VAR
 
 VAR
     // FB Interface Variables - Error Status Inputs
-    // Safety Status Manager
+    // Safety Status Manager (now handled directly here)
     Safety_Critical_Error : Bool := FALSE;
     Safety_Any_Motor_Error : Bool := FALSE;
     Safety_Error_Code : USInt := 0;
+    
+    // Safety Error Word processing (moved from Safety_Status_Manager)
+    Safety_Error_Count : USInt := 0;
+    Safety_Word_Raw : Word := 0;
+    
+    // Motor Error Word processing (moved from Safety_Status_Manager)
+    Motor_Error_Count : USInt := 0;
+    Motor_Word_Raw : Word := 0;
     
     // Analog Input Processing
     Analog_Error_Status : Bool := FALSE;
@@ -171,10 +179,145 @@ IF Enable THEN
         // READ ERROR INPUTS FROM ALL FBs (via DB or direct calls)
         // =============================================================================
         
-        // Safety Status Manager
-        Safety_Critical_Error := "DB_HGU_Execution_V17".CRITICAL_SAFETY_ERROR;
-        Safety_Any_Motor_Error := "DB_HGU_Execution_V17".ANY_MOTOR_ERROR;
-        Safety_Error_Code := "DB_HGU_Execution_V17".SAFETY_ERROR_CODE;
+        // =============================================================================
+        // BUILD SAFETY ERROR WORD (16 bits) - moved from Safety_Status_Manager
+        // =============================================================================
+        Safety_Word_Raw := WORD#0;
+        Safety_Error_Count := USINT#0;
+        
+        // Emergency Stop signals (Bits 0-5)
+        IF "EmergencyStopPlcStatus" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000000000001;  // Bit 0
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "EmergencyStopGpStatus" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000000000010;  // Bit 1
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "EmergencyStopUnit1" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000000000100;  // Bit 2
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "EmergencyStopUnit2" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000000001000;  // Bit 3
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "EmergencyStopUnit3" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000000010000;  // Bit 4
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "EmergencyStopUnit4" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000000100000;  // Bit 5
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        // Protection system errors (Bits 6-9) - Inverted logic for OK signals
+        IF NOT "PhaseProtectionOk" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000001000000;  // Bit 6
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF NOT "SafetyRelayOk" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000010000000;  // Bit 7
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "MainSwitchAlarm" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000000100000000;  // Bit 8
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "ToroidalLeakageFuse" THEN 
+            Safety_Word_Raw := Safety_Word_Raw OR WORD#2#0000001000000000;  // Bit 9
+            Safety_Error_Count := Safety_Error_Count + USINT#1;
+        END_IF;
+        
+        // Write to DB
+        "DB_HGU_Execution_V17".SAFETY_ERROR_WORD := Safety_Word_Raw;
+        
+        // =============================================================================
+        // BUILD MOTOR ERROR WORD (16 bits) - moved from Safety_Status_Manager
+        // =============================================================================
+        Motor_Word_Raw := WORD#0;
+        Motor_Error_Count := USINT#0;
+        
+        // Motor MKS thermal faults (Bits 0-8)
+        IF "Motor1MpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000000000001;  // Bit 0
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "Motor2MpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000000000010;  // Bit 1
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "Motor3MpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000000000100;  // Bit 2
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "Motor4MpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000000001000;  // Bit 3
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "Motor5MpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000000010000;  // Bit 4
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "Motor6MpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000000100000;  // Bit 5
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "CoilTubeMpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000001000000;  // Bit 6
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "CircMpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000010000000;  // Bit 7
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        IF "ParticleMpcbFault" THEN 
+            Motor_Word_Raw := Motor_Word_Raw OR WORD#2#0000000100000000;  // Bit 8
+            Motor_Error_Count := Motor_Error_Count + USINT#1;
+        END_IF;
+        
+        // Write to DB
+        "DB_HGU_Execution_V17".MOTOR_ERROR_WORD := Motor_Word_Raw;
+        
+        // =============================================================================
+        // CALCULATE SUMMARY STATUS - moved from Safety_Status_Manager
+        // =============================================================================
+        
+        // Critical safety error (any emergency stop or protection failure)
+        Safety_Critical_Error := (Safety_Error_Count > USINT#0);
+        
+        // Any motor error
+        Safety_Any_Motor_Error := (Motor_Error_Count > USINT#0);
+        
+        // Error priority code calculation
+        IF Safety_Critical_Error THEN
+            Safety_Error_Code := USINT#3;  // Critical safety error (highest priority)
+        ELSIF Safety_Any_Motor_Error THEN
+            Safety_Error_Code := USINT#2;  // Motor error (medium priority)
+        ELSE
+            Safety_Error_Code := USINT#0;  // System OK
+        END_IF;
+        
+        // Update DB summary variables
+        "DB_HGU_Execution_V17".CRITICAL_SAFETY_ERROR := Safety_Critical_Error;
+        "DB_HGU_Execution_V17".ANY_MOTOR_ERROR := Safety_Any_Motor_Error;
+        "DB_HGU_Execution_V17".SAFETY_ERROR_CODE := Safety_Error_Code;
         
         // Digital Input Processing (connected via System Coordinator instances)
         // TODO: Connect these to actual FB instances in System Coordinator:
@@ -477,6 +620,13 @@ ELSE
     "DB_HGU_Execution_V17".HARDWARE_ERROR_WORD := DWord#0;
     "DB_HGU_Execution_V17".PROCESS_WARNING_WORD := DWord#0;
     "DB_HGU_Execution_V17".SYSTEM_STATUS_WORD := DWord#0;
+    
+    // Reset Safety and Motor error processing (moved from Safety_Status_Manager)
+    "DB_HGU_Execution_V17".SAFETY_ERROR_WORD := WORD#0;
+    "DB_HGU_Execution_V17".MOTOR_ERROR_WORD := WORD#0;
+    "DB_HGU_Execution_V17".CRITICAL_SAFETY_ERROR := FALSE;
+    "DB_HGU_Execution_V17".ANY_MOTOR_ERROR := FALSE;
+    "DB_HGU_Execution_V17".SAFETY_ERROR_CODE := USINT#0;
 END_IF;
 
 END_FUNCTION_BLOCK
