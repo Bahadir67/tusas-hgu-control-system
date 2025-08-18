@@ -54,6 +54,10 @@ namespace TUSAS.HGU.Core.Services
         private SensorData? _latestSensorData;
         private int _sensorDataIntervalMs = 1000; // 1 saniye
         
+        // Performance measurement fields
+        private readonly List<OpcReadPerformance> _performanceHistory = new();
+        private readonly object _performanceLock = new();
+        
         // ✨ COLLECTION SUPPORT - OPC Variable Collection for real-time updates
         private TUSAS.HGU.Core.Services.OPC.OpcVariableCollection? _opcVariableCollection;
         
@@ -226,6 +230,9 @@ namespace TUSAS.HGU.Core.Services
         {
             if (!_isConnected || _session == null || _opcVariableCollection == null) return;
 
+            var startTime = DateTime.UtcNow;
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
             try
             {
                 // Bulk read all variables from collection using updated namespaces
@@ -233,7 +240,13 @@ namespace TUSAS.HGU.Core.Services
                     .Where(v => v.NamespaceIndex > 0) // Skip invalid namespaces
                     .ToList();
 
-                if (variablesToRead.Count == 0) return;
+                if (variablesToRead.Count == 0) 
+                {
+                    stopwatch.Stop();
+                    return;
+                }
+
+                var readRequestStartTime = stopwatch.Elapsed;
 
                 // Create bulk read request
                 var readRequest = new ReadRequest
@@ -247,8 +260,13 @@ namespace TUSAS.HGU.Core.Services
                         .ToArray()
                 };
 
+                var opcReadStartTime = stopwatch.Elapsed;
+
                 // Execute bulk read
                 var response = await _session.ReadAsync(readRequest);
+                
+                var opcReadEndTime = stopwatch.Elapsed;
+                var opcReadDuration = opcReadEndTime - opcReadStartTime;
                 var sensorDataValues = new Dictionary<string, DataValue>();
 
                 // Process results and update collection
@@ -318,9 +336,38 @@ namespace TUSAS.HGU.Core.Services
                     }
                 }
 
+                // Record performance metrics
+                stopwatch.Stop();
+                var totalDuration = stopwatch.Elapsed;
+                
+                var performance = new OpcReadPerformance
+                {
+                    Timestamp = startTime,
+                    VariableCount = variablesToRead.Count,
+                    ValidVariableCount = sensorDataValues.Count,
+                    OpcReadDurationMs = opcReadDuration.TotalMilliseconds,
+                    TotalDurationMs = totalDuration.TotalMilliseconds,
+                    ProcessingDurationMs = totalDuration.TotalMilliseconds - opcReadDuration.TotalMilliseconds
+                };
+
+                lock (_performanceLock)
+                {
+                    _performanceHistory.Add(performance);
+                    
+                    // Keep only last 100 measurements
+                    if (_performanceHistory.Count > 100)
+                    {
+                        _performanceHistory.RemoveAt(0);
+                    }
+                }
+
+                _logger.LogDebug("OPC Bulk Read - Variables: {Count}, OPC Read: {OpcMs}ms, Total: {TotalMs}ms", 
+                    variablesToRead.Count, opcReadDuration.TotalMilliseconds, totalDuration.TotalMilliseconds);
+
             }
             catch (Exception ex)
             {
+                stopwatch?.Stop();
                 _logger.LogError(ex, "Error in bulk sensor data collection: {Message}", ex.Message);
             }
         }
@@ -330,6 +377,70 @@ namespace TUSAS.HGU.Core.Services
             lock (_sensorDataLock)
             {
                 return _latestSensorData;
+            }
+        }
+
+        /// <summary>
+        /// Immediate OPC data collection trigger - Timer'ı beklemeden fresh data topla
+        /// </summary>
+        public async Task<bool> TriggerImmediateDataCollection()
+        {
+            if (!_isConnected || _session == null)
+            {
+                _logger.LogWarning("Cannot trigger immediate collection - OPC UA not connected");
+                return false;
+            }
+
+            try
+            {
+                _logger.LogInformation("🔄 Triggering immediate OPC data collection...");
+                
+                // Timer'ın çağırdığı aynı fonksiyonu direk çağır
+                await CollectSensorDataAsync();
+                
+                _logger.LogInformation("✅ Immediate OPC data collection completed");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error in immediate data collection: {Message}", ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Get OPC read performance statistics
+        /// </summary>
+        public OpcPerformanceStats GetPerformanceStats()
+        {
+            lock (_performanceLock)
+            {
+                if (_performanceHistory.Count == 0)
+                {
+                    return new OpcPerformanceStats
+                    {
+                        MeasurementCount = 0,
+                        Message = "No performance data available yet"
+                    };
+                }
+
+                var recentMeasurements = _performanceHistory.TakeLast(20).ToList();
+                
+                return new OpcPerformanceStats
+                {
+                    MeasurementCount = _performanceHistory.Count,
+                    LatestMeasurement = _performanceHistory.Last(),
+                    AverageOpcReadMs = recentMeasurements.Average(p => p.OpcReadDurationMs),
+                    AverageTotalMs = recentMeasurements.Average(p => p.TotalDurationMs),
+                    AverageProcessingMs = recentMeasurements.Average(p => p.ProcessingDurationMs),
+                    MinOpcReadMs = recentMeasurements.Min(p => p.OpcReadDurationMs),
+                    MaxOpcReadMs = recentMeasurements.Max(p => p.OpcReadDurationMs),
+                    AverageVariableCount = recentMeasurements.Average(p => p.VariableCount),
+                    SuccessRate = recentMeasurements.Count > 0 ? 
+                        (double)recentMeasurements.Sum(p => p.ValidVariableCount) / 
+                        recentMeasurements.Sum(p => p.VariableCount) * 100 : 0,
+                    RecentMeasurements = recentMeasurements
+                };
             }
         }
 
@@ -662,5 +773,31 @@ namespace TUSAS.HGU.Core.Services
                 _logger.LogError(ex, "Error in synchronous dispose: {Message}", ex.Message);
             }
         }
+    }
+
+    // Performance measurement classes
+    public class OpcReadPerformance
+    {
+        public DateTime Timestamp { get; set; }
+        public int VariableCount { get; set; }
+        public int ValidVariableCount { get; set; }
+        public double OpcReadDurationMs { get; set; }
+        public double TotalDurationMs { get; set; }
+        public double ProcessingDurationMs { get; set; }
+    }
+
+    public class OpcPerformanceStats
+    {
+        public int MeasurementCount { get; set; }
+        public OpcReadPerformance? LatestMeasurement { get; set; }
+        public double AverageOpcReadMs { get; set; }
+        public double AverageTotalMs { get; set; }
+        public double AverageProcessingMs { get; set; }
+        public double MinOpcReadMs { get; set; }
+        public double MaxOpcReadMs { get; set; }
+        public double AverageVariableCount { get; set; }
+        public double SuccessRate { get; set; }
+        public string? Message { get; set; }
+        public List<OpcReadPerformance> RecentMeasurements { get; set; } = new();
     }
 }

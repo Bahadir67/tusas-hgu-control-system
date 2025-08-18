@@ -23,7 +23,9 @@ function App() {
     fetchPageData, 
     setConnection,
     setCurrentPage: setStoreCurrentPage,
-    clearErrors 
+    clearErrors,
+    writeVariable,
+    triggerOpcRefresh
   } = useOpcStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedMotorId, setSelectedMotorId] = useState<number | null>(null);
@@ -70,7 +72,7 @@ function App() {
     const initializeData = async () => {
       try {
         // Check OPC connection with auth token
-        const connectionCheck = await fetch('http://localhost:5000/api/opc/status', {
+        const connectionCheck = await fetch('http://localhost:5000/api/Opc/status', {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
         setConnection(connectionCheck.ok);
@@ -79,9 +81,9 @@ function App() {
         await fetchPageData(currentPage);
         
       } catch (error) {
-        console.warn('OPC Backend not available, using mock data');
+        console.error('OPC Backend not available - NO MOCK DATA');
         setConnection(false);
-        // Mock data will be provided by the API service
+        // No mock data - will show errors instead
         await fetchPageData(currentPage);
       }
     };
@@ -138,20 +140,44 @@ function App() {
   };
 
   const handleMotorClick = (motorId: number) => {
-    console.log(`Motor ${motorId} clicked! Opening modal...`);
-    console.log('Current selectedMotorId:', selectedMotorId);
     setSelectedMotorId(motorId);
-    console.log('New selectedMotorId should be:', motorId);
   };
 
   const handleSystemPanelClick = (panelType: string) => {
     setSelectedSystemPanel(panelType);
-    console.log(`Opening ${panelType} system panel...`);
   };
 
   const closeModal = () => {
     setSelectedMotorId(null);
     setSelectedSystemPanel(null);
+  };
+
+  // Handle system enable toggle
+  const handleSystemEnableToggle = async () => {
+    const newValue = !system?.systemEnable;
+    
+    try {
+      const success = await writeVariable('SYSTEM_ENABLE', newValue);
+      if (success) {
+        console.log(`System ${newValue ? 'enabled' : 'disabled'} successfully`);
+        
+        // Trigger immediate OPC refresh to get updated value without waiting for timer
+        console.log('🔄 Triggering immediate OPC refresh for updated system enable status...');
+        const refreshResult = await triggerOpcRefresh();
+        
+        if (refreshResult.success) {
+          console.log(`✅ Fresh data loaded - ${refreshResult.valuesCount} variables updated`);
+        } else {
+          console.warn('⚠️ OPC refresh failed, will update on next timer cycle');
+        }
+        
+      } else {
+        alert('Sistem durumu değiştirilemedi!');
+      }
+    } catch (error) {
+      console.error('Failed to toggle system enable:', error);
+      alert('Sistem durumu değiştirilirken hata oluştu!');
+    }
   };
 
   // Swipe gesture handling
@@ -199,7 +225,6 @@ function App() {
             {/* Top Row - System Panels */}
             <div className="system-panels-row">
               <SystemOverviewPanel 
-                onClick={() => handleSystemPanelClick('system-overview')}
                 alarms={alarms}
               />
               <TankCoolingPanel 
@@ -217,10 +242,28 @@ function App() {
                 <div className="pump-control-content">
                   <div className="pump-enable-switch-container">
                     <label className="pump-enable-label">System Pump Enable</label>
-                    <div className="pump-enable-switch enabled">
+                    <div 
+                      className={`pump-enable-switch ${system?.systemEnable ? 'enabled' : 'disabled'}`}
+                      onClick={handleSystemEnableToggle}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleSystemEnableToggle();
+                        }
+                      }}
+                    >
                       <div className="pump-enable-slider" />
                     </div>
-                    <div className="pump-status-text">ENABLED</div>
+                    <div 
+                      className="pump-status-text"
+                      style={{ 
+                        color: system?.systemEnable ? '#22c55e' : '#ef4444' 
+                      }}
+                    >
+                      {system?.systemEnable ? 'ENABLED' : 'DISABLED'}
+                    </div>
                   </div>
                   <div className="pump-control-warning">
                     <span className="warning-icon">⚠️</span>
@@ -279,17 +322,17 @@ function App() {
             <div className="system-flow-summary">
               <div className="flow-metric">
                 <span className="flow-label">Total Flow:</span>
-                <span className="flow-value">450 L/min</span>
+                <span className="flow-value">{system?.totalFlow ? `${system.totalFlow.toFixed(1)} L/min` : 'ERR'}</span>
               </div>
               <div className="flow-separator">|</div>
               <div className="flow-metric">
                 <span className="flow-label">Total Pressure:</span>
-                <span className="flow-value">125 bar</span>
+                <span className="flow-value">{system?.totalPressure ? `${system.totalPressure.toFixed(1)} bar` : 'ERR'}</span>
               </div>
               <div className="flow-separator">|</div>
               <div className="flow-metric">
                 <span className="flow-label">Active Motors:</span>
-                <span className="flow-value">6</span>
+                <span className="flow-value">{system?.activePumps !== undefined ? system.activePumps : 'ERR'}</span>
               </div>
             </div>
           </div>
@@ -418,14 +461,11 @@ function App() {
 
       {/* Motor Detail Modal */}
       {selectedMotorId && (
-        <>
-          {console.log('Rendering MotorDetailModal for motorId:', selectedMotorId)}
-          <MotorDetailModal
-            motorId={selectedMotorId}
-            isOpen={true}
-            onClose={closeModal}
-          />
-        </>
+        <MotorDetailModal
+          motorId={selectedMotorId}
+          isOpen={true}
+          onClose={closeModal}
+        />
       )}
 
 

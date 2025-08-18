@@ -1,4 +1,5 @@
 import React from 'react';
+import { useOpcHint } from '../../hooks/useOpcHint';
 
 interface SimpleGaugeProps {
   value: number;
@@ -9,6 +10,10 @@ interface SimpleGaugeProps {
   warningThreshold?: number;
   criticalThreshold?: number;
   size?: number;
+  // OPC hint properties
+  opcVariable?: string;
+  title?: string; // Custom title override
+  additionalInfo?: string;
 }
 
 const SimpleGauge: React.FC<SimpleGaugeProps> = ({
@@ -19,10 +24,33 @@ const SimpleGauge: React.FC<SimpleGaugeProps> = ({
   label = '',
   warningThreshold,
   criticalThreshold,
-  size = 100
+  size = 100,
+  opcVariable,
+  title: customTitle,
+  additionalInfo
 }) => {
   // Calculate percentage
   const percentage = Math.min(Math.max((value - min) / (max - min), 0), 1);
+  
+  // Generate OPC hint tooltip
+  const thresholdInfo = warningThreshold || criticalThreshold ? 
+    `Warning: ${warningThreshold || 'N/A'}, Critical: ${criticalThreshold || 'N/A'}` : 
+    undefined;
+  
+  const combinedAdditionalInfo = [thresholdInfo, additionalInfo]
+    .filter(Boolean)
+    .join(' | ');
+  
+  const opcHint = useOpcHint(
+    value,
+    opcVariable || 'UNKNOWN',
+    label || 'Value',
+    unit,
+    combinedAdditionalInfo
+  );
+  
+  // Use custom title if provided, otherwise use OPC hint
+  const tooltipTitle = customTitle || opcHint;
   
   // Determine color based on thresholds
   const getColor = () => {
@@ -34,7 +62,11 @@ const SimpleGauge: React.FC<SimpleGaugeProps> = ({
   const color = getColor();
   
   return (
-    <div className="simple-gauge" style={{ width: size, height: size }}>
+    <div 
+      className="simple-gauge" 
+      style={{ width: size, height: size }}
+      title={tooltipTitle}
+    >
       {/* Circular progress */}
       <svg width={size} height={size} className="gauge-circle">
         {/* Background circle */}

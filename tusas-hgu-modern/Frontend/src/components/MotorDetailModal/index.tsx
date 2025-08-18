@@ -160,7 +160,7 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
   const handleLeakTest = async () => {
     try {
       setIsLoading(true);
-      await opcApi.writeVariable(`MOTOR_${motorId}_LEAK_EXECUTION`, 1);
+      await opcApi.writeVariable(`PUMP_${motorId}_LEAK_TEST_START`, true);
       // Show success message
     } catch (error) {
       console.error('Failed to start leak test:', error);

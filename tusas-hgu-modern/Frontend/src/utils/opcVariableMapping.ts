@@ -10,210 +10,399 @@ export interface OpcVariableDefinition {
   isMotorSpecific: boolean;
 }
 
-// Motor-specific variables (X = motor number 1-7)
+// Motor-specific variables (X = motor number 1-7) - CORRECTED TO MATCH REAL PLC DB
 export const MOTOR_VARIABLES: OpcVariableDefinition[] = [
   {
     frontendKey: 'rpm',
     displayName: 'RPM göstergesi',
-    opcVariableName: 'MOTOR_X_MOTOR_RPM_EXECUTION',
-    dataType: 'REAL-Float',
+    opcVariableName: 'MOTOR_X_RPM_ACTUAL',
+    dataType: 'REAL',
     unit: 'RPM',
     isMotorSpecific: true
   },
   {
     frontendKey: 'pressure',
     displayName: 'Basınç göstergesi',
-    opcVariableName: 'MOTOR_X_PUMP_PRESSURE_EXECUTION',
-    dataType: 'REAL-Float',
+    opcVariableName: 'PUMP_X_PRESSURE_ACTUAL',
+    dataType: 'REAL',
     unit: 'Bar',
     isMotorSpecific: true
   },
   {
     frontendKey: 'flow',
     displayName: 'Debi göstergesi',
-    opcVariableName: 'MOTOR_X_PUMP_FLOW_EXECUTION',
-    dataType: 'REAL-Float',
+    opcVariableName: 'PUMP_X_FLOW_ACTUAL',
+    dataType: 'REAL',
     unit: 'L/Min',
     isMotorSpecific: true
   },
   {
     frontendKey: 'current',
     displayName: 'Akım göstergesi',
-    opcVariableName: 'MOTOR_X_MOTOR_CURRENT_EXECUTION',
-    dataType: 'REAL-Float',
+    opcVariableName: 'MOTOR_X_CURRENT_A',
+    dataType: 'REAL',
     unit: 'A',
     isMotorSpecific: true
   },
   {
     frontendKey: 'temperature',
     displayName: 'Sıcaklık göstergesi',
-    opcVariableName: 'MOTOR_X_MOTOR_TEMPERATURE_EXECUTION',
-    dataType: 'REAL-Float',
+    opcVariableName: 'MOTOR_X_TEMPERATURE_C',
+    dataType: 'REAL',
     unit: 'C',
     isMotorSpecific: true
   },
   {
     frontendKey: 'status',
     displayName: 'Motor durumu',
-    opcVariableName: 'MOTOR_X_MOTOR_STATUS_EXECUTION',
-    dataType: 'ShortInt',
+    opcVariableName: 'MOTOR_X_STATUS',
+    dataType: 'USINT',
     isMotorSpecific: true
   },
   {
     frontendKey: 'enabled',
     displayName: 'Motor aktif/pasif',
-    opcVariableName: 'MOTOR_X_ENABLED_EXECUTION',
-    dataType: 'Bool',
-    isMotorSpecific: true
-  },
-  {
-    frontendKey: 'valve',
-    displayName: 'Vana durumu',
-    opcVariableName: 'MOTOR_X_VALVE_EXECUTION',
-    dataType: 'ShortInt',
+    opcVariableName: 'MOTOR_X_ENABLE',
+    dataType: 'BOOL',
     isMotorSpecific: true
   },
   {
     frontendKey: 'lineFilter',
     displayName: 'Hat filtresi',
-    opcVariableName: 'MOTOR_X_LINE_FILTER_EXECUTION',
-    dataType: 'ShortInt',
+    opcVariableName: 'PUMP_X_LINE_FILTER_STATUS',
+    dataType: 'BOOL',
     isMotorSpecific: true
   },
   {
     frontendKey: 'suctionFilter',
     displayName: 'Emme filtresi',
-    opcVariableName: 'MOTOR_X_SUCTION_FILTER_EXECUTION',
-    dataType: 'ShortInt',
+    opcVariableName: 'PUMP_X_SUCTION_FILTER_STATUS',
+    dataType: 'BOOL',
+    isMotorSpecific: true
+  },
+  {
+    frontendKey: 'manualValve',
+    displayName: 'Manuel vana durumu',
+    opcVariableName: 'PUMP_X_MANUAL_VALVE_STATUS',
+    dataType: 'BOOL',
     isMotorSpecific: true
   },
   {
     frontendKey: 'targetRpm',
     displayName: 'Hedef RPM',
-    opcVariableName: 'MOTOR_X_MOTOR_TARGET_RPM_EXECUTION',
-    dataType: 'REAL-Float',
+    opcVariableName: 'MOTOR_X_RPM_SETPOINT',
+    dataType: 'REAL',
     unit: 'RPM',
     isMotorSpecific: true
   },
   {
     frontendKey: 'pressureSetpoint',
     displayName: 'Basınç setpoint',
-    opcVariableName: 'MOTOR_X_PUMP_PRESSURE_SETPOINT',
-    dataType: 'REAL-Float',
+    opcVariableName: 'PUMP_X_PRESSURE_SETPOINT',
+    dataType: 'REAL',
     unit: 'Bar',
     isMotorSpecific: true
   },
   {
     frontendKey: 'flowSetpoint',
     displayName: 'Debi setpoint',
-    opcVariableName: 'MOTOR_X_PUMP_FLOW_SETPOINT',
-    dataType: 'REAL-Float',
+    opcVariableName: 'PUMP_X_FLOW_SETPOINT',
+    dataType: 'REAL',
     unit: 'L/Min',
     isMotorSpecific: true
   },
   {
     frontendKey: 'leak',
     displayName: 'Sızıntı miktarı',
-    opcVariableName: 'MOTOR_X_PUMP_LEAK_EXECUTION',
-    dataType: 'REAL-Float',
+    opcVariableName: 'PUMP_X_LEAK_RATE',
+    dataType: 'REAL',
     unit: 'L/Min',
     isMotorSpecific: true
   },
   {
     frontendKey: 'errorCode',
     displayName: 'Motor hata kodu',
-    opcVariableName: 'MOTOR_X_ERROR_CODE_EXECUTION',
-    dataType: 'DINT-Int',
+    opcVariableName: 'MOTOR_X_ERROR_CODE',
+    dataType: 'USINT',
     isMotorSpecific: true
   },
   {
-    frontendKey: 'alarmWord',
-    displayName: 'Motor alarm word',
-    opcVariableName: 'MOTOR_X_ALARM_WORD_EXECUTION',
-    dataType: 'DINT-Int',
+    frontendKey: 'startCmd',
+    displayName: 'Motor başlatma komutu',
+    opcVariableName: 'MOTOR_X_START_CMD',
+    dataType: 'BOOL',
+    isMotorSpecific: true
+  },
+  {
+    frontendKey: 'stopCmd',
+    displayName: 'Motor durdurma komutu',
+    opcVariableName: 'MOTOR_X_STOP_CMD',
+    dataType: 'BOOL',
+    isMotorSpecific: true
+  },
+  {
+    frontendKey: 'resetCmd',
+    displayName: 'Motor reset komutu',
+    opcVariableName: 'MOTOR_X_RESET_CMD',
+    dataType: 'BOOL',
+    isMotorSpecific: true
+  },
+  {
+    frontendKey: 'startAck',
+    displayName: 'Motor başlatma onayı',
+    opcVariableName: 'MOTOR_X_START_ACK',
+    dataType: 'BOOL',
+    isMotorSpecific: true
+  },
+  {
+    frontendKey: 'stopAck',
+    displayName: 'Motor durdurma onayı',
+    opcVariableName: 'MOTOR_X_STOP_ACK',
+    dataType: 'BOOL',
+    isMotorSpecific: true
+  },
+  {
+    frontendKey: 'resetAck',
+    displayName: 'Motor reset onayı',
+    opcVariableName: 'MOTOR_X_RESET_ACK',
+    dataType: 'BOOL',
+    isMotorSpecific: true
+  },
+  {
+    frontendKey: 'operatingHours',
+    displayName: 'Çalışma saati',
+    opcVariableName: 'MOTOR_X_OPERATING_HOURS',
+    dataType: 'REAL',
+    unit: 'hours',
+    isMotorSpecific: true
+  },
+  {
+    frontendKey: 'maintenanceDue',
+    displayName: 'Bakım zamanı',
+    opcVariableName: 'MOTOR_X_MAINTENANCE_DUE',
+    dataType: 'BOOL',
+    isMotorSpecific: true
+  },
+  {
+    frontendKey: 'maintenanceHours',
+    displayName: 'Bakım saati limiti',
+    opcVariableName: 'MOTOR_X_MAINTENANCE_HOURS',
+    dataType: 'REAL',
+    unit: 'hours',
     isMotorSpecific: true
   }
 ];
 
-// System-wide variables
+// System-wide variables - CORRECTED TO MATCH REAL PLC DB
 export const SYSTEM_VARIABLES: OpcVariableDefinition[] = [
+  {
+    frontendKey: 'systemStatus',
+    displayName: 'Sistem durumu',
+    opcVariableName: 'SYSTEM_STATUS',
+    dataType: 'USINT',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'systemSafetyStatus',
+    displayName: 'Sistem güvenlik durumu',
+    opcVariableName: 'SYSTEM_SAFETY_STATUS',
+    dataType: 'USINT',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'emergencyStop',
+    displayName: 'Acil durdurma',
+    opcVariableName: 'EMERGENCY_STOP',
+    dataType: 'BOOL',
+    isMotorSpecific: false
+  },
   {
     frontendKey: 'totalFlow',
     displayName: 'Toplam sistem debisi',
-    opcVariableName: 'SYSTEM_TOTAL_FLOW_SETPOINT',
-    dataType: 'REAL-Float',
+    opcVariableName: 'TOTAL_SYSTEM_FLOW',
+    dataType: 'REAL',
     unit: 'L/Min',
     isMotorSpecific: false
   },
   {
     frontendKey: 'totalPressure',
     displayName: 'Toplam sistem basıncı',
-    opcVariableName: 'SYSTEM_PRESSURE_SETPOINT',
-    dataType: 'REAL-Float',
+    opcVariableName: 'TOTAL_SYSTEM_PRESSURE',
+    dataType: 'REAL',
     unit: 'Bar',
     isMotorSpecific: false
   },
   {
+    frontendKey: 'pressureAverage',
+    displayName: 'Ortalama sistem basıncı',
+    opcVariableName: 'SYSTEM_PRESSURE_AVERAGE',
+    dataType: 'REAL',
+    unit: 'Bar',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'activePumps',
+    displayName: 'Aktif pompa sayısı',
+    opcVariableName: 'SYSTEM_ACTIVE_PUMPS',
+    dataType: 'INT',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'systemEfficiency',
+    displayName: 'Sistem verimliliği',
+    opcVariableName: 'SYSTEM_EFFICIENCY',
+    dataType: 'REAL',
+    unit: '%',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'pressureSetpoint',
+    displayName: 'Sistem basınç setpoint',
+    opcVariableName: 'SYSTEM_PRESSURE_SETPOINT',
+    dataType: 'REAL',
+    unit: 'Bar',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'flowSetpoint',
+    displayName: 'Sistem debi setpoint',
+    opcVariableName: 'SYSTEM_FLOW_SETPOINT',
+    dataType: 'REAL',
+    unit: 'L/Min',
+    isMotorSpecific: false
+  },
+  {
     frontendKey: 'oilTemperature',
-    displayName: 'Yağ sıcaklığı',
-    opcVariableName: 'COOLING_OIL_TEMPERATURE_EXECUTION',
-    dataType: 'REAL-Float',
+    displayName: 'Tank yağ sıcaklığı',
+    opcVariableName: 'TANK_OIL_TEMPERATURE',
+    dataType: 'REAL',
     unit: 'C',
     isMotorSpecific: false
   },
   {
     frontendKey: 'tankLevel',
     displayName: 'Tank seviyesi',
-    opcVariableName: 'COOLING_OIL_LEVEL_PERCENT_EXECUTION',
-    dataType: 'REAL-Float',
+    opcVariableName: 'TANK_LEVEL_PERCENT',
+    dataType: 'REAL',
     unit: '%',
     isMotorSpecific: false
   },
   {
     frontendKey: 'aquaSensor',
     displayName: 'Su sensörü',
-    opcVariableName: 'COOLING_AQUA_SENSOR_EXECUTION',
-    dataType: 'REAL-Float',
+    opcVariableName: 'AQUA_SENSOR_LEVEL',
+    dataType: 'REAL',
     unit: '%',
     isMotorSpecific: false
   },
   {
-    frontendKey: 'waterTemperature',
-    displayName: 'Su sıcaklığı',
-    opcVariableName: 'COOLING_WATER_TEMPERATURE_EXECUTION',
-    dataType: 'REAL-Float',
+    frontendKey: 'chillerInletTemp',
+    displayName: 'Chiller giriş sıcaklığı',
+    opcVariableName: 'CHILLER_INLET_TEMPERATURE',
+    dataType: 'REAL',
     unit: 'C',
     isMotorSpecific: false
   },
   {
-    frontendKey: 'coolingFlowRate',
-    displayName: 'Soğutma debisi',
-    opcVariableName: 'COOLING_FLOW_RATE_EXECUTION',
-    dataType: 'REAL-Float',
-    unit: 'L/Min',
+    frontendKey: 'chillerOutletTemp',
+    displayName: 'Chiller çıkış sıcaklığı',
+    opcVariableName: 'CHILLER_OUTLET_TEMPERATURE',
+    dataType: 'REAL',
+    unit: 'C',
     isMotorSpecific: false
   },
   {
-    frontendKey: 'coolingSystemStatus',
-    displayName: 'Soğutma sistemi durumu',
-    opcVariableName: 'COOLING_SYSTEM_STATUS_EXECUTION',
-    dataType: 'DINT-Int',
-    unit: '',
+    frontendKey: 'tankMinLevel',
+    displayName: 'Tank minimum seviye',
+    opcVariableName: 'TANK_MIN_LEVEL',
+    dataType: 'BOOL',
     isMotorSpecific: false
   },
   {
-    frontendKey: 'coolingPumpStatus',
-    displayName: 'Soğutma pompası durumu',
-    opcVariableName: 'COOLING_PUMP_STATUS_EXECUTION',
-    dataType: 'Bool',
-    unit: '',
+    frontendKey: 'tankMaxLevel',
+    displayName: 'Tank maksimum seviye',
+    opcVariableName: 'TANK_MAX_LEVEL',
+    dataType: 'BOOL',
     isMotorSpecific: false
   },
+  {
+    frontendKey: 'chillerWaterFlowStatus',
+    displayName: 'Chiller su akış durumu',
+    opcVariableName: 'CHILLER_WATER_FLOW_STATUS',
+    dataType: 'BOOL',
+    isMotorSpecific: false
+  },
+  // Communication and Error Variables
+  {
+    frontendKey: 'canCommunicationActive',
+    displayName: 'CAN haberleşme aktif',
+    opcVariableName: 'CAN_COMMUNICATION_ACTIVE',
+    dataType: 'BOOL',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'canTcpConnected',
+    displayName: 'CAN TCP bağlantı durumu',
+    opcVariableName: 'CAN_TCP_CONNECTED',
+    dataType: 'BOOL',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'canActiveDeviceCount',
+    displayName: 'CAN aktif cihaz sayısı',
+    opcVariableName: 'CAN_ACTIVE_DEVICE_COUNT',
+    dataType: 'USINT',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'canSystemError',
+    displayName: 'CAN sistem hatası',
+    opcVariableName: 'CAN_SYSTEM_ERROR',
+    dataType: 'BOOL',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'pressureSafetyValvesEnable',
+    displayName: 'Basınç emniyet valfleri aktif',
+    opcVariableName: 'PRESSURE_SAFETY_VALVES_ENABLE',
+    dataType: 'BOOL',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'pressureSafetyValvesCommOk',
+    displayName: 'Basınç emniyet valfleri haberleşme',
+    opcVariableName: 'PRESSURE_SAFETY_VALVES_COMM_OK',
+    dataType: 'BOOL',
+    isMotorSpecific: false
+  },
+  // Error Management Variables
+  {
+    frontendKey: 'systemErrorActive',
+    displayName: 'Sistem hata aktif',
+    opcVariableName: 'SYSTEM_ERROR_ACTIVE',
+    dataType: 'BOOL',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'criticalSafetyError',
+    displayName: 'Kritik güvenlik hatası',
+    opcVariableName: 'CRITICAL_SAFETY_ERROR',
+    dataType: 'BOOL',
+    isMotorSpecific: false
+  },
+  {
+    frontendKey: 'anyMotorError',
+    displayName: 'Herhangi bir motor hatası',
+    opcVariableName: 'ANY_MOTOR_ERROR',
+    dataType: 'BOOL',
+    isMotorSpecific: false
+  },
+  // Oil Temperature Control Setpoints
   {
     frontendKey: 'minOilTempSetpoint',
     displayName: 'Min yağ sıcaklığı setpoint',
     opcVariableName: 'COOLING_MIN_OIL_TEMP_SETPOINT',
-    dataType: 'REAL-Float',
+    dataType: 'REAL',
     unit: 'C',
     isMotorSpecific: false
   },
@@ -221,51 +410,16 @@ export const SYSTEM_VARIABLES: OpcVariableDefinition[] = [
     frontendKey: 'maxOilTempSetpoint',
     displayName: 'Max yağ sıcaklığı setpoint',
     opcVariableName: 'COOLING_MAX_OIL_TEMP_SETPOINT',
-    dataType: 'REAL-Float',
+    dataType: 'REAL',
     unit: 'C',
     isMotorSpecific: false
   },
-  // System Alarm Variables
+  // System Control
   {
-    frontendKey: 'alarmHighPressure',
-    displayName: 'Yüksek basınç alarmı',
-    opcVariableName: 'ALARM_HIGH_PRESSURE',
-    dataType: 'Bool',
-    isMotorSpecific: false
-  },
-  {
-    frontendKey: 'alarmLowPressure',
-    displayName: 'Düşük basınç alarmı',
-    opcVariableName: 'ALARM_LOW_PRESSURE',
-    dataType: 'Bool',
-    isMotorSpecific: false
-  },
-  {
-    frontendKey: 'alarmHighTemperature',
-    displayName: 'Yüksek sıcaklık alarmı',
-    opcVariableName: 'ALARM_HIGH_TEMPERATURE',
-    dataType: 'Bool',
-    isMotorSpecific: false
-  },
-  {
-    frontendKey: 'alarmLowTankLevel',
-    displayName: 'Düşük tank seviyesi alarmı',
-    opcVariableName: 'ALARM_LOW_TANK_LEVEL',
-    dataType: 'Bool',
-    isMotorSpecific: false
-  },
-  {
-    frontendKey: 'alarmSystemFailure',
-    displayName: 'Sistem arızası alarmı',
-    opcVariableName: 'ALARM_SYSTEM_FAILURE',
-    dataType: 'Bool',
-    isMotorSpecific: false
-  },
-  {
-    frontendKey: 'alarmCommunicationLoss',
-    displayName: 'İletişim kaybı alarmı',
-    opcVariableName: 'ALARM_COMMUNICATION_LOSS',
-    dataType: 'Bool',
+    frontendKey: 'systemEnable',
+    displayName: 'Sistem aktif/pasif',
+    opcVariableName: 'SYSTEM_ENABLE',
+    dataType: 'BOOL',
     isMotorSpecific: false
   }
 ];
@@ -287,9 +441,14 @@ export const MOTOR_COMMANDS: OpcVariableDefinition[] = [
 export const PAGE_VARIABLE_SETS = {
   main: {
     name: 'Main Dashboard',
-    systemVariables: ['totalFlow', 'totalPressure', 'oilTemperature', 'tankLevel', 'aquaSensor', 'waterTemperature', 'coolingFlowRate', 'coolingSystemStatus', 'coolingPumpStatus', 'minOilTempSetpoint', 'maxOilTempSetpoint'],
-    motorVariables: ['status', 'enabled', 'pressure', 'flow', 'temperature'], // Basic overview
-    motors: [1, 2, 3, 4, 5, 6, 7] // All motors
+    systemVariables: [
+      'totalFlow', 'totalPressure', 'activePumps', 
+      'oilTemperature', 'minOilTempSetpoint', 'maxOilTempSetpoint',
+      'tankLevel', 'aquaSensor', 'chillerInletTemp', 'chillerOutletTemp', 'chillerWaterFlowStatus',
+      'systemEnable'
+    ], // System overview + Tank & Cooling data + System Control
+    motorVariables: [], // NO motors on main page
+    motors: [] // NO motors on main page
   },
   
   motors: {

@@ -5,24 +5,24 @@ import SystemSetpointsModal from '../SystemSetpointsModal';
 import './SystemOverviewPanel.css';
 
 interface SystemOverviewPanelProps {
-  onClick?: () => void;
   alarms?: Array<{ id: number; message: string; type: string }>;
 }
 
-const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alarms = [] }) => {
+const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }) => {
   const system = useOpcStore((state) => state.system);
   const [showSetpointsModal, setShowSetpointsModal] = useState(false);
   
-  // Use actual OPC data from store
+  // Use actual OPC data from store - NO DUMMY VALUES
+  
   const systemData = {
-    totalFlowExecution: system?.totalFlow || 0,
-    pressureExecution: system?.totalPressure || 0,
+    totalFlowExecution: system?.totalFlow,
+    pressureExecution: system?.totalPressure,
     statusExecution: system?.statusExecution || 0, // 0=Test, 1=Ready, 2=Active, 3=Warning, 4=Error
-    totalFlowSetpoint: system?.totalFlowSetpoint || 180, // From OPC: SYSTEM_TOTAL_FLOW_SETPOINT  
-    pressureSetpoint: system?.pressureSetpoint || 280, // From OPC: SYSTEM_PRESSURE_SETPOINT
-    efficiency: 94.2, // Calculated field - add to backend later
-    activePumps: system?.activePumps || 0,
-    totalPower: 412.5 // Calculated field - add to backend later
+    totalFlowSetpoint: system?.totalFlowSetpoint,
+    pressureSetpoint: system?.pressureSetpoint,
+    efficiency: system?.systemEfficiency, // Must come from OPC
+    activePumps: system?.activePumps,
+    totalPower: system?.totalPower // Must come from OPC - no dummy value
   };
 
   const getSystemStatusInfo = (status: number) => {
@@ -52,8 +52,9 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alar
     return '#ef4444';                       // Poor
   };
 
-  const handleClick = () => {
-    // Open setpoints modal instead of onClick callback
+  const handleClick = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
     setShowSetpointsModal(true);
   };
 
@@ -108,14 +109,14 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alar
           <div className="metric-display">
             <div 
               className="metric-value" 
-              style={{ color: getValueColor(systemData.totalFlowExecution, systemData.totalFlowSetpoint) }}
+              style={{ color: systemData.totalFlowExecution !== undefined ? getValueColor(systemData.totalFlowExecution, systemData.totalFlowSetpoint) : '#ef4444' }}
             >
-              {systemData.totalFlowExecution.toFixed(1)}
+              {systemData.totalFlowExecution !== undefined ? systemData.totalFlowExecution.toFixed(1) : 'ERR'}
             </div>
             <div className="metric-unit">L/min</div>
           </div>
           <div className="metric-setpoint">
-            Target: {systemData.totalFlowSetpoint.toFixed(1)} L/min
+            Target: {systemData.totalFlowSetpoint !== undefined ? systemData.totalFlowSetpoint.toFixed(1) : 'ERR'} L/min
           </div>
         </div>
 
@@ -129,14 +130,14 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alar
           <div className="metric-display">
             <div 
               className="metric-value" 
-              style={{ color: getValueColor(systemData.pressureExecution, systemData.pressureSetpoint) }}
+              style={{ color: systemData.pressureExecution !== undefined ? getValueColor(systemData.pressureExecution, systemData.pressureSetpoint) : '#ef4444' }}
             >
-              {systemData.pressureExecution.toFixed(1)}
+              {systemData.pressureExecution !== undefined ? systemData.pressureExecution.toFixed(1) : 'ERR'}
             </div>
             <div className="metric-unit">bar</div>
           </div>
           <div className="metric-setpoint">
-            Target: {systemData.pressureSetpoint.toFixed(1)} bar
+            Target: {systemData.pressureSetpoint !== undefined ? systemData.pressureSetpoint.toFixed(1) : 'ERR'} bar
           </div>
         </div>
       </div>
@@ -147,23 +148,23 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alar
           <div className="secondary-label">Efficiency</div>
           <div 
             className="secondary-value"
-            style={{ color: getEfficiencyColor(systemData.efficiency) }}
+            style={{ color: systemData.efficiency !== undefined ? getEfficiencyColor(systemData.efficiency) : '#ef4444' }}
           >
-            {systemData.efficiency.toFixed(1)}%
+            {systemData.efficiency !== undefined ? systemData.efficiency.toFixed(1) + '%' : 'ERR'}
           </div>
         </div>
 
         <div className="secondary-metric">
           <div className="secondary-label">Active Pumps</div>
           <div className="secondary-value" style={{ color: '#06b6d4' }}>
-            {systemData.activePumps}/6
+            {systemData.activePumps !== undefined ? `${systemData.activePumps}/6` : 'ERR'}
           </div>
         </div>
 
         <div className="secondary-metric">
           <div className="secondary-label">Total Power</div>
-          <div className="secondary-value" style={{ color: '#8b5cf6' }}>
-            {systemData.totalPower.toFixed(1)}kW
+          <div className="secondary-value" style={{ color: systemData.totalPower !== undefined ? '#8b5cf6' : '#ef4444' }}>
+            {systemData.totalPower !== undefined ? `${systemData.totalPower.toFixed(1)}kW` : 'ERR'}
           </div>
         </div>
       </div>
@@ -176,13 +177,19 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alar
             <div 
               className="progress-bar flow-progress"
               style={{ 
-                width: `${Math.min((systemData.totalFlowExecution / systemData.totalFlowSetpoint) * 100, 100)}%`,
-                backgroundColor: getValueColor(systemData.totalFlowExecution, systemData.totalFlowSetpoint)
+                width: systemData.totalFlowExecution && systemData.totalFlowSetpoint 
+                  ? `${Math.min((systemData.totalFlowExecution / systemData.totalFlowSetpoint) * 100, 100)}%`
+                  : '0%',
+                backgroundColor: systemData.totalFlowExecution && systemData.totalFlowSetpoint 
+                  ? getValueColor(systemData.totalFlowExecution, systemData.totalFlowSetpoint)
+                  : '#ef4444'
               }}
             />
           </div>
           <div className="progress-percentage">
-            {((systemData.totalFlowExecution / systemData.totalFlowSetpoint) * 100).toFixed(0)}%
+            {systemData.totalFlowExecution && systemData.totalFlowSetpoint
+              ? ((systemData.totalFlowExecution / systemData.totalFlowSetpoint) * 100).toFixed(0) + '%'
+              : 'ERR'}
           </div>
         </div>
 
@@ -192,13 +199,19 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alar
             <div 
               className="progress-bar pressure-progress"
               style={{ 
-                width: `${Math.min((systemData.pressureExecution / systemData.pressureSetpoint) * 100, 100)}%`,
-                backgroundColor: getValueColor(systemData.pressureExecution, systemData.pressureSetpoint)
+                width: systemData.pressureExecution && systemData.pressureSetpoint 
+                  ? `${Math.min((systemData.pressureExecution / systemData.pressureSetpoint) * 100, 100)}%`
+                  : '0%',
+                backgroundColor: systemData.pressureExecution && systemData.pressureSetpoint 
+                  ? getValueColor(systemData.pressureExecution, systemData.pressureSetpoint)
+                  : '#ef4444'
               }}
             />
           </div>
           <div className="progress-percentage">
-            {((systemData.pressureExecution / systemData.pressureSetpoint) * 100).toFixed(0)}%
+            {systemData.pressureExecution && systemData.pressureSetpoint
+              ? ((systemData.pressureExecution / systemData.pressureSetpoint) * 100).toFixed(0) + '%'
+              : 'ERR'}
           </div>
         </div>
       </div>
@@ -217,7 +230,7 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alar
               <span className="setpoint-label">Flow Target</span>
             </div>
             <div className="setpoint-value" style={{ color: '#06b6d4' }}>
-              {systemData.totalFlowSetpoint.toFixed(1)} L/min
+              {systemData.totalFlowSetpoint !== undefined ? systemData.totalFlowSetpoint.toFixed(1) : 'ERR'} L/min
             </div>
           </div>
           
@@ -227,7 +240,7 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ onClick, alar
               <span className="setpoint-label">Pressure Target</span>
             </div>
             <div className="setpoint-value" style={{ color: '#8b5cf6' }}>
-              {systemData.pressureSetpoint.toFixed(1)} bar
+              {systemData.pressureSetpoint !== undefined ? systemData.pressureSetpoint.toFixed(1) : 'ERR'} bar
             </div>
           </div>
         </div>

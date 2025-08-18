@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useOpcStore } from '../../store/opcStore';
 import CoolingSetpointsModal from '../CoolingSetpointsModal';
+import { useSystemOpcHint } from '../../hooks/useOpcHint';
 import './TankCoolingPanel.css';
 
 interface TankCoolingPanelProps {
@@ -11,6 +12,14 @@ interface TankCoolingPanelProps {
 const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
   const system = useOpcStore((state) => state.system);
   const [showCoolingModal, setShowCoolingModal] = useState(false);
+  
+  // OPC hints for tank and cooling data
+  const tankLevelHint = useSystemOpcHint('tankLevel');
+  const oilTemperatureHint = useSystemOpcHint('oilTemperature');
+  const aquaSensorHint = useSystemOpcHint('aquaSensor');
+  const chillerInletTempHint = useSystemOpcHint('chillerInletTemp');
+  const chillerWaterFlowHint = useSystemOpcHint('chillerWaterFlowStatus');
+  const systemStatusHint = useSystemOpcHint('systemStatus');
   
   // Use actual OPC data from store
   const tankCoolingData = {
@@ -99,6 +108,7 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
             backgroundColor: `${statusInfo.color}20`,
             borderColor: `${statusInfo.color}60`
           }}
+          title={systemStatusHint}
         >
           <span className="status-indicator" style={{ backgroundColor: statusInfo.color }} />
           <span className="status-text">{statusInfo.text}</span>
@@ -121,8 +131,14 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
                   height: `${tankCoolingData.tankLevel}%`,
                   backgroundColor: tankLevelStatus.color 
                 }}
+                title={tankLevelHint}
               />
-              <div className="tank-level-text">{tankCoolingData.tankLevel.toFixed(1)}%</div>
+              <div 
+                className="tank-level-text" 
+                title={tankLevelHint}
+              >
+                {tankCoolingData.tankLevel.toFixed(1)}%
+              </div>
             </div>
             <div className="tank-scale">
               <div className="scale-mark">100%</div>
@@ -150,7 +166,10 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
                     }}
                   />
                 </div>
-                <div className="metric-value overlay-text">
+                <div 
+                  className="metric-value overlay-text"
+                  title={oilTemperatureHint}
+                >
                   {tankCoolingData.tankTemperature.toFixed(1)}°C
                 </div>
               </div>
@@ -168,7 +187,10 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
                     }}
                   />
                 </div>
-                <div className="metric-value overlay-text">
+                <div 
+                  className="metric-value overlay-text"
+                  title={aquaSensorHint}
+                >
                   {(tankCoolingData.aquaSensor * 100).toFixed(2)}%
                 </div>
               </div>
@@ -201,7 +223,10 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
                     }}
                   />
                 </div>
-                <div className="metric-display overlay-text">
+                <div 
+                  className="metric-display overlay-text"
+                  title={chillerInletTempHint}
+                >
                   <span className="metric-value">{tankCoolingData.waterTemperature.toFixed(1)}</span>
                   <span className="metric-unit">°C</span>
                 </div>
@@ -223,7 +248,10 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
                     }}
                   />
                 </div>
-                <div className="metric-display overlay-text">
+                <div 
+                  className="metric-display overlay-text"
+                  title={chillerWaterFlowHint}
+                >
                   <span className="metric-value">{tankCoolingData.coolingFlowRate.toFixed(1)}</span>
                   <span className="metric-unit">L/min</span>
                 </div>
@@ -232,7 +260,10 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
           </div>
 
           <div className="cooling-status-row">
-            <div className="pump-status">
+            <div 
+              className="pump-status"
+              title={chillerWaterFlowHint}
+            >
               <span className="pump-icon">
                 {tankCoolingData.pumpStatus ? '🔵' : '🔴'}
               </span>

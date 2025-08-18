@@ -3,6 +3,7 @@ import { useOpcStore } from '../../store/opcStore';
 import SettingsModal from '../SettingsModal';
 import SimpleGauge from '../SimpleGauge';
 import { opcApi } from '../../services/api';
+import { useMotorOpcHint, useMotorAllHints } from '../../hooks/useOpcHint';
 
 interface MotorPanelProps {
   motorId: number;
@@ -13,6 +14,9 @@ const MotorPanel: React.FC<MotorPanelProps> = ({ motorId, isSpecial = false }) =
   const motor = useOpcStore((state) => state.motors[motorId]);
   const [showSettings, setShowSettings] = useState(false);
   const [isEnabling, setIsEnabling] = useState(false);
+  
+  // Generate all OPC hints for this motor
+  const opcHints = useMotorAllHints(motorId);
 
   // Get status text and class
   const getStatusInfo = (status: number) => {
@@ -42,8 +46,8 @@ const MotorPanel: React.FC<MotorPanelProps> = ({ motorId, isSpecial = false }) =
     setIsEnabling(true);
     try {
       await opcApi.writeVariable(
-        `MOTOR_${motorId}_ENABLE_EXECUTION`,
-        motor.enabled ? 0 : 1
+        `MOTOR_${motorId}_ENABLE`,
+        motor.enabled ? false : true
       );
     } catch (error) {
       console.error('Failed to toggle motor enable:', error);
@@ -117,6 +121,8 @@ const MotorPanel: React.FC<MotorPanelProps> = ({ motorId, isSpecial = false }) =
                 size={75}
                 warningThreshold={2700}
                 criticalThreshold={2900}
+                opcVariable={`MOTOR_${motorId}_RPM_ACTUAL`}
+                title={opcHints.rpm}
               />
               
               <SimpleGauge
@@ -128,6 +134,8 @@ const MotorPanel: React.FC<MotorPanelProps> = ({ motorId, isSpecial = false }) =
                 size={75}
                 warningThreshold={160}
                 criticalThreshold={180}
+                opcVariable={`PUMP_${motorId}_PRESSURE_ACTUAL`}
+                title={opcHints.pressure}
               />
               
               <SimpleGauge
@@ -139,6 +147,8 @@ const MotorPanel: React.FC<MotorPanelProps> = ({ motorId, isSpecial = false }) =
                 size={75}
                 warningThreshold={85}
                 criticalThreshold={95}
+                opcVariable={`PUMP_${motorId}_FLOW_ACTUAL`}
+                title={opcHints.flow}
               />
             </div>
 
@@ -241,7 +251,7 @@ const MotorPanel: React.FC<MotorPanelProps> = ({ motorId, isSpecial = false }) =
             marginBottom: 'var(--spacing-md)'
           }}>
             {/* Current */}
-            <div className="digital-display">
+            <div className="digital-display" title={opcHints.current}>
               <div className="digital-label">AKIM</div>
               <div 
                 className="digital-value"
@@ -253,7 +263,7 @@ const MotorPanel: React.FC<MotorPanelProps> = ({ motorId, isSpecial = false }) =
             </div>
 
             {/* Temperature */}
-            <div className="digital-display">
+            <div className="digital-display" title={opcHints.temperature}>
               <div className="digital-label">SICAKLIK</div>
               <div 
                 className="digital-value"
@@ -338,12 +348,12 @@ const MotorPanel: React.FC<MotorPanelProps> = ({ motorId, isSpecial = false }) =
           alignItems: 'center',
           padding: 'var(--spacing-sm) 0'
         }}>
-          {/* Valve Status */}
+          {/* Manual Valve Status */}
           <div 
-            className={`indicator ${motor.valve ? 'indicator-valve-open' : 'indicator-valve-closed'}`}
-            title={motor.valve ? 'Vana Açık' : 'Vana Kapalı'}
+            className={`indicator ${motor.manualValve ? 'indicator-valve-open' : 'indicator-valve-closed'}`}
+            title={opcHints.manualValve}
             role="status"
-            aria-label={`Vana ${motor.valve ? 'açık' : 'kapalı'}`}
+            aria-label={`Manuel vana ${motor.manualValve ? 'açık' : 'kapalı'}`}
           >
             🔧
           </div>
@@ -351,17 +361,12 @@ const MotorPanel: React.FC<MotorPanelProps> = ({ motorId, isSpecial = false }) =
           {/* Line Filter Status */}
           <div 
             className={`indicator indicator-filter-${
-              motor.lineFilter === 0 ? 'error' : 
-              motor.lineFilter === 1 ? 'warning' : 'normal'
+              motor.lineFilter ? 'normal' : 'error'
             }`}
-            title={`Hat Filtresi: ${
-              motor.lineFilter === 0 ? 'Hata' : 
-              motor.lineFilter === 1 ? 'Uyarı' : 'Normal'
-            }`}
+            title={opcHints.lineFilter}
             role="status"
             aria-label={`Hat filtresi ${
-              motor.lineFilter === 0 ? 'hata' : 
-              motor.lineFilter === 1 ? 'uyarı' : 'normal'
+              motor.lineFilter ? 'normal' : 'hata'
             }`}
           >
             🔍
@@ -370,17 +375,12 @@ const MotorPanel: React.FC<MotorPanelProps> = ({ motorId, isSpecial = false }) =
           {/* Suction Filter Status */}
           <div 
             className={`indicator indicator-filter-${
-              motor.suctionFilter === 0 ? 'error' : 
-              motor.suctionFilter === 1 ? 'warning' : 'normal'
+              motor.suctionFilter ? 'normal' : 'error'
             }`}
-            title={`Emme Filtresi: ${
-              motor.suctionFilter === 0 ? 'Hata' : 
-              motor.suctionFilter === 1 ? 'Uyarı' : 'Normal'
-            }`}
+            title={opcHints.suctionFilter}
             role="status"
             aria-label={`Emme filtresi ${
-              motor.suctionFilter === 0 ? 'hata' : 
-              motor.suctionFilter === 1 ? 'uyarı' : 'normal'
+              motor.suctionFilter ? 'normal' : 'hata'
             }`}
           >
             🔧

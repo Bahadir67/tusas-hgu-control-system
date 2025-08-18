@@ -56,8 +56,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        // DEBUG: Comment out localStorage clearing
+        // console.log('DEBUG: Clearing localStorage for fresh start');
+        // localStorage.removeItem('auth_token');
+        // localStorage.removeItem('auth_user');
+        // localStorage.removeItem('auth_expires');
+        
         const storedToken = localStorage.getItem('auth_token');
         const storedUser = localStorage.getItem('auth_user');
+        
+        console.log('Initializing auth... Token:', storedToken?.slice(0, 20) + '...', 'User:', storedUser?.slice(0, 30) + '...');
 
         if (storedToken && storedUser) {
           // Validate token with backend
@@ -70,6 +78,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           });
 
           if (response.ok) {
+            console.log('Token validation successful');
             const userData = JSON.parse(storedUser);
             setAuthState({
               user: userData,
@@ -79,12 +88,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             });
           } else {
             // Token is invalid, clear storage
+            console.log('Token validation failed, status:', response.status);
             localStorage.removeItem('auth_token');
             localStorage.removeItem('auth_user');
             localStorage.removeItem('auth_expires');
             setAuthState(prev => ({ ...prev, isLoading: false }));
           }
         } else {
+          console.log('No stored token/user found, showing login');
           setAuthState(prev => ({ ...prev, isLoading: false }));
         }
       } catch (error) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOpcStore } from '../../store/opcStore';
 import { opcApi } from '../../services/api';
+import { useSystemOpcHint } from '../../hooks/useOpcHint';
 import './SystemSetpointsModal.css';
 
 interface SystemSetpointsModalProps {
@@ -10,24 +11,131 @@ interface SystemSetpointsModalProps {
 const SystemSetpointsModal: React.FC<SystemSetpointsModalProps> = ({ onClose }) => {
   const system = useOpcStore((state) => state.system);
   const fetchPageData = useOpcStore((state) => state.fetchPageData);
-  const [flowSetpoint, setFlowSetpoint] = useState(system?.totalFlowSetpoint?.toString() || '450.0');
-  const [pressureSetpoint, setPressureSetpoint] = useState(system?.pressureSetpoint?.toString() || '125.0');
+  const [flowSetpoint, setFlowSetpoint] = useState(system?.totalFlowSetpoint?.toString() || '');
+  const [pressureSetpoint, setPressureSetpoint] = useState(system?.pressureSetpoint?.toString() || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingOpc, setIsLoadingOpc] = useState(false);
   
-  // Fetch latest data when modal opens
-  useEffect(() => {
-    fetchPageData('main').catch(console.error);
-  }, [fetchPageData]);
+  // OPC hints for input fields
+  const flowHint = useSystemOpcHint('flowSetpoint');
+  const pressureHint = useSystemOpcHint('pressureSetpoint');
   
-  // Update form values when system data changes
+  // Load setpoints - first from store, then automatically from OPC
   useEffect(() => {
-    setFlowSetpoint(system?.totalFlowSetpoint?.toString() || '450.0');
-    setPressureSetpoint(system?.pressureSetpoint?.toString() || '125.0');
-  }, [system?.totalFlowSetpoint, system?.pressureSetpoint]);
+    console.log('Loading setpoints from store:', system);
+    
+    // First, set store values immediately (for instant display)
+    if (system?.totalFlowSetpoint !== undefined) {
+      setFlowSetpoint(system.totalFlowSetpoint.toString());
+      console.log('Set flow setpoint from store:', system.totalFlowSetpoint);
+    }
+    if (system?.pressureSetpoint !== undefined) {
+      setPressureSetpoint(system.pressureSetpoint.toString());
+      console.log('Set pressure setpoint from store:', system.pressureSetpoint);
+    }
+    
+    // Then automatically load from OPC after modal is rendered (non-blocking)
+    const autoLoadFromOpc = async () => {
+      try {
+        console.log('Auto-loading setpoints from OPC...');
+        
+        // Check if token exists, get new one if needed
+        let token = localStorage.getItem('token');
+        if (!token) {
+          const loginResponse = await fetch('http://localhost:5000/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'admin', password: 'password' })
+          });
+          
+          if (loginResponse.ok) {
+            const loginData = await loginResponse.json();
+            localStorage.setItem('token', loginData.token);
+            token = loginData.token;
+          }
+        }
+        
+        if (token) {
+          const [flowResponse, pressureResponse] = await Promise.all([
+            opcApi.readVariable('SYSTEM_FLOW_SETPOINT'),
+            opcApi.readVariable('SYSTEM_PRESSURE_SETPOINT')
+          ]);
+          
+          console.log('Auto-loaded OPC values - Flow:', flowResponse.value, 'Pressure:', pressureResponse.value);
+          
+          if (flowResponse.value !== undefined) {
+            setFlowSetpoint(flowResponse.value.toString());
+          }
+          if (pressureResponse.value !== undefined) {
+            setPressureSetpoint(pressureResponse.value.toString());
+          }
+        }
+      } catch (error) {
+        console.warn('Auto OPC loading failed (silent):', error);
+        // Silent fail - keep store values, don't show error to user
+      }
+    };
+    
+    // Auto-load OPC values after modal renders (800ms delay to ensure stability)
+    const timer = setTimeout(autoLoadFromOpc, 800);
+    return () => clearTimeout(timer);
+  }, []); // Run only once when modal opens
 
   // Operating ranges for validation
   const flowRange = { min: 100, max: 600 };
   const pressureRange = { min: 50, max: 200 };
+
+  // Manual OPC loading function
+  const handleLoadFromOpc = async () => {
+    setIsLoadingOpc(true);
+    try {
+      console.log('Manually loading setpoints from OPC...');
+      
+      // Check if token exists
+      const token = localStorage.getItem('token');
+      console.log('Current localStorage token:', token?.slice(0, 50) + '...');
+      
+      if (!token) {
+        // Try to get a fresh token
+        const loginResponse = await fetch('http://localhost:5000/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: 'admin', password: 'password' })
+        });
+        
+        if (loginResponse.ok) {
+          const loginData = await loginResponse.json();
+          localStorage.setItem('token', loginData.token);
+          console.log('New token obtained and stored');
+        } else {
+          throw new Error('Could not authenticate');
+        }
+      }
+      
+      const [flowResponse, pressureResponse] = await Promise.all([
+        opcApi.readVariable('SYSTEM_FLOW_SETPOINT'),
+        opcApi.readVariable('SYSTEM_PRESSURE_SETPOINT')
+      ]);
+      
+      console.log('OPC Flow response:', flowResponse);
+      console.log('OPC Pressure response:', pressureResponse);
+      
+      if (flowResponse.value !== undefined) {
+        setFlowSetpoint(flowResponse.value.toString());
+      }
+      if (pressureResponse.value !== undefined) {
+        setPressureSetpoint(pressureResponse.value.toString());
+      }
+      
+      alert('Values loaded from OPC successfully!');
+    } catch (error) {
+      console.error('Failed to load OPC setpoints:', error);
+      console.error('Error details:', error);
+      alert(`Could not load current values from OPC server: ${error.message || error}`);
+    } finally {
+      setIsLoadingOpc(false);
+    }
+  };
 
   const validateInputs = () => {
     const flow = parseFloat(flowSetpoint);
@@ -53,10 +161,10 @@ const SystemSetpointsModal: React.FC<SystemSetpointsModalProps> = ({ onClose }) 
 
     setIsSaving(true);
     try {
-      // Write system setpoints to OPC server
+      // Write system setpoints to OPC server (fixed variable names)
       await Promise.all([
-        opcApi.writeVariable('SYSTEM_TOTAL_FLOW_SETPOINT', flowSetpoint),
-        opcApi.writeVariable('SYSTEM_PRESSURE_SETPOINT', pressureSetpoint),
+        opcApi.writeVariable('SYSTEM_FLOW_SETPOINT', parseFloat(flowSetpoint)),
+        opcApi.writeVariable('SYSTEM_PRESSURE_SETPOINT', parseFloat(pressureSetpoint)),
       ]);
       
       // Update local store
@@ -76,8 +184,8 @@ const SystemSetpointsModal: React.FC<SystemSetpointsModalProps> = ({ onClose }) 
 
   const handleReset = () => {
     if (window.confirm('Reset setpoints to default values?')) {
-      setFlowSetpoint('450.0');
-      setPressureSetpoint('125.0');
+      setFlowSetpoint('');
+      setPressureSetpoint('');
     }
   };
 
@@ -158,6 +266,7 @@ const SystemSetpointsModal: React.FC<SystemSetpointsModalProps> = ({ onClose }) 
                   max={flowRange.max}
                   step="0.1"
                   disabled={isSaving}
+                  title={flowHint}
                 />
                 <span className="input-unit">L/min</span>
               </div>
@@ -182,6 +291,7 @@ const SystemSetpointsModal: React.FC<SystemSetpointsModalProps> = ({ onClose }) 
                   max={pressureRange.max}
                   step="0.1"
                   disabled={isSaving}
+                  title={pressureHint}
                 />
                 <span className="input-unit">bar</span>
               </div>
@@ -203,7 +313,7 @@ const SystemSetpointsModal: React.FC<SystemSetpointsModalProps> = ({ onClose }) 
           <button 
             className="action-button-compact reset-button"
             onClick={handleReset}
-            disabled={isSaving}
+            disabled={isSaving || isLoadingOpc}
           >
             🔄 Reset
           </button>
@@ -211,7 +321,7 @@ const SystemSetpointsModal: React.FC<SystemSetpointsModalProps> = ({ onClose }) 
           <button 
             className="action-button-compact cancel-button" 
             onClick={onClose}
-            disabled={isSaving}
+            disabled={isSaving || isLoadingOpc}
           >
             Cancel
           </button>
@@ -219,7 +329,7 @@ const SystemSetpointsModal: React.FC<SystemSetpointsModalProps> = ({ onClose }) 
           <button 
             className="action-button-compact save-button" 
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || isLoadingOpc}
           >
             {isSaving ? '⏳ Saving...' : '💾 Save'}
           </button>

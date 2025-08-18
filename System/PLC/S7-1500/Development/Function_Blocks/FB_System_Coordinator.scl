@@ -64,6 +64,9 @@ VAR
     // System-wide error manager (centralized error collection and prioritization)
     Error_Manager : "FB_Error_Manager";                     // Priority-based error management from all FBs
     
+    // Oil Temperature Control System
+    Oil_Temperature_Controller : "FB_Oil_Temperature_Control"; // Oil temperature control via circulation motor
+    
     // Communication systems
     Flowmeter_Reader : "FB_Flowmeter_CANOPEN";       // 14 flowmeters via CAN-Ethernet
     Pressure_Safety_Valves : "FB_Pressure_Safety_Valves";  // 7 proportional relief valves
@@ -947,5 +950,21 @@ ELSE
     
     Hour_Update_Timer(IN := FALSE, PT := T#60s);
 END_IF;
+
+// =============================================================================
+// OIL TEMPERATURE CONTROL SYSTEM
+// =============================================================================
+Oil_Temperature_Controller(
+    Enable := Enable AND SystemReady,              // Enable when system is ready
+    Oil_Temperature := "DB_HGU_Execution_V17".TANK_OIL_TEMPERATURE,
+    Min_Temp_Setpoint := "DB_HGU_Execution_V17".COOLING_MIN_OIL_TEMP_SETPOINT,
+    Max_Temp_Setpoint := "DB_HGU_Execution_V17".COOLING_MAX_OIL_TEMP_SETPOINT,
+    MCC_Error_Status := Safety_Status_Manager.MCC_Error_Status,
+    System_Enable := "DB_HGU_Execution_V17".SYSTEM_ENABLE
+);
+
+// Connect oil temperature control outputs to system commands
+"DB_HGU_Execution_V17".CircContactorCmd := Oil_Temperature_Controller.CircContactorCmd;
+"DB_HGU_Execution_V17".CircSoftStarterCmd := Oil_Temperature_Controller.CircSoftStarterCmd;
 
 END_FUNCTION_BLOCK

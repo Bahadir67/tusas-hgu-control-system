@@ -40,6 +40,10 @@ VERSION : 3.0
       SYSTEM_PRESSURE_SETPOINT : Real := 280.0;     // System pressure setpoint (bar) - UI adjustable
       SYSTEM_FLOW_SETPOINT : Real := 180.0;         // System flow setpoint (L/min) - UI adjustable
       
+      // Oil Temperature Control Setpoints
+      COOLING_MIN_OIL_TEMP_SETPOINT : Real := 30.0; // Minimum oil temperature setpoint (°C) - UI adjustable
+      COOLING_MAX_OIL_TEMP_SETPOINT : Real := 60.0; // Maximum oil temperature setpoint (°C) - UI adjustable
+      
       // =============================================================================
       // SYSTEM CONTROL COMMANDS (User Actions) - Immediate Update
       // =============================================================================
@@ -47,6 +51,10 @@ VERSION : 3.0
       DEBUG_MODE : Bool := FALSE;                   // Debug mode enable
       WEAR_LEVELING_ENABLE : Bool := TRUE;          // Wear leveling algorithm enable/disable
       PRESSURE_SAFETY_VALVES_ENABLE : Bool := FALSE; // Enable pressure safety valves controller
+      
+      // Circulation Motor Commands (Oil Temperature Control)
+      CircContactorCmd : Bool := FALSE;             // Circulation contactor command
+      CircSoftStarterCmd : Bool := FALSE;           // Circulation soft starter command
       
       // =============================================================================
       // MOTOR STATUS MONITORING (Priority 4) - 500ms Update
@@ -261,7 +269,7 @@ VERSION : 3.0
       // =============================================================================
       // SYSTEM SENSOR MONITORING (Priority 2) - 2000ms Update
       // =============================================================================
-      SYSTEM_TEMPERATURE : Real := 25.0;            // Main system temperature sensor (-10 to +80°C)
+      TANK_OIL_TEMPERATURE : Real := 25.0;            // Main system oil temperature sensor (-10 to +80°C)
       TANK_LEVEL_PERCENT : Real := 0.0;             // Continuous level sensor (0-100%)
       AQUA_SENSOR_LEVEL : Real := 0.0;              // Aqua sensor level (0-100%)
       CHILLER_INLET_TEMPERATURE : Real := 25.0;     // Chiller inlet temperature (-10 to +80°C)

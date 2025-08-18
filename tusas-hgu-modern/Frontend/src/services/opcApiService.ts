@@ -99,6 +99,7 @@ class OpcApiService {
 
     try {
       const variables = getVariablesForPage(pageKey);
+      console.log('📋 OpcApiService: Variables for', pageKey, ':', variables);
       
       const response = await fetch(`${this.baseUrl}/batch`, {
         method: 'POST',
@@ -122,8 +123,13 @@ class OpcApiService {
     } catch (error) {
       console.error(`Error fetching batch variables for page ${pageKey}:`, error);
       
-      // Return mock data for development
-      return this.getMockDataForPage(pageKey);
+      // NO MOCK DATA - Return error structure
+      return {
+        success: false,
+        timestamp: new Date().toISOString(),
+        variables: {},
+        errors: [`Failed to fetch OPC data for page ${pageKey}: ${error.message}`]
+      };
     }
   }
 
@@ -166,7 +172,14 @@ class OpcApiService {
       
     } catch (error) {
       console.error('Error fetching all variables:', error);
-      return this.getMockAllVariables();
+      
+      // NO MOCK DATA - Return error structure
+      return {
+        success: false,
+        timestamp: new Date().toISOString(),
+        variables: {},
+        errors: [`Failed to fetch all OPC variables: ${error.message}`]
+      };
     }
   }
 
@@ -177,9 +190,9 @@ class OpcApiService {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({
-          variableName,
-          value,
-          dataType
+          DisplayName: variableName,
+          Value: value,
+          DataType: dataType
         })
       });
 
@@ -243,7 +256,7 @@ class OpcApiService {
       // Generate leakage variables for all 7 motors
       const leakageVariables = [];
       for (let i = 1; i <= 7; i++) {
-        leakageVariables.push(`MOTOR_${i}_PUMP_LEAK_EXECUTION`);
+        leakageVariables.push(`PUMP_${i}_LEAK_RATE`);
       }
       
       const response = await fetch(`${this.baseUrl}/batch`, {
@@ -268,8 +281,13 @@ class OpcApiService {
     } catch (error) {
       console.error('Error fetching leakage variables:', error);
       
-      // Return mock leakage data
-      return this.getMockLeakageData();
+      // NO MOCK DATA - Return error structure
+      return {
+        success: false,
+        timestamp: new Date().toISOString(),
+        variables: {},
+        errors: [`Failed to fetch leakage data: ${error.message}`]
+      };
     }
   }
 
@@ -291,81 +309,39 @@ class OpcApiService {
     }
   }
 
-  // Mock data for development (when backend is not available)
-  private getMockDataForPage(pageKey: keyof typeof PAGE_VARIABLE_SETS): OpcBatchResponse {
-    const variables = getVariablesForPage(pageKey);
-    const mockVariables: Record<string, any> = {};
+  // Trigger immediate OPC refresh - fresh data collection without waiting for timer
+  async triggerOpcRefresh(): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/refresh`, {
+        method: 'POST',
+        headers: this.getAuthHeaders()
+      });
 
-    variables.forEach(varName => {
-      if (varName.includes('MOTOR_')) {
-        const motorId = parseInt(varName.split('_')[1]);
-        mockVariables[varName] = {
-          value: this.generateMockMotorValue(varName, motorId),
-          quality: 'Good',
-          timestamp: new Date().toISOString()
-        };
-      } else {
-        mockVariables[varName] = {
-          value: this.generateMockSystemValue(varName),
-          quality: 'Good', 
-          timestamp: new Date().toISOString()
-        };
+      if (!response.ok) {
+        this.handleAuthError(response);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    });
 
-    return {
-      success: true,
-      timestamp: new Date().toISOString(),
-      variables: mockVariables
-    };
-  }
-
-  private generateMockMotorValue(varName: string, motorId: number): any {
-    if (varName.includes('RPM')) return 1450 + Math.random() * 100;
-    if (varName.includes('PRESSURE')) return 120 + Math.random() * 15;
-    if (varName.includes('FLOW')) return 75 + Math.random() * 10;
-    if (varName.includes('CURRENT')) return 120 + Math.random() * 20;
-    if (varName.includes('TEMPERATURE')) return 45 + Math.random() * 10;
-    if (varName.includes('STATUS')) return Math.random() > 0.8 ? 1 : 0;
-    if (varName.includes('ENABLED')) return Math.random() > 0.3 ? 1 : 0;
-    if (varName.includes('VALVE')) return Math.random() > 0.5 ? 1 : 0;
-    if (varName.includes('FILTER')) return 2; // OK
-    if (varName.includes('LEAK')) return Math.random() * 0.05;
-    return 0;
-  }
-
-  private generateMockSystemValue(varName: string): any {
-    if (varName.includes('FLOW')) return 450 + Math.random() * 50;
-    if (varName.includes('PRESSURE')) return 125 + Math.random() * 10;
-    if (varName.includes('TEMPERATURE')) return 55 + Math.random() * 5;
-    if (varName.includes('LEVEL')) return 75 + Math.random() * 10;
-    if (varName.includes('AQUA')) return Math.random() * 0.5;
-    return 0;
-  }
-
-  private getMockAllVariables(): OpcBatchResponse {
-    // Return mock data for all system variables
-    return this.getMockDataForPage('main');
-  }
-
-  private getMockLeakageData(): OpcBatchResponse {
-    const mockVariables: Record<string, any> = {};
-
-    // Generate mock leakage data for all 7 motors
-    for (let i = 1; i <= 7; i++) {
-      mockVariables[`MOTOR_${i}_PUMP_LEAK_EXECUTION`] = {
-        value: Math.random() * 0.05, // Random leak between 0-0.05 L/min
-        quality: 'Good',
-        timestamp: new Date().toISOString()
+      const data = await response.json();
+      
+      // Clear cache to force fresh data on next requests
+      this.cache.clear();
+      
+      return { 
+        success: data.Success || data.success,
+        data: data
+      };
+      
+    } catch (error) {
+      console.error('Error triggering OPC refresh:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
       };
     }
-
-    return {
-      success: true,
-      timestamp: new Date().toISOString(),
-      variables: mockVariables
-    };
   }
+
+  // NO MOCK DATA FUNCTIONS - ALL REMOVED
 }
 
 // Export singleton instance

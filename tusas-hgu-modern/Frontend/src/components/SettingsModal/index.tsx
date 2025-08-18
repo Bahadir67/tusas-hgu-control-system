@@ -32,9 +32,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ motorId, onClose }) => {
     try {
       // Write setpoints to OPC server
       await Promise.all([
-        opcApi.writeVariable(`MOTOR_${motorId}_PRESSURE_SETPOINT`, pressureSetpoint),
-        opcApi.writeVariable(`MOTOR_${motorId}_FLOW_SETPOINT`, flowSetpoint),
-        opcApi.writeVariable(`MOTOR_${motorId}_TARGET_EXECUTION`, targetRpm),
+        opcApi.writeVariable(`PUMP_${motorId}_PRESSURE_SETPOINT`, parseFloat(pressureSetpoint)),
+        opcApi.writeVariable(`PUMP_${motorId}_FLOW_SETPOINT`, parseFloat(flowSetpoint)),
+        opcApi.writeVariable(`MOTOR_${motorId}_RPM_SETPOINT`, parseFloat(targetRpm)),
       ]);
       
       // Update local store
@@ -59,7 +59,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ motorId, onClose }) => {
     }
     
     try {
-      await opcApi.writeVariable(`MOTOR_${motorId}_LEAK_EXECUTION`, 1);
+      await opcApi.writeVariable(`PUMP_${motorId}_LEAK_TEST_START`, true);
       alert('Sızıntı testi başlatıldı');
       onClose();
     } catch (error) {

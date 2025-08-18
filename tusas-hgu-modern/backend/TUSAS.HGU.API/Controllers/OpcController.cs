@@ -335,6 +335,128 @@ namespace TUSAS.HGU.API.Controllers
         }
 
         /// <summary>
+        /// OPC bulk read performance istatistiklerini getir
+        /// </summary>
+        [HttpGet("performance")]
+        public IActionResult GetPerformanceStats()
+        {
+            try
+            {
+                if (!_opcClient.IsConnected)
+                {
+                    return BadRequest(new { Message = "OPC UA not connected" });
+                }
+
+                var stats = _opcClient.GetPerformanceStats();
+                
+                var response = new
+                {
+                    Success = true,
+                    Timestamp = DateTime.Now,
+                    ConnectionStatus = "Connected",
+                    Statistics = new
+                    {
+                        MeasurementCount = stats.MeasurementCount,
+                        AverageOpcReadMs = Math.Round(stats.AverageOpcReadMs, 2),
+                        AverageTotalMs = Math.Round(stats.AverageTotalMs, 2),
+                        AverageProcessingMs = Math.Round(stats.AverageProcessingMs, 2),
+                        MinOpcReadMs = Math.Round(stats.MinOpcReadMs, 2),
+                        MaxOpcReadMs = Math.Round(stats.MaxOpcReadMs, 2),
+                        AverageVariableCount = Math.Round(stats.AverageVariableCount, 0),
+                        SuccessRate = Math.Round(stats.SuccessRate, 2)
+                    },
+                    LatestMeasurement = stats.LatestMeasurement != null ? new
+                    {
+                        Timestamp = stats.LatestMeasurement.Timestamp,
+                        VariableCount = stats.LatestMeasurement.VariableCount,
+                        ValidVariableCount = stats.LatestMeasurement.ValidVariableCount,
+                        OpcReadMs = Math.Round(stats.LatestMeasurement.OpcReadDurationMs, 2),
+                        TotalMs = Math.Round(stats.LatestMeasurement.TotalDurationMs, 2),
+                        ProcessingMs = Math.Round(stats.LatestMeasurement.ProcessingDurationMs, 2)
+                    } : null,
+                    RecentHistory = stats.RecentMeasurements.TakeLast(10).Select(m => new
+                    {
+                        Timestamp = m.Timestamp.ToString("HH:mm:ss.fff"),
+                        VariableCount = m.VariableCount,
+                        ValidCount = m.ValidVariableCount,
+                        OpcReadMs = Math.Round(m.OpcReadDurationMs, 2),
+                        TotalMs = Math.Round(m.TotalDurationMs, 2)
+                    }).ToList(),
+                    Message = stats.Message ?? "Performance statistics retrieved successfully"
+                };
+
+                _logger.LogInformation("Performance stats requested - Measurements: {Count}, Avg OPC Read: {AvgMs}ms", 
+                    stats.MeasurementCount, Math.Round(stats.AverageOpcReadMs, 2));
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting performance statistics");
+                return StatusCode(500, new { Error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Immediate OPC refresh - Zamanı beklemeden fresh OPC data collection tetikle
+        /// </summary>
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshOpcData()
+        {
+            try
+            {
+                if (!_opcClient.IsConnected)
+                {
+                    return BadRequest(new { Message = "OPC UA not connected" });
+                }
+
+                _logger.LogInformation("Manual OPC refresh requested");
+
+                // Immediate fresh data collection trigger
+                var refreshResult = await _opcClient.TriggerImmediateDataCollection();
+                
+                if (refreshResult)
+                {
+                    // Return fresh data after collection
+                    var freshData = _opcClient.GetLatestSensorData();
+                    
+                    var response = new
+                    {
+                        Success = true,
+                        Message = "OPC data refreshed successfully",
+                        Timestamp = freshData?.Timestamp ?? DateTime.Now,
+                        ValuesCount = freshData?.Values?.Count ?? 0,
+                        Values = freshData?.Values?.ToDictionary(
+                            kvp => kvp.Key,
+                            kvp => (object)new
+                            {
+                                Value = kvp.Value.Value,
+                                Timestamp = kvp.Value.Timestamp
+                            }) ?? new Dictionary<string, object>()
+                    };
+
+                    return Ok(response);
+                }
+                else
+                {
+                    return StatusCode(500, new { 
+                        Success = false,
+                        Message = "OPC refresh failed - collection error" 
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during manual OPC refresh");
+                return StatusCode(500, new { 
+                    Success = false,
+                    Error = ex.Message,
+                    Message = "OPC refresh operation failed"
+                });
+            }
+        }
+
+        /// <summary>
         /// OPC değişkenine yaz
         /// </summary>
         [HttpPost("write")]
