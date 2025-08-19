@@ -320,10 +320,10 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                 />
                 
                 <SimpleGauge
-                  value={motor.temperature === null ? 0 : motor.temperature}
+                  value={isSoftstarter || motor.temperature === null ? 0 : motor.temperature}
                   min={0}
                   max={100}
-                  unit={motor.temperature === null ? "N/A" : "°C"}
+                  unit={isSoftstarter || motor.temperature === null ? "N/A" : "°C"}
                   label="TEMPERATURE"
                   size={120}
                   warningThreshold={70}
@@ -367,6 +367,45 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                       {motor.leak.toFixed(3)}
                     </div>
                     <div className="card-unit">L/min</div>
+                  </div>
+                  
+                  {/* Additional Status Information */}
+                  <div className="digital-value-card">
+                    <div className="card-header">Current {isSoftstarter && <span className="fixed-badge">(N/A)</span>}</div>
+                    <div className="card-value" style={{ 
+                      color: isSoftstarter || motor.current === null ? '#6b7280' : 
+                            motor.current > 140 ? '#ef4444' : 
+                            motor.current > 120 ? '#f59e0b' : '#22c55e' 
+                    }}>
+                      {isSoftstarter || motor.current === null ? 'N/A' : motor.current.toFixed(1)}
+                    </div>
+                    <div className="card-unit">A</div>
+                  </div>
+
+                  <div className="digital-value-card">
+                    <div className="card-header">Motor Status</div>
+                    <div className="card-value" style={{ color: statusInfo.color }}>
+                      {isSoftstarter ? 'Fixed Speed' : statusInfo.text}
+                    </div>
+                    <div className="card-unit">-</div>
+                  </div>
+
+                  <div className="digital-value-card">
+                    <div className="card-header">Error Code</div>
+                    <div className="card-value" style={{ 
+                      color: isSoftstarter || !motor.errorCode ? '#22c55e' : '#ef4444' 
+                    }}>
+                      {isSoftstarter ? 'N/A' : (motor.errorCode || 'None')}
+                    </div>
+                    <div className="card-unit">-</div>
+                  </div>
+
+                  <div className="digital-value-card">
+                    <div className="card-header">Operating Hours</div>
+                    <div className="card-value" style={{ color: '#06b6d4' }}>
+                      {motor.operatingHours ? motor.operatingHours.toFixed(1) : '0.0'}
+                    </div>
+                    <div className="card-unit">hrs</div>
                   </div>
                 </div>
               </div>
