@@ -146,11 +146,16 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
     }
   };
 
-  const handleSetpointSubmit = async (variable: string, value: number) => {
+  const handleSetpointSubmit = async (opcVariableName: string, value: number) => {
     try {
       setIsLoading(true);
-      await opcApi.writeVariable(`MOTOR_${motorId}_${variable}_SETPOINT`, value);
-      // Show success message or update UI
+      const response = await opcApi.writeVariable(opcVariableName, value);
+      if (response.success) {
+        console.log(`✅ Successfully wrote ${value} to ${opcVariableName}`);
+        // Show success message or update UI
+      } else {
+        console.error(`❌ Failed to write ${value} to ${opcVariableName}:`, response.message || 'Unknown error');
+      }
     } catch (error) {
       console.error('Failed to update setpoint:', error);
       // Show error message
@@ -684,7 +689,7 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                     {!isSoftstarter && (
                       <button 
                         className="apply-button"
-                        onClick={() => handleSetpointSubmit('MOTOR_TARGET_RPM', rpmSetpoint)}
+                        onClick={() => handleSetpointSubmit(`MOTOR_${motorId}_RPM_SETPOINT`, rpmSetpoint)}
                         disabled={isLoading}
                       >
                         Apply
@@ -715,7 +720,7 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                     </label>
                     <button 
                       className="apply-button"
-                      onClick={() => handleSetpointSubmit('PUMP_PRESSURE', pressureSetpoint)}
+                      onClick={() => handleSetpointSubmit(`PUMP_${motorId}_PRESSURE_SETPOINT`, pressureSetpoint)}
                       disabled={isLoading}
                     >
                       Apply
@@ -740,7 +745,7 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                     </label>
                     <button 
                       className="apply-button"
-                      onClick={() => handleSetpointSubmit('PUMP_FLOW', flowSetpoint)}
+                      onClick={() => handleSetpointSubmit(`PUMP_${motorId}_FLOW_SETPOINT`, flowSetpoint)}
                       disabled={isLoading}
                     >
                       Apply
