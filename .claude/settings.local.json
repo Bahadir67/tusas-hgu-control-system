@@ -17,7 +17,8 @@
       "mcp__memory-keeper__context_session_start",
       "mcp__memory-keeper__context_search",
       "mcp__memory-keeper__context_save",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git add:*)"
     ],
     "additionalDirectories": [
       "C:\\",

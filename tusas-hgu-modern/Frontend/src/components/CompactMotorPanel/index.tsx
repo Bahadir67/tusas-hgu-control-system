@@ -138,10 +138,11 @@ const CompactMotorPanel: React.FC<CompactMotorPanelProps> = ({
           <div className="digital-display" title={currentHint}>
             <span className="display-label">CURRENT</span>
             <span className="display-value" style={{ 
-              color: motor.current > 140 ? '#ef4444' : 
+              color: motor.current === null ? '#6b7280' : 
+                    motor.current > 140 ? '#ef4444' : 
                     motor.current > 120 ? '#f59e0b' : '#22c55e' 
             }}>
-              {motor.current?.toFixed(0) || '0'}A
+              {motor.current === null ? 'N/A' : (motor.current?.toFixed(0) || '0')}A
             </span>
           </div>
           <div className="digital-display">
@@ -153,10 +154,11 @@ const CompactMotorPanel: React.FC<CompactMotorPanelProps> = ({
           <div className="digital-display" title={temperatureHint}>
             <span className="display-label">TEMP</span>
             <span className="display-value" style={{ 
-              color: motor.temperature > 60 ? '#ef4444' : 
+              color: motor.temperature === null ? '#6b7280' : 
+                    motor.temperature > 60 ? '#ef4444' : 
                     motor.temperature > 50 ? '#f59e0b' : '#22c55e' 
             }}>
-              {motor.temperature?.toFixed(0) || '0'}°C
+              {motor.temperature === null ? 'N/A' : (motor.temperature?.toFixed(0) || '0')}°C
             </span>
           </div>
         </div>

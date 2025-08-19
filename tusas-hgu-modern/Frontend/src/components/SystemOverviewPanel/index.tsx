@@ -17,22 +17,25 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
   const systemData = {
     totalFlowExecution: system?.totalFlow,
     pressureExecution: system?.totalPressure,
-    statusExecution: system?.statusExecution || 0, // 0=Test, 1=Ready, 2=Active, 3=Warning, 4=Error
-    totalFlowSetpoint: system?.totalFlowSetpoint,
+    statusExecution: system?.systemStatus || 0, // 0=Init, 1=Auto Ready, 2=Running, 3=Error, 4=Trans to Auto, 5=Trans to Manual, 6=Manual Ready
+    totalFlowSetpoint: system?.flowSetpoint,
     pressureSetpoint: system?.pressureSetpoint,
     efficiency: system?.systemEfficiency, // Must come from OPC
     activePumps: system?.activePumps,
-    totalPower: system?.totalPower // Must come from OPC - no dummy value
+    totalPower: system?.totalPower, // Must come from OPC - no dummy value
+    systemEnable: system?.systemEnable || false // System enable/disable status
   };
 
   const getSystemStatusInfo = (status: number) => {
     switch (status) {
-      case 0: return { text: 'Test Mode', class: 'status-test', color: '#8b5cf6', icon: '🧪' };
-      case 1: return { text: 'Ready', class: 'status-ready', color: '#3b82f6', icon: '⚡' };
-      case 2: return { text: 'Active', class: 'status-active', color: '#22c55e', icon: '▶️' };
-      case 3: return { text: 'Warning', class: 'status-warning', color: '#f59e0b', icon: '⚠️' };
-      case 4: return { text: 'Error', class: 'status-error', color: '#ef4444', icon: '❌' };
-      default: return { text: 'Unknown', class: 'status-ready', color: '#6b7280', icon: '❓' };
+      case 0: return { text: 'Başlatılıyor', class: 'status-test', color: '#8b5cf6', icon: '🔄' };
+      case 1: return { text: 'Otomatik Hazır', class: 'status-ready', color: '#3b82f6', icon: '🤖' };
+      case 2: return { text: 'Çalışıyor', class: 'status-active', color: '#22c55e', icon: '▶️' };
+      case 3: return { text: 'Hata', class: 'status-error', color: '#ef4444', icon: '❌' };
+      case 4: return { text: 'Otomatik Moda Geçiş', class: 'status-warning', color: '#f59e0b', icon: '🔄' };
+      case 5: return { text: 'Manuel Moda Geçiş', class: 'status-warning', color: '#f59e0b', icon: '🔄' };
+      case 6: return { text: 'Manuel Hazır', class: 'status-ready', color: '#06b6d4', icon: '✋' };
+      default: return { text: 'Bilinmiyor', class: 'status-ready', color: '#6b7280', icon: '❓' };
     }
   };
 
@@ -86,6 +89,21 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
         <div className="system-title">
           <span className="system-icon">{statusInfo.icon}</span>
           <span className="system-text">SYSTEM OVERVIEW</span>
+          {/* System Mode Indicator */}
+          <span 
+            className="system-mode-indicator" 
+            style={{ 
+              marginLeft: '10px',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              backgroundColor: systemData.systemEnable ? '#3b82f6' : '#06b6d4',
+              color: 'white'
+            }}
+          >
+            {systemData.systemEnable ? 'AUTO' : 'MANUAL'}
+          </span>
         </div>
         <div 
           className={`system-status-badge ${statusInfo.class}`}

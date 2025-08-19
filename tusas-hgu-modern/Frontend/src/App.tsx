@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useOpcStore } from './store/opcStore';
 import { useAuth } from './contexts/AuthContext';
 import { opcApiService } from './services/opcApiService';
+import { useSystemModeTransition } from './hooks/useSystemModeTransition';
 import HamburgerMenu from './components/HamburgerMenu';
 import CompactMotorPanel from './components/CompactMotorPanel';
 import MotorDetailModal from './components/MotorDetailModal';
@@ -31,6 +32,9 @@ function App() {
   const [selectedMotorId, setSelectedMotorId] = useState<number | null>(null);
   const [selectedSystemPanel, setSelectedSystemPanel] = useState<string | null>(null);
   const [alarms, setAlarms] = useState<Array<{ id: number; message: string; type: string }>>([]);
+  
+  // Use system mode transition hook
+  const transitionState = useSystemModeTransition();
   
   // Page navigation state - use store state directly
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -392,6 +396,35 @@ function App() {
           setIsMenuOpen(false);
         }}
       />
+
+      {/* System Mode Transition Notification */}
+      {transitionState.message && (
+        <div 
+          className={`transition-notification transition-${transitionState.messageType}`}
+          style={{
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            padding: '12px 24px',
+            borderRadius: '8px',
+            fontWeight: 'bold',
+            fontSize: '14px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            backgroundColor: transitionState.messageType === 'warning' ? '#f59e0b' :
+                           transitionState.messageType === 'success' ? '#22c55e' :
+                           transitionState.messageType === 'error' ? '#ef4444' : '#6b7280',
+            color: 'white',
+            animation: 'slideDown 0.3s ease-out'
+          }}
+        >
+          {transitionState.messageType === 'warning' && '⚠️ '}
+          {transitionState.messageType === 'success' && '✅ '}
+          {transitionState.messageType === 'error' && '❌ '}
+          {transitionState.message}
+        </div>
+      )}
 
       {/* Enhanced Header */}
       <div className="dashboard-header-modern">

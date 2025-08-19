@@ -25,11 +25,12 @@ BEGIN
 // MAIN SYSTEM COORDINATION
 // =============================================================================
 
-// Call main system coordinator with minimal configuration
+// Call main system coordinator with SYSTEM_ENABLE control
 "DB_System_Coordinator_Instance"(
-    Enable := TRUE,
+    Enable := "DB_HGU_Execution_V17".SYSTEM_ENABLE,  // Use SYSTEM_ENABLE for auto/manual mode
     SystemCommand := 1,
-    System_Total_Flow_Setpoint := 100.0
+    System_Total_Flow_Setpoint := "DB_HGU_Execution_V17".SYSTEM_FLOW_SETPOINT,
+    System_Total_Pressure_Setpoint := "DB_HGU_Execution_V17".SYSTEM_PRESSURE_SETPOINT
 );
 
 END_ORGANIZATION_BLOCK

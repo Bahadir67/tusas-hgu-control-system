@@ -252,33 +252,74 @@ export const useOpcStore = create<OpcStore>((set) => ({
     
     // Parse motor data from API response using real CSV variable names
     for (let i = 1; i <= 7; i++) {
-      motors[i] = {
-        ...motors[i],
-        rpm: data[`MOTOR_${i}_RPM_ACTUAL`]?.value ?? motors[i].rpm,
-        current: data[`MOTOR_${i}_CURRENT_A`]?.value ?? motors[i].current,
-        targetRpm: data[`MOTOR_${i}_RPM_SETPOINT`]?.value ?? motors[i].targetRpm,
-        leak: data[`PUMP_${i}_LEAK_RATE`]?.value ?? motors[i].leak,
-        temperature: data[`MOTOR_${i}_TEMPERATURE_C`]?.value ?? motors[i].temperature,
-        status: data[`MOTOR_${i}_STATUS`]?.value ?? motors[i].status,
-        manualValve: data[`PUMP_${i}_MANUAL_VALVE_STATUS`]?.value === true || false,
-        lineFilter: data[`PUMP_${i}_LINE_FILTER_STATUS`]?.value ?? motors[i].lineFilter,
-        suctionFilter: data[`PUMP_${i}_SUCTION_FILTER_STATUS`]?.value ?? motors[i].suctionFilter,
-        flow: data[`PUMP_${i}_FLOW_ACTUAL`]?.value ?? motors[i].flow,
-        pressure: data[`PUMP_${i}_PRESSURE_ACTUAL`]?.value ?? motors[i].pressure,
-        flowSetpoint: data[`PUMP_${i}_FLOW_SETPOINT`]?.value ?? motors[i].flowSetpoint,
-        pressureSetpoint: data[`PUMP_${i}_PRESSURE_SETPOINT`]?.value ?? motors[i].pressureSetpoint,
-        enabled: data[`MOTOR_${i}_ENABLE`]?.value === true || false,
-        errorCode: data[`MOTOR_${i}_ERROR_CODE`]?.value ?? motors[i].errorCode,
-        startCmd: data[`MOTOR_${i}_START_CMD`]?.value ?? motors[i].startCmd,
-        stopCmd: data[`MOTOR_${i}_STOP_CMD`]?.value ?? motors[i].stopCmd,
-        resetCmd: data[`MOTOR_${i}_RESET_CMD`]?.value ?? motors[i].resetCmd,
-        startAck: data[`MOTOR_${i}_START_ACK`]?.value ?? motors[i].startAck,
-        stopAck: data[`MOTOR_${i}_STOP_ACK`]?.value ?? motors[i].stopAck,
-        resetAck: data[`MOTOR_${i}_RESET_ACK`]?.value ?? motors[i].resetAck,
-        operatingHours: data[`MOTOR_${i}_OPERATING_HOURS`]?.value ?? motors[i].operatingHours,
-        maintenanceDue: data[`MOTOR_${i}_MAINTENANCE_DUE`]?.value ?? motors[i].maintenanceDue,
-        maintenanceHours: data[`MOTOR_${i}_MAINTENANCE_HOURS`]?.value ?? motors[i].maintenanceHours,
-      };
+      if (i === 7) {
+        // MOTOR_7 special handling - Override OPC values for Softstarter
+        motors[i] = {
+          ...motors[i],
+          // Override with correct values for softstarter
+          rpm: 1500, // Always 1500 RPM (fixed speed softstarter)
+          current: null, // Not measurable in softstarter
+          temperature: null, // Not measurable in softstarter
+          status: null, // No status feedback from softstarter
+          errorCode: null, // No error codes from softstarter
+          targetRpm: 1500, // Fixed RPM, not adjustable
+          
+          // Valid OPC variables for MOTOR_7
+          enabled: data[`MOTOR_${i}_ENABLE`]?.value === true || false,
+          startCmd: data[`MOTOR_${i}_START_CMD`]?.value ?? motors[i].startCmd,
+          stopCmd: data[`MOTOR_${i}_STOP_CMD`]?.value ?? motors[i].stopCmd,
+          resetCmd: data[`MOTOR_${i}_RESET_CMD`]?.value ?? motors[i].resetCmd,
+          
+          // No ACK feedback from softstarter
+          startAck: null,
+          stopAck: null, 
+          resetAck: null,
+          
+          // Pump-related variables (still valid)
+          leak: data[`PUMP_${i}_LEAK_RATE`]?.value ?? motors[i].leak,
+          manualValve: data[`PUMP_${i}_MANUAL_VALVE_STATUS`]?.value === true || false,
+          lineFilter: data[`PUMP_${i}_LINE_FILTER_STATUS`]?.value ?? motors[i].lineFilter,
+          suctionFilter: data[`PUMP_${i}_SUCTION_FILTER_STATUS`]?.value ?? motors[i].suctionFilter,
+          flow: data[`PUMP_${i}_FLOW_ACTUAL`]?.value ?? motors[i].flow,
+          pressure: data[`PUMP_${i}_PRESSURE_ACTUAL`]?.value ?? motors[i].pressure,
+          flowSetpoint: data[`PUMP_${i}_FLOW_SETPOINT`]?.value ?? motors[i].flowSetpoint,
+          pressureSetpoint: data[`PUMP_${i}_PRESSURE_SETPOINT`]?.value ?? motors[i].pressureSetpoint,
+          
+          // Maintenance (still tracked)
+          operatingHours: data[`MOTOR_${i}_OPERATING_HOURS`]?.value ?? motors[i].operatingHours,
+          maintenanceDue: data[`MOTOR_${i}_MAINTENANCE_DUE`]?.value ?? motors[i].maintenanceDue,
+          maintenanceHours: data[`MOTOR_${i}_MAINTENANCE_HOURS`]?.value ?? motors[i].maintenanceHours,
+        };
+      } else {
+        // MOTOR_1-6: Normal G120C motors
+        motors[i] = {
+          ...motors[i],
+          rpm: data[`MOTOR_${i}_RPM_ACTUAL`]?.value ?? motors[i].rpm,
+          current: data[`MOTOR_${i}_CURRENT_A`]?.value ?? motors[i].current,
+          targetRpm: data[`MOTOR_${i}_RPM_SETPOINT`]?.value ?? motors[i].targetRpm,
+          leak: data[`PUMP_${i}_LEAK_RATE`]?.value ?? motors[i].leak,
+          temperature: data[`MOTOR_${i}_TEMPERATURE_C`]?.value ?? motors[i].temperature,
+          status: data[`MOTOR_${i}_STATUS`]?.value ?? motors[i].status,
+          manualValve: data[`PUMP_${i}_MANUAL_VALVE_STATUS`]?.value === true || false,
+          lineFilter: data[`PUMP_${i}_LINE_FILTER_STATUS`]?.value ?? motors[i].lineFilter,
+          suctionFilter: data[`PUMP_${i}_SUCTION_FILTER_STATUS`]?.value ?? motors[i].suctionFilter,
+          flow: data[`PUMP_${i}_FLOW_ACTUAL`]?.value ?? motors[i].flow,
+          pressure: data[`PUMP_${i}_PRESSURE_ACTUAL`]?.value ?? motors[i].pressure,
+          flowSetpoint: data[`PUMP_${i}_FLOW_SETPOINT`]?.value ?? motors[i].flowSetpoint,
+          pressureSetpoint: data[`PUMP_${i}_PRESSURE_SETPOINT`]?.value ?? motors[i].pressureSetpoint,
+          enabled: data[`MOTOR_${i}_ENABLE`]?.value === true || false,
+          errorCode: data[`MOTOR_${i}_ERROR_CODE`]?.value ?? motors[i].errorCode,
+          startCmd: data[`MOTOR_${i}_START_CMD`]?.value ?? motors[i].startCmd,
+          stopCmd: data[`MOTOR_${i}_STOP_CMD`]?.value ?? motors[i].stopCmd,
+          resetCmd: data[`MOTOR_${i}_RESET_CMD`]?.value ?? motors[i].resetCmd,
+          startAck: data[`MOTOR_${i}_START_ACK`]?.value ?? motors[i].startAck,
+          stopAck: data[`MOTOR_${i}_STOP_ACK`]?.value ?? motors[i].stopAck,
+          resetAck: data[`MOTOR_${i}_RESET_ACK`]?.value ?? motors[i].resetAck,
+          operatingHours: data[`MOTOR_${i}_OPERATING_HOURS`]?.value ?? motors[i].operatingHours,
+          maintenanceDue: data[`MOTOR_${i}_MAINTENANCE_DUE`]?.value ?? motors[i].maintenanceDue,
+          maintenanceHours: data[`MOTOR_${i}_MAINTENANCE_HOURS`]?.value ?? motors[i].maintenanceHours,
+        };
+      }
     }
     
     // Parse system data using real CSV variable names
@@ -344,33 +385,74 @@ export const useOpcStore = create<OpcStore>((set) => ({
     
     // Update motors with new data
     for (let i = 1; i <= 7; i++) {
-      motors[i] = {
-        ...motors[i],
-        rpm: data[`MOTOR_${i}_RPM_ACTUAL`]?.value ?? motors[i].rpm,
-        current: data[`MOTOR_${i}_CURRENT_A`]?.value ?? motors[i].current,
-        targetRpm: data[`MOTOR_${i}_RPM_SETPOINT`]?.value ?? motors[i].targetRpm,
-        leak: data[`PUMP_${i}_LEAK_RATE`]?.value ?? motors[i].leak,
-        temperature: data[`MOTOR_${i}_TEMPERATURE_C`]?.value ?? motors[i].temperature,
-        status: data[`MOTOR_${i}_STATUS`]?.value ?? motors[i].status,
-        manualValve: data[`PUMP_${i}_MANUAL_VALVE_STATUS`]?.value === true || false,
-        lineFilter: data[`PUMP_${i}_LINE_FILTER_STATUS`]?.value ?? motors[i].lineFilter,
-        suctionFilter: data[`PUMP_${i}_SUCTION_FILTER_STATUS`]?.value ?? motors[i].suctionFilter,
-        flow: data[`PUMP_${i}_FLOW_ACTUAL`]?.value ?? motors[i].flow,
-        pressure: data[`PUMP_${i}_PRESSURE_ACTUAL`]?.value ?? motors[i].pressure,
-        flowSetpoint: data[`PUMP_${i}_FLOW_SETPOINT`]?.value ?? motors[i].flowSetpoint,
-        pressureSetpoint: data[`PUMP_${i}_PRESSURE_SETPOINT`]?.value ?? motors[i].pressureSetpoint,
-        enabled: data[`MOTOR_${i}_ENABLE`]?.value === true || false,
-        errorCode: data[`MOTOR_${i}_ERROR_CODE`]?.value ?? motors[i].errorCode,
-        startCmd: data[`MOTOR_${i}_START_CMD`]?.value ?? motors[i].startCmd,
-        stopCmd: data[`MOTOR_${i}_STOP_CMD`]?.value ?? motors[i].stopCmd,
-        resetCmd: data[`MOTOR_${i}_RESET_CMD`]?.value ?? motors[i].resetCmd,
-        startAck: data[`MOTOR_${i}_START_ACK`]?.value ?? motors[i].startAck,
-        stopAck: data[`MOTOR_${i}_STOP_ACK`]?.value ?? motors[i].stopAck,
-        resetAck: data[`MOTOR_${i}_RESET_ACK`]?.value ?? motors[i].resetAck,
-        operatingHours: data[`MOTOR_${i}_OPERATING_HOURS`]?.value ?? motors[i].operatingHours,
-        maintenanceDue: data[`MOTOR_${i}_MAINTENANCE_DUE`]?.value ?? motors[i].maintenanceDue,
-        maintenanceHours: data[`MOTOR_${i}_MAINTENANCE_HOURS`]?.value ?? motors[i].maintenanceHours,
-      };
+      if (i === 7) {
+        // MOTOR_7 special handling - Override OPC values for Softstarter (same as updateAll)
+        motors[i] = {
+          ...motors[i],
+          // Override with correct values for softstarter
+          rpm: 1500, // Always 1500 RPM (fixed speed softstarter)
+          current: null, // Not measurable in softstarter
+          temperature: null, // Not measurable in softstarter
+          status: null, // No status feedback from softstarter
+          errorCode: null, // No error codes from softstarter
+          targetRpm: 1500, // Fixed RPM, not adjustable
+          
+          // Valid OPC variables for MOTOR_7
+          enabled: data[`MOTOR_${i}_ENABLE`]?.value === true || false,
+          startCmd: data[`MOTOR_${i}_START_CMD`]?.value ?? motors[i].startCmd,
+          stopCmd: data[`MOTOR_${i}_STOP_CMD`]?.value ?? motors[i].stopCmd,
+          resetCmd: data[`MOTOR_${i}_RESET_CMD`]?.value ?? motors[i].resetCmd,
+          
+          // No ACK feedback from softstarter
+          startAck: null,
+          stopAck: null, 
+          resetAck: null,
+          
+          // Pump-related variables (still valid)
+          leak: data[`PUMP_${i}_LEAK_RATE`]?.value ?? motors[i].leak,
+          manualValve: data[`PUMP_${i}_MANUAL_VALVE_STATUS`]?.value === true || false,
+          lineFilter: data[`PUMP_${i}_LINE_FILTER_STATUS`]?.value ?? motors[i].lineFilter,
+          suctionFilter: data[`PUMP_${i}_SUCTION_FILTER_STATUS`]?.value ?? motors[i].suctionFilter,
+          flow: data[`PUMP_${i}_FLOW_ACTUAL`]?.value ?? motors[i].flow,
+          pressure: data[`PUMP_${i}_PRESSURE_ACTUAL`]?.value ?? motors[i].pressure,
+          flowSetpoint: data[`PUMP_${i}_FLOW_SETPOINT`]?.value ?? motors[i].flowSetpoint,
+          pressureSetpoint: data[`PUMP_${i}_PRESSURE_SETPOINT`]?.value ?? motors[i].pressureSetpoint,
+          
+          // Maintenance (still tracked)
+          operatingHours: data[`MOTOR_${i}_OPERATING_HOURS`]?.value ?? motors[i].operatingHours,
+          maintenanceDue: data[`MOTOR_${i}_MAINTENANCE_DUE`]?.value ?? motors[i].maintenanceDue,
+          maintenanceHours: data[`MOTOR_${i}_MAINTENANCE_HOURS`]?.value ?? motors[i].maintenanceHours,
+        };
+      } else {
+        // MOTOR_1-6: Normal G120C motors
+        motors[i] = {
+          ...motors[i],
+          rpm: data[`MOTOR_${i}_RPM_ACTUAL`]?.value ?? motors[i].rpm,
+          current: data[`MOTOR_${i}_CURRENT_A`]?.value ?? motors[i].current,
+          targetRpm: data[`MOTOR_${i}_RPM_SETPOINT`]?.value ?? motors[i].targetRpm,
+          leak: data[`PUMP_${i}_LEAK_RATE`]?.value ?? motors[i].leak,
+          temperature: data[`MOTOR_${i}_TEMPERATURE_C`]?.value ?? motors[i].temperature,
+          status: data[`MOTOR_${i}_STATUS`]?.value ?? motors[i].status,
+          manualValve: data[`PUMP_${i}_MANUAL_VALVE_STATUS`]?.value === true || false,
+          lineFilter: data[`PUMP_${i}_LINE_FILTER_STATUS`]?.value ?? motors[i].lineFilter,
+          suctionFilter: data[`PUMP_${i}_SUCTION_FILTER_STATUS`]?.value ?? motors[i].suctionFilter,
+          flow: data[`PUMP_${i}_FLOW_ACTUAL`]?.value ?? motors[i].flow,
+          pressure: data[`PUMP_${i}_PRESSURE_ACTUAL`]?.value ?? motors[i].pressure,
+          flowSetpoint: data[`PUMP_${i}_FLOW_SETPOINT`]?.value ?? motors[i].flowSetpoint,
+          pressureSetpoint: data[`PUMP_${i}_PRESSURE_SETPOINT`]?.value ?? motors[i].pressureSetpoint,
+          enabled: data[`MOTOR_${i}_ENABLE`]?.value === true || false,
+          errorCode: data[`MOTOR_${i}_ERROR_CODE`]?.value ?? motors[i].errorCode,
+          startCmd: data[`MOTOR_${i}_START_CMD`]?.value ?? motors[i].startCmd,
+          stopCmd: data[`MOTOR_${i}_STOP_CMD`]?.value ?? motors[i].stopCmd,
+          resetCmd: data[`MOTOR_${i}_RESET_CMD`]?.value ?? motors[i].resetCmd,
+          startAck: data[`MOTOR_${i}_START_ACK`]?.value ?? motors[i].startAck,
+          stopAck: data[`MOTOR_${i}_STOP_ACK`]?.value ?? motors[i].stopAck,
+          resetAck: data[`MOTOR_${i}_RESET_ACK`]?.value ?? motors[i].resetAck,
+          operatingHours: data[`MOTOR_${i}_OPERATING_HOURS`]?.value ?? motors[i].operatingHours,
+          maintenanceDue: data[`MOTOR_${i}_MAINTENANCE_DUE`]?.value ?? motors[i].maintenanceDue,
+          maintenanceHours: data[`MOTOR_${i}_MAINTENANCE_HOURS`]?.value ?? motors[i].maintenanceHours,
+        };
+      }
     }
     
     // Update system data

@@ -30,11 +30,13 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
     temperature: []
   });
 
+  // Check if this is MOTOR_7 (softstarter)
+  const isSoftstarter = motorId === 7;
+
   // Setpoint states - initialized from OPC collection
   const [rpmSetpoint, setRpmSetpoint] = useState(motor?.targetRpm || 0);
   const [pressureSetpoint, setPressureSetpoint] = useState(motor?.pressureSetpoint || 0);
   const [flowSetpoint, setFlowSetpoint] = useState(motor?.flowSetpoint || 0);
-  const [tempSetpoint, setTempSetpoint] = useState(65);
 
   // Close modal on escape key
   useEffect(() => {
@@ -265,7 +267,7 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
               {/* Gauges Section */}
               <div className="gauges-section">
                 <SimpleGauge
-                  value={motor.rpm}
+                  value={isSoftstarter ? 1500 : motor.rpm}
                   min={0}
                   max={3000}
                   unit="RPM"
@@ -298,10 +300,10 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                 />
                 
                 <SimpleGauge
-                  value={motor.temperature}
+                  value={motor.temperature === null ? 0 : motor.temperature}
                   min={0}
                   max={100}
-                  unit="°C"
+                  unit={motor.temperature === null ? "N/A" : "°C"}
                   label="TEMPERATURE"
                   size={120}
                   warningThreshold={70}
@@ -313,9 +315,9 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
               <div className="digital-values-section">
                 <div className="value-grid">
                   <div className="digital-value-card">
-                    <div className="card-header">Target RPM</div>
-                    <div className="card-value" style={{ color: '#06b6d4' }}>
-                      {motor.targetRpm.toFixed(0)}
+                    <div className="card-header">Target RPM {isSoftstarter && <span className="fixed-badge">(Fixed)</span>}</div>
+                    <div className="card-value" style={{ color: isSoftstarter ? '#6b7280' : '#06b6d4' }}>
+                      {isSoftstarter ? '1500' : motor.targetRpm.toFixed(0)}
                     </div>
                     <div className="card-unit">RPM</div>
                   </div>
@@ -663,40 +665,53 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                 <div className="settings-grid">
                   <div className="setting-group">
                     <label className="setting-label">
-                      RPM Setpoint
-                      <input
-                        type="number"
-                        className="setting-input"
-                        value={rpmSetpoint}
-                        onChange={(e) => setRpmSetpoint(Number(e.target.value))}
-                        min="0"
-                        max="3000"
-                        step="10"
-                      />
-                      <span className="setting-unit">RPM</span>
+                      RPM Setpoint {isSoftstarter && <span className="fixed-label">(Fixed - Softstarter)</span>}
+                      <div className="input-with-unit">
+                        <input
+                          type="number"
+                          className={`setting-input ${isSoftstarter ? 'disabled' : ''}`}
+                          value={isSoftstarter ? 1500 : rpmSetpoint}
+                          onChange={isSoftstarter ? undefined : (e) => setRpmSetpoint(Number(e.target.value))}
+                          min="0"
+                          max="3000"
+                          step="10"
+                          disabled={isSoftstarter}
+                          readOnly={isSoftstarter}
+                        />
+                        <span className="setting-unit">RPM</span>
+                      </div>
                     </label>
-                    <button 
-                      className="apply-button"
-                      onClick={() => handleSetpointSubmit('MOTOR_TARGET_RPM', rpmSetpoint)}
-                      disabled={isLoading}
-                    >
-                      Apply
-                    </button>
+                    {!isSoftstarter && (
+                      <button 
+                        className="apply-button"
+                        onClick={() => handleSetpointSubmit('MOTOR_TARGET_RPM', rpmSetpoint)}
+                        disabled={isLoading}
+                      >
+                        Apply
+                      </button>
+                    )}
+                    {isSoftstarter && (
+                      <div className="disabled-note">
+                        Softstarter operates at fixed 1500 RPM
+                      </div>
+                    )}
                   </div>
 
                   <div className="setting-group">
                     <label className="setting-label">
                       Pressure Setpoint
-                      <input
-                        type="number"
-                        className="setting-input"
-                        value={pressureSetpoint}
-                        onChange={(e) => setPressureSetpoint(Number(e.target.value))}
-                        min="0"
-                        max="200"
-                        step="0.1"
-                      />
-                      <span className="setting-unit">bar</span>
+                      <div className="input-with-unit">
+                        <input
+                          type="number"
+                          className="setting-input"
+                          value={pressureSetpoint}
+                          onChange={(e) => setPressureSetpoint(Number(e.target.value))}
+                          min="0"
+                          max="200"
+                          step="0.1"
+                        />
+                        <span className="setting-unit">bar</span>
+                      </div>
                     </label>
                     <button 
                       className="apply-button"
@@ -710,43 +725,22 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                   <div className="setting-group">
                     <label className="setting-label">
                       Flow Rate Setpoint
-                      <input
-                        type="number"
-                        className="setting-input"
-                        value={flowSetpoint}
-                        onChange={(e) => setFlowSetpoint(Number(e.target.value))}
-                        min="0"
-                        max="100"
-                        step="0.1"
-                      />
-                      <span className="setting-unit">L/min</span>
+                      <div className="input-with-unit">
+                        <input
+                          type="number"
+                          className="setting-input"
+                          value={flowSetpoint}
+                          onChange={(e) => setFlowSetpoint(Number(e.target.value))}
+                          min="0"
+                          max="100"
+                          step="0.1"
+                        />
+                        <span className="setting-unit">L/min</span>
+                      </div>
                     </label>
                     <button 
                       className="apply-button"
                       onClick={() => handleSetpointSubmit('PUMP_FLOW', flowSetpoint)}
-                      disabled={isLoading}
-                    >
-                      Apply
-                    </button>
-                  </div>
-
-                  <div className="setting-group">
-                    <label className="setting-label">
-                      Temperature Limit
-                      <input
-                        type="number"
-                        className="setting-input"
-                        value={tempSetpoint}
-                        onChange={(e) => setTempSetpoint(Number(e.target.value))}
-                        min="0"
-                        max="100"
-                        step="1"
-                      />
-                      <span className="setting-unit">°C</span>
-                    </label>
-                    <button 
-                      className="apply-button"
-                      onClick={() => handleSetpointSubmit('TEMP_LIMIT', tempSetpoint)}
                       disabled={isLoading}
                     >
                       Apply

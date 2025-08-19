@@ -14,6 +14,7 @@ VAR_INPUT
     
     // System flow requirements
     System_Total_Flow_Setpoint : Real := 100.0; // Total required flow (L/min)
+    System_Total_Pressure_Setpoint : Real := 280.0; // Total required pressure (bar)
 END_VAR
 
 VAR_OUTPUT 
@@ -85,11 +86,18 @@ VAR
     Total_Flow_Capacity : Real := 0.0;
     
     // System state machine
-    SystemState : USInt := 0;                  // 0=Init, 1=Ready, 2=Running, 3=Error
-    StateTimer : TON := (PT := T#2s);
+    SystemState : USInt := 0;                  // 0=Init, 1=Ready, 2=Running, 3=Error, 4=Transition
+    StateTimer : TON;
+    
+    // Mode transition management
+    Previous_Enable_State : Bool := FALSE;     // Track Enable state changes
+    Mode_Transition_Active : Bool := FALSE;    // Mode transition in progress
+    Motors_Stop_Confirmed : Bool := FALSE;     // All motors stopped confirmation
+    Transition_Timer : TON;                    // Timeout for motor stop confirmation
+    Transition_State : USInt := 0;             // 0=Idle, 1=Stopping, 2=Waiting, 3=Ready
     
     // Motor hours tracking  
-    Hour_Update_Timer : TON := (PT := T#60s); // 1-minute timer for operating hours (more accurate)
+    Hour_Update_Timer : TON;                   // 1-minute timer for operating hours (more accurate)
     Motor_Running_Array : Array[1..7] of Bool; // Motor running status
     
     // Flow distribution for selected motors
@@ -132,9 +140,113 @@ IF NOT InitComplete THEN
 END_IF;
 
 // =============================================================================
+// SYSTEM_ENABLE MODE TRANSITION LOGIC
+// =============================================================================
+// Detect Enable state change (SYSTEM_ENABLE transition)
+IF Enable <> Previous_Enable_State THEN
+    Mode_Transition_Active := TRUE;
+    Transition_State := 1;  // Start stopping motors
+    Motors_Stop_Confirmed := FALSE;
+    Transition_Timer(IN := FALSE, PT := T#5s);  // Reset timer
+    
+    // Log transition
+    IF Enable THEN
+        "DB_HGU_Execution_V17".SYSTEM_STATUS := 4;  // Transitioning to Auto mode
+    ELSE
+        "DB_HGU_Execution_V17".SYSTEM_STATUS := 5;  // Transitioning to Manual mode
+    END_IF;
+END_IF;
+
+// Handle mode transition states
+IF Mode_Transition_Active THEN
+    CASE Transition_State OF
+        1:  // Stop motors 1-6 and reset setpoints (Motor 7 always manual)
+            // Stop motors 1-6 (Motor 7 remains independent)
+            FOR i := 1 TO 6 DO
+                CASE i OF
+                    1: "DB_HGU_Execution_V17".MOTOR_1_STOP_CMD := TRUE;
+                       "DB_HGU_Execution_V17".MOTOR_1_START_CMD := FALSE;
+                       "DB_HGU_Execution_V17".MOTOR_1_RPM_SETPOINT := 0.0;
+                       "DB_HGU_Execution_V17".PUMP_1_PRESSURE_SETPOINT := 0.0;
+                       "DB_HGU_Execution_V17".PUMP_1_FLOW_SETPOINT := 0.0;
+                    2: "DB_HGU_Execution_V17".MOTOR_2_STOP_CMD := TRUE;
+                       "DB_HGU_Execution_V17".MOTOR_2_START_CMD := FALSE;
+                       "DB_HGU_Execution_V17".MOTOR_2_RPM_SETPOINT := 0.0;
+                       "DB_HGU_Execution_V17".PUMP_2_PRESSURE_SETPOINT := 0.0;
+                       "DB_HGU_Execution_V17".PUMP_2_FLOW_SETPOINT := 0.0;
+                    3: "DB_HGU_Execution_V17".MOTOR_3_STOP_CMD := TRUE;
+                       "DB_HGU_Execution_V17".MOTOR_3_START_CMD := FALSE;
+                       "DB_HGU_Execution_V17".MOTOR_3_RPM_SETPOINT := 0.0;
+                       "DB_HGU_Execution_V17".PUMP_3_PRESSURE_SETPOINT := 0.0;
+                       "DB_HGU_Execution_V17".PUMP_3_FLOW_SETPOINT := 0.0;
+                    4: "DB_HGU_Execution_V17".MOTOR_4_STOP_CMD := TRUE;
+                       "DB_HGU_Execution_V17".MOTOR_4_START_CMD := FALSE;
+                       "DB_HGU_Execution_V17".MOTOR_4_RPM_SETPOINT := 0.0;
+                       "DB_HGU_Execution_V17".PUMP_4_PRESSURE_SETPOINT := 0.0;
+                       "DB_HGU_Execution_V17".PUMP_4_FLOW_SETPOINT := 0.0;
+                    5: "DB_HGU_Execution_V17".MOTOR_5_STOP_CMD := TRUE;
+                       "DB_HGU_Execution_V17".MOTOR_5_START_CMD := FALSE;
+                       "DB_HGU_Execution_V17".MOTOR_5_RPM_SETPOINT := 0.0;
+                       "DB_HGU_Execution_V17".PUMP_5_PRESSURE_SETPOINT := 0.0;
+                       "DB_HGU_Execution_V17".PUMP_5_FLOW_SETPOINT := 0.0;
+                    6: "DB_HGU_Execution_V17".MOTOR_6_STOP_CMD := TRUE;
+                       "DB_HGU_Execution_V17".MOTOR_6_START_CMD := FALSE;
+                       "DB_HGU_Execution_V17".MOTOR_6_RPM_SETPOINT := 0.0;
+                       "DB_HGU_Execution_V17".PUMP_6_PRESSURE_SETPOINT := 0.0;
+                       "DB_HGU_Execution_V17".PUMP_6_FLOW_SETPOINT := 0.0;
+                END_CASE;
+            END_FOR;
+            
+            Transition_State := 2;  // Move to waiting state
+            Transition_Timer(IN := TRUE, PT := T#5s);  // Start timeout timer
+            
+        2:  // Wait for motors to stop
+            // Check if all motors are stopped
+            Motors_Stop_Confirmed := TRUE;
+            
+            // Check motors 1-6 status (0=Offline, 1=Ready, 2=Running, 3=Error)
+            // Motor 7 is independent and not checked for transition confirmation
+            IF "DB_HGU_Execution_V17".MOTOR_1_STATUS = 2 THEN Motors_Stop_Confirmed := FALSE; END_IF;
+            IF "DB_HGU_Execution_V17".MOTOR_2_STATUS = 2 THEN Motors_Stop_Confirmed := FALSE; END_IF;
+            IF "DB_HGU_Execution_V17".MOTOR_3_STATUS = 2 THEN Motors_Stop_Confirmed := FALSE; END_IF;
+            IF "DB_HGU_Execution_V17".MOTOR_4_STATUS = 2 THEN Motors_Stop_Confirmed := FALSE; END_IF;
+            IF "DB_HGU_Execution_V17".MOTOR_5_STATUS = 2 THEN Motors_Stop_Confirmed := FALSE; END_IF;
+            IF "DB_HGU_Execution_V17".MOTOR_6_STATUS = 2 THEN Motors_Stop_Confirmed := FALSE; END_IF;
+            
+            // Check for confirmation or timeout
+            IF Motors_Stop_Confirmed OR Transition_Timer.Q THEN
+                Transition_State := 3;  // Move to ready state
+                
+                // Clear stop commands for motors 1-6 (Motor 7 is independent)
+                "DB_HGU_Execution_V17".MOTOR_1_STOP_CMD := FALSE;
+                "DB_HGU_Execution_V17".MOTOR_2_STOP_CMD := FALSE;
+                "DB_HGU_Execution_V17".MOTOR_3_STOP_CMD := FALSE;
+                "DB_HGU_Execution_V17".MOTOR_4_STOP_CMD := FALSE;
+                "DB_HGU_Execution_V17".MOTOR_5_STOP_CMD := FALSE;
+                "DB_HGU_Execution_V17".MOTOR_6_STOP_CMD := FALSE;
+            END_IF;
+            
+        3:  // Transition complete
+            Mode_Transition_Active := FALSE;
+            Transition_State := 0;
+            Transition_Timer(IN := FALSE, PT := T#5s);
+            
+            // Set final status
+            IF Enable THEN
+                "DB_HGU_Execution_V17".SYSTEM_STATUS := 1;  // Auto mode ready
+            ELSE
+                "DB_HGU_Execution_V17".SYSTEM_STATUS := 6;  // Manual mode ready
+            END_IF;
+    END_CASE;
+END_IF;
+
+// Store current Enable state
+Previous_Enable_State := Enable;
+
+// =============================================================================
 // MAIN SYSTEM LOGIC
 // =============================================================================
-IF Enable THEN
+IF Enable AND NOT Mode_Transition_Active THEN
     
     // =============================================================================
     // ANALOG INPUT PROCESSING (4-20mA SENSORS)
@@ -949,11 +1061,203 @@ ELSE
     END_FOR;
     
     Hour_Update_Timer(IN := FALSE, PT := T#60s);
+    
 END_IF;
+
+// =============================================================================
+// MANUAL MODE OPERATION - INDIVIDUAL MOTOR/PUMP CONTROL
+// =============================================================================
+IF NOT Enable AND NOT Mode_Transition_Active THEN
+    // =============================================================================
+    // MANUAL MODE OPERATION - INDIVIDUAL MOTOR/PUMP CONTROL
+    // =============================================================================
+    
+    // Still run safety and error monitoring in manual mode
+    Safety_Status_Manager(Enable := TRUE);
+    Error_Manager(Enable := TRUE);
+    Digital_Input_Processor(
+        Enable := TRUE,
+        Filter_Debounce_Time := T#100ms,
+        Level_Switch_Debounce_Time := T#500ms,
+        Reset_Filter_Errors := FALSE
+    );
+    Analog_Input_Processor(
+        Enable := TRUE,
+        Calibration_Mode := FALSE,
+        Zero_Calibration := FALSE,
+        Span_Calibration := FALSE,
+        Reset_Drift_Values := FALSE
+    );
+    
+    // Run G120C drives in manual mode for Motors 1-6
+    G120C_Drive_1(
+        Enable := "DB_HGU_Execution_V17".MOTOR_1_ENABLE,
+        Motor_Number := 1,
+        RPM_Setpoint := "DB_HGU_Execution_V17".MOTOR_1_RPM_SETPOINT,
+        Start_Command := "DB_HGU_Execution_V17".MOTOR_1_START_CMD,
+        Stop_Command := "DB_HGU_Execution_V17".MOTOR_1_STOP_CMD,
+        Reset_Command := "DB_HGU_Execution_V17".MOTOR_1_RESET_CMD,
+        Emergency_Stop := "DB_HGU_Execution_V17".EMERGENCY_STOP,
+        Motor_Enable_Switch := TRUE
+    );
+    
+    G120C_Drive_2(
+        Enable := "DB_HGU_Execution_V17".MOTOR_2_ENABLE,
+        Motor_Number := 2,
+        RPM_Setpoint := "DB_HGU_Execution_V17".MOTOR_2_RPM_SETPOINT,
+        Start_Command := "DB_HGU_Execution_V17".MOTOR_2_START_CMD,
+        Stop_Command := "DB_HGU_Execution_V17".MOTOR_2_STOP_CMD,
+        Reset_Command := "DB_HGU_Execution_V17".MOTOR_2_RESET_CMD,
+        Emergency_Stop := "DB_HGU_Execution_V17".EMERGENCY_STOP,
+        Motor_Enable_Switch := TRUE
+    );
+    
+    G120C_Drive_3(
+        Enable := "DB_HGU_Execution_V17".MOTOR_3_ENABLE,
+        Motor_Number := 3,
+        RPM_Setpoint := "DB_HGU_Execution_V17".MOTOR_3_RPM_SETPOINT,
+        Start_Command := "DB_HGU_Execution_V17".MOTOR_3_START_CMD,
+        Stop_Command := "DB_HGU_Execution_V17".MOTOR_3_STOP_CMD,
+        Reset_Command := "DB_HGU_Execution_V17".MOTOR_3_RESET_CMD,
+        Emergency_Stop := "DB_HGU_Execution_V17".EMERGENCY_STOP,
+        Motor_Enable_Switch := TRUE
+    );
+    
+    G120C_Drive_4(
+        Enable := "DB_HGU_Execution_V17".MOTOR_4_ENABLE,
+        Motor_Number := 4,
+        RPM_Setpoint := "DB_HGU_Execution_V17".MOTOR_4_RPM_SETPOINT,
+        Start_Command := "DB_HGU_Execution_V17".MOTOR_4_START_CMD,
+        Stop_Command := "DB_HGU_Execution_V17".MOTOR_4_STOP_CMD,
+        Reset_Command := "DB_HGU_Execution_V17".MOTOR_4_RESET_CMD,
+        Emergency_Stop := "DB_HGU_Execution_V17".EMERGENCY_STOP,
+        Motor_Enable_Switch := TRUE
+    );
+    
+    G120C_Drive_5(
+        Enable := "DB_HGU_Execution_V17".MOTOR_5_ENABLE,
+        Motor_Number := 5,
+        RPM_Setpoint := "DB_HGU_Execution_V17".MOTOR_5_RPM_SETPOINT,
+        Start_Command := "DB_HGU_Execution_V17".MOTOR_5_START_CMD,
+        Stop_Command := "DB_HGU_Execution_V17".MOTOR_5_STOP_CMD,
+        Reset_Command := "DB_HGU_Execution_V17".MOTOR_5_RESET_CMD,
+        Emergency_Stop := "DB_HGU_Execution_V17".EMERGENCY_STOP,
+        Motor_Enable_Switch := TRUE
+    );
+    
+    G120C_Drive_6(
+        Enable := "DB_HGU_Execution_V17".MOTOR_6_ENABLE,
+        Motor_Number := 6,
+        RPM_Setpoint := "DB_HGU_Execution_V17".MOTOR_6_RPM_SETPOINT,
+        Start_Command := "DB_HGU_Execution_V17".MOTOR_6_START_CMD,
+        Stop_Command := "DB_HGU_Execution_V17".MOTOR_6_STOP_CMD,
+        Reset_Command := "DB_HGU_Execution_V17".MOTOR_6_RESET_CMD,
+        Emergency_Stop := "DB_HGU_Execution_V17".EMERGENCY_STOP,
+        Motor_Enable_Switch := TRUE
+    );
+    
+    // Motor 7 is controlled independently outside of mode transitions
+    
+    // Update motor status for manual mode (0=Offline, 1=Ready, 2=Running, 3=Error)
+    // Motor 1 Status
+    IF G120C_Drive_1.Motor_Fault THEN
+        "DB_HGU_Execution_V17".MOTOR_1_STATUS := 3;  // Error
+    ELSIF G120C_Drive_1.Motor_Running THEN
+        "DB_HGU_Execution_V17".MOTOR_1_STATUS := 2;  // Running
+    ELSIF G120C_Drive_1.Motor_Ready THEN
+        "DB_HGU_Execution_V17".MOTOR_1_STATUS := 1;  // Ready
+    ELSE
+        "DB_HGU_Execution_V17".MOTOR_1_STATUS := 0;  // Offline
+    END_IF;
+    
+    // Motor 2 Status
+    IF G120C_Drive_2.Motor_Fault THEN
+        "DB_HGU_Execution_V17".MOTOR_2_STATUS := 3;
+    ELSIF G120C_Drive_2.Motor_Running THEN
+        "DB_HGU_Execution_V17".MOTOR_2_STATUS := 2;
+    ELSIF G120C_Drive_2.Motor_Ready THEN
+        "DB_HGU_Execution_V17".MOTOR_2_STATUS := 1;
+    ELSE
+        "DB_HGU_Execution_V17".MOTOR_2_STATUS := 0;
+    END_IF;
+    
+    // Motor 3 Status
+    IF G120C_Drive_3.Motor_Fault THEN
+        "DB_HGU_Execution_V17".MOTOR_3_STATUS := 3;
+    ELSIF G120C_Drive_3.Motor_Running THEN
+        "DB_HGU_Execution_V17".MOTOR_3_STATUS := 2;
+    ELSIF G120C_Drive_3.Motor_Ready THEN
+        "DB_HGU_Execution_V17".MOTOR_3_STATUS := 1;
+    ELSE
+        "DB_HGU_Execution_V17".MOTOR_3_STATUS := 0;
+    END_IF;
+    
+    // Motor 4 Status
+    IF G120C_Drive_4.Motor_Fault THEN
+        "DB_HGU_Execution_V17".MOTOR_4_STATUS := 3;
+    ELSIF G120C_Drive_4.Motor_Running THEN
+        "DB_HGU_Execution_V17".MOTOR_4_STATUS := 2;
+    ELSIF G120C_Drive_4.Motor_Ready THEN
+        "DB_HGU_Execution_V17".MOTOR_4_STATUS := 1;
+    ELSE
+        "DB_HGU_Execution_V17".MOTOR_4_STATUS := 0;
+    END_IF;
+    
+    // Motor 5 Status
+    IF G120C_Drive_5.Motor_Fault THEN
+        "DB_HGU_Execution_V17".MOTOR_5_STATUS := 3;
+    ELSIF G120C_Drive_5.Motor_Running THEN
+        "DB_HGU_Execution_V17".MOTOR_5_STATUS := 2;
+    ELSIF G120C_Drive_5.Motor_Ready THEN
+        "DB_HGU_Execution_V17".MOTOR_5_STATUS := 1;
+    ELSE
+        "DB_HGU_Execution_V17".MOTOR_5_STATUS := 0;
+    END_IF;
+    
+    // Motor 6 Status
+    IF G120C_Drive_6.Motor_Fault THEN
+        "DB_HGU_Execution_V17".MOTOR_6_STATUS := 3;
+    ELSIF G120C_Drive_6.Motor_Running THEN
+        "DB_HGU_Execution_V17".MOTOR_6_STATUS := 2;
+    ELSIF G120C_Drive_6.Motor_Ready THEN
+        "DB_HGU_Execution_V17".MOTOR_6_STATUS := 1;
+    ELSE
+        "DB_HGU_Execution_V17".MOTOR_6_STATUS := 0;
+    END_IF;
+    
+    // Motor 7 Status (from Dual Controller - need to check what outputs it has)
+    "DB_HGU_Execution_V17".MOTOR_7_STATUS := 1;  // Assume ready for now
+    
+    // Set system status for manual mode
+    IF NOT Mode_Transition_Active THEN
+        "DB_HGU_Execution_V17".SYSTEM_STATUS := 6;  // Manual mode active
+    END_IF;
+    
+END_IF;
+
+// =============================================================================
+// MOTOR 7 - ALWAYS MANUAL INDEPENDENT CONTROL
+// =============================================================================
+// Motor 7 runs independently regardless of SYSTEM_ENABLE mode
+Dual_Controller_7(
+    Enable := "DB_HGU_Execution_V17".MOTOR_7_ENABLE,
+    Motor_Enable := "DB_HGU_Execution_V17".MOTOR_7_ENABLE,
+    Pressure_Setpoint := "DB_HGU_Execution_V17".PUMP_7_PRESSURE_SETPOINT,
+    Flow_Setpoint := "DB_HGU_Execution_V17".PUMP_7_FLOW_SETPOINT,
+    Pressure_Actual := 0.0,  // Will be connected to actual pressure sensor
+    Flow_Actual := 0.0,      // Will be connected to actual flow sensor
+    Motor_Number := 7
+);
+
+// Motor 7 Status - Always independent
+"DB_HGU_Execution_V17".MOTOR_7_STATUS := 1;  // Assume ready for now
 
 // =============================================================================
 // OIL TEMPERATURE CONTROL SYSTEM
 // =============================================================================
+// Set SystemReady based on system state
+SystemReady := (SystemState >= 1) AND NOT SystemError;
+
 Oil_Temperature_Controller(
     Enable := Enable AND SystemReady,              // Enable when system is ready
     Oil_Temperature := "DB_HGU_Execution_V17".TANK_OIL_TEMPERATURE,
