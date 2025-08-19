@@ -143,10 +143,10 @@ const createEmptyMotor = (): MotorData => ({
   pressure: 0,
   leak: 0,
   
-  // Setpoints
-  targetRpm: 0,
-  flowSetpoint: 0,
-  pressureSetpoint: 0,
+  // Setpoints - Set reasonable defaults matching DB values
+  targetRpm: 1000, // Default from DB: MOTOR_X_RPM_SETPOINT := 1000.0
+  flowSetpoint: 30, // Default from DB: PUMP_X_FLOW_SETPOINT := 30.0
+  pressureSetpoint: 280, // Default from DB: PUMP_X_PRESSURE_SETPOINT := 280.0
   
   // Status indicators
   lineFilter: false,
@@ -495,9 +495,26 @@ export const useOpcStore = create<OpcStore>((set) => ({
     };
     
     console.log('✅ Motors Updated:', {
-      motor1: motors[1],
-      motor2: motors[2],
-      motor3: motors[3]
+      motor1: {
+        targetRpm: motors[1].targetRpm,
+        pressureSetpoint: motors[1].pressureSetpoint,
+        flowSetpoint: motors[1].flowSetpoint,
+        rpm: motors[1].rpm,
+        status: motors[1].status
+      },
+      motor2: {
+        targetRpm: motors[2].targetRpm,
+        pressureSetpoint: motors[2].pressureSetpoint,
+        flowSetpoint: motors[2].flowSetpoint
+      }
+    });
+    
+    // Debug: Show what OPC data we received
+    console.log('🔍 OPC Data Received - Setpoints for Motor 1:', {
+      rpmSetpoint: data['MOTOR_1_RPM_SETPOINT']?.value,
+      pressureSetpoint: data['PUMP_1_PRESSURE_SETPOINT']?.value,
+      flowSetpoint: data['PUMP_1_FLOW_SETPOINT']?.value,
+      rpmActual: data['MOTOR_1_RPM_ACTUAL']?.value
     });
     
     return {

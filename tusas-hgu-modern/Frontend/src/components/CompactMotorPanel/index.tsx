@@ -27,6 +27,18 @@ const CompactMotorPanel: React.FC<CompactMotorPanelProps> = ({
   if (!motor) {
     return null;
   }
+  
+  // Debug log for Motor 1 to check setpoint values
+  if (motorId === 1) {
+    console.log(`🔍 Motor 1 Debug - Current Values:`, {
+      targetRpm: motor.targetRpm,
+      pressureSetpoint: motor.pressureSetpoint,
+      flowSetpoint: motor.flowSetpoint,
+      rpm: motor.rpm,
+      pressure: motor.pressure,
+      flow: motor.flow
+    });
+  }
 
   const getStatusInfo = (status: number) => {
     switch (status) {

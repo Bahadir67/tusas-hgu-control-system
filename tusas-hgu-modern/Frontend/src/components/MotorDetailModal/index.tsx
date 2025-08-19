@@ -57,20 +57,35 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
     };
   }, [isOpen, onClose]);
 
-  // Load current values from OPC collection ONLY when modal first opens
+  // Load current values from OPC collection when modal opens or motor data updates
   useEffect(() => {
     if (isOpen && motor) {
-      console.log(`🔧 Motor ${motorId} Settings Values - LOADED ONCE:`, motor);
-      console.log(`🎯 Settings Initial Values:`, {
+      console.log(`🔧 Motor ${motorId} Settings Values - LOADING:`, motor);
+      console.log(`🎯 Settings Values from OPC:`, {
         targetRpm: motor.targetRpm,
         pressureSetpoint: motor.pressureSetpoint,
         flowSetpoint: motor.flowSetpoint
       });
-      setRpmSetpoint(motor.targetRpm || 0);
-      setPressureSetpoint(motor.pressureSetpoint || 0);
-      setFlowSetpoint(motor.flowSetpoint || 0);
+      
+      // Only update if values are valid (not 0 or undefined) OR if it's the initial load
+      const shouldUpdateRpm = motor.targetRpm > 0 || rpmSetpoint === 0;
+      const shouldUpdatePressure = motor.pressureSetpoint > 0 || pressureSetpoint === 0;
+      const shouldUpdateFlow = motor.flowSetpoint > 0 || flowSetpoint === 0;
+      
+      if (shouldUpdateRpm) {
+        console.log(`📝 Updating RPM setpoint: ${motor.targetRpm}`);
+        setRpmSetpoint(motor.targetRpm || 0);
+      }
+      if (shouldUpdatePressure) {
+        console.log(`📝 Updating Pressure setpoint: ${motor.pressureSetpoint}`);
+        setPressureSetpoint(motor.pressureSetpoint || 0);
+      }
+      if (shouldUpdateFlow) {
+        console.log(`📝 Updating Flow setpoint: ${motor.flowSetpoint}`);
+        setFlowSetpoint(motor.flowSetpoint || 0);
+      }
     }
-  }, [isOpen, motorId]); // Only depend on isOpen and motorId, NOT motor data
+  }, [isOpen, motorId, motor?.targetRpm, motor?.pressureSetpoint, motor?.flowSetpoint]); // Depend on setpoint values
 
   // Continuous leakage updates while modal is open
   useEffect(() => {
