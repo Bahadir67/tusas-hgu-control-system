@@ -147,6 +147,22 @@ const getDefaultFlowSetpoint = (motorId?: number): number => {
   }
 };
 
+// Helper function to get default pressure setpoint by motor ID  
+const getDefaultPressureSetpoint = (motorId?: number): number => {
+  if (!motorId) return 280; // Default fallback
+  
+  switch (motorId) {
+    case 1: return 999; // TEMP: Set different value to see if OPC overrides it
+    case 2: return 280; // DB default - adjust if actual PLC value is different
+    case 3: return 280; // DB default - adjust if actual PLC value is different
+    case 4: return 280; // DB default - adjust if actual PLC value is different
+    case 5: return 280; // DB default - adjust if actual PLC value is different
+    case 6: return 280; // DB default - adjust if actual PLC value is different
+    case 7: return 280; // DB default - adjust if actual PLC value is different
+    default: return 280; // Fallback
+  }
+};
+
 // Initialize empty motor data - UPDATED FOR NEW INTERFACE
 const createEmptyMotor = (motorId?: number): MotorData => ({
   // Actual values
@@ -162,7 +178,7 @@ const createEmptyMotor = (motorId?: number): MotorData => ({
   // Setpoints - Set reasonable defaults matching actual PLC values
   targetRpm: motorId === 7 ? 1500 : 1000, // Motor 7: 1500 (softstarter), Others: 1000
   flowSetpoint: getDefaultFlowSetpoint(motorId), // Motor-specific flow setpoints
-  pressureSetpoint: 280, // Default from DB: PUMP_X_PRESSURE_SETPOINT := 280.0
+  pressureSetpoint: getDefaultPressureSetpoint(motorId), // Motor-specific pressure setpoints
   
   // Status indicators
   lineFilter: false,
@@ -531,6 +547,14 @@ export const useOpcStore = create<OpcStore>((set) => ({
       pressureSetpoint: data['PUMP_1_PRESSURE_SETPOINT']?.value,
       flowSetpoint: data['PUMP_1_FLOW_SETPOINT']?.value,
       rpmActual: data['MOTOR_1_RPM_ACTUAL']?.value
+    });
+    
+    // Debug: Before/After comparison for Motor 1 pressure setpoint
+    console.log('🔍 Motor 1 Pressure Setpoint Debug:', {
+      beforeUpdate: state.motors[1]?.pressureSetpoint,
+      opcValue: data['PUMP_1_PRESSURE_SETPOINT']?.value,
+      afterUpdate: motors[1].pressureSetpoint,
+      defaultValue: getDefaultPressureSetpoint(1)
     });
     
     return {
