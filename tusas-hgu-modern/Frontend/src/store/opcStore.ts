@@ -131,8 +131,24 @@ interface OpcStore {
   writeVariable: (varName: string, value: any) => Promise<boolean>;
 }
 
+// Helper function to get default flow setpoint by motor ID
+const getDefaultFlowSetpoint = (motorId?: number): number => {
+  if (!motorId) return 16; // Default fallback
+  
+  switch (motorId) {
+    case 1: return 16; // Actual PLC value for PUMP_1_FLOW_SETPOINT
+    case 2: return 30; // DB default for PUMP_2_FLOW_SETPOINT (adjust if different)
+    case 3: return 30; // DB default for PUMP_3_FLOW_SETPOINT (adjust if different)
+    case 4: return 30; // DB default for PUMP_4_FLOW_SETPOINT (adjust if different)
+    case 5: return 30; // DB default for PUMP_5_FLOW_SETPOINT (adjust if different)
+    case 6: return 30; // DB default for PUMP_6_FLOW_SETPOINT (adjust if different)
+    case 7: return 34; // DB default for PUMP_7_FLOW_SETPOINT (fixed displacement)
+    default: return 30; // Fallback
+  }
+};
+
 // Initialize empty motor data - UPDATED FOR NEW INTERFACE
-const createEmptyMotor = (): MotorData => ({
+const createEmptyMotor = (motorId?: number): MotorData => ({
   // Actual values
   rpm: 0,
   current: 0,
@@ -143,9 +159,9 @@ const createEmptyMotor = (): MotorData => ({
   pressure: 0,
   leak: 0,
   
-  // Setpoints - Set reasonable defaults matching DB values
-  targetRpm: 1000, // Default from DB: MOTOR_X_RPM_SETPOINT := 1000.0
-  flowSetpoint: 30, // Default from DB: PUMP_X_FLOW_SETPOINT := 30.0
+  // Setpoints - Set reasonable defaults matching actual PLC values
+  targetRpm: motorId === 7 ? 1500 : 1000, // Motor 7: 1500 (softstarter), Others: 1000
+  flowSetpoint: getDefaultFlowSetpoint(motorId), // Motor-specific flow setpoints
   pressureSetpoint: 280, // Default from DB: PUMP_X_PRESSURE_SETPOINT := 280.0
   
   // Status indicators
@@ -170,15 +186,15 @@ const createEmptyMotor = (): MotorData => ({
 
 // Create store
 export const useOpcStore = create<OpcStore>((set) => ({
-  // Initialize 7 motors
+  // Initialize 7 motors with proper defaults
   motors: {
-    1: createEmptyMotor(),
-    2: createEmptyMotor(),
-    3: createEmptyMotor(),
-    4: createEmptyMotor(),
-    5: createEmptyMotor(),
-    6: createEmptyMotor(),
-    7: createEmptyMotor(), // Special fixed-flow pump
+    1: createEmptyMotor(1),
+    2: createEmptyMotor(2),
+    3: createEmptyMotor(3),
+    4: createEmptyMotor(4),
+    5: createEmptyMotor(5),
+    6: createEmptyMotor(6),
+    7: createEmptyMotor(7), // Special fixed-flow pump
   },
   
   // System data - UPDATED TO MATCH NEW INTERFACE
