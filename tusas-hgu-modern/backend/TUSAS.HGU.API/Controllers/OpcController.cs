@@ -48,6 +48,91 @@ namespace TUSAS.HGU.API.Controllers
         }
 
         /// <summary>
+        /// InfluxDB bağlantı durumunu test et
+        /// </summary>
+        [HttpGet("influx/status")]
+        public async Task<IActionResult> GetInfluxStatus()
+        {
+            try
+            {
+                var isConnected = await _influxDbService.CheckConnectionAsync();
+                var hasRecentData = await _influxDbService.HasRecentDataAsync(TimeSpan.FromMinutes(5));
+                
+                var status = new
+                {
+                    IsConnected = isConnected,
+                    HasRecentData = hasRecentData,
+                    Timestamp = DateTime.Now,
+                    Message = isConnected ? "InfluxDB connected successfully" : "InfluxDB connection failed"
+                };
+
+                _logger.LogInformation("InfluxDB status requested - Connected: {Connected}, HasData: {HasData}", 
+                    isConnected, hasRecentData);
+                return Ok(status);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting InfluxDB status");
+                return StatusCode(500, new { Error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// InfluxDB'deki veri miktarını kontrol et
+        /// </summary>
+        [HttpGet("influx/data-count")]
+        public async Task<IActionResult> GetInfluxDataCount()
+        {
+            try
+            {
+                var dataCount = await _influxDbService.GetDataPointCountAsync();
+                
+                var response = new
+                {
+                    DataPointCount = dataCount,
+                    Period = "Last 24 hours",
+                    Timestamp = DateTime.Now,
+                    Message = $"Found {dataCount} data points in the last 24 hours"
+                };
+
+                _logger.LogInformation("InfluxDB data count requested - Count: {Count}", dataCount);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting InfluxDB data count");
+                return StatusCode(500, new { Error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// InfluxDB'ye manual test verisi yaz
+        /// </summary>
+        [HttpPost("influx/test")]
+        public async Task<IActionResult> TestInfluxWrite()
+        {
+            try
+            {
+                var success = await _influxDbService.TestManualWriteAsync();
+                
+                var response = new
+                {
+                    Success = success,
+                    Timestamp = DateTime.Now,
+                    Message = success ? "Test data written successfully" : "Failed to write test data"
+                };
+
+                _logger.LogInformation("InfluxDB manual test - Success: {Success}", success);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error testing InfluxDB write");
+                return StatusCode(500, new { Error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// OPC UA bağlantısını başlat
         /// </summary>
         [HttpPost("connect")]

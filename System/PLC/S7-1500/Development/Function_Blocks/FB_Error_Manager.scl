@@ -305,49 +305,42 @@ IF Enable THEN
         // ─────────────────────────────────────────────────────────────────────────
         // STEP 3: READ CONTROL SYSTEM ERRORS (Priority 2-3)  
         // ─────────────────────────────────────────────────────────────────────────
-        // Source: FB_Dual_Controller instances → DB_System_Coordinator_Instance
-        Dual_Controller_Error := FALSE;
+        // MODULAR ARCHITECTURE UPDATE: Read errors from FB_System_Coordinator_V2
+        // Source: FB_System_Coordinator_V2 → Error aggregation outputs
+        Dual_Controller_Error := "DB_System_Coordinator_Instance".Dual_Controller_1_Error OR
+                                 "DB_System_Coordinator_Instance".Dual_Controller_2_Error OR
+                                 "DB_System_Coordinator_Instance".Dual_Controller_3_Error OR
+                                 "DB_System_Coordinator_Instance".Dual_Controller_4_Error OR
+                                 "DB_System_Coordinator_Instance".Dual_Controller_5_Error OR
+                                 "DB_System_Coordinator_Instance".Dual_Controller_6_Error OR
+                                 "DB_System_Coordinator_Instance".Dual_Controller_7_Error;
+        
+        // Get the first active error code (priority by motor number)
+        Current_Dual_Controller_Error_Code := 0;
+        IF "DB_System_Coordinator_Instance".Dual_Controller_1_Error THEN 
+            Current_Dual_Controller_Error_Code := "DB_System_Coordinator_Instance".Dual_Controller_1_Error_Code;
+        ELSIF "DB_System_Coordinator_Instance".Dual_Controller_2_Error THEN 
+            Current_Dual_Controller_Error_Code := "DB_System_Coordinator_Instance".Dual_Controller_2_Error_Code;
+        ELSIF "DB_System_Coordinator_Instance".Dual_Controller_3_Error THEN 
+            Current_Dual_Controller_Error_Code := "DB_System_Coordinator_Instance".Dual_Controller_3_Error_Code;
+        ELSIF "DB_System_Coordinator_Instance".Dual_Controller_4_Error THEN 
+            Current_Dual_Controller_Error_Code := "DB_System_Coordinator_Instance".Dual_Controller_4_Error_Code;
+        ELSIF "DB_System_Coordinator_Instance".Dual_Controller_5_Error THEN 
+            Current_Dual_Controller_Error_Code := "DB_System_Coordinator_Instance".Dual_Controller_5_Error_Code;
+        ELSIF "DB_System_Coordinator_Instance".Dual_Controller_6_Error THEN 
+            Current_Dual_Controller_Error_Code := "DB_System_Coordinator_Instance".Dual_Controller_6_Error_Code;
+        ELSIF "DB_System_Coordinator_Instance".Dual_Controller_7_Error THEN 
+            Current_Dual_Controller_Error_Code := "DB_System_Coordinator_Instance".Dual_Controller_7_Error_Code;
+        END_IF;
+        
+        // Categorize dual controller errors (flow = 11-14, pressure = 21-24)
         Flow_Controller_Error := FALSE;
         Pressure_Controller_Error := FALSE;
-        Current_Dual_Controller_Error_Code := 0;
         
-        // Check all 6 dual controller instances efficiently
-        FOR i := 1 TO 6 DO
-            CASE i OF
-                1: IF "DB_System_Coordinator_Instance".Dual_Controller_1.Error_Status THEN
-                       Dual_Controller_Error := TRUE;
-                       Current_Dual_Controller_Error_Code := "DB_System_Coordinator_Instance".Dual_Controller_1.Error_Code;
-                   END_IF;
-                2: IF "DB_System_Coordinator_Instance".Dual_Controller_2.Error_Status THEN
-                       Dual_Controller_Error := TRUE;
-                       Current_Dual_Controller_Error_Code := "DB_System_Coordinator_Instance".Dual_Controller_2.Error_Code;
-                   END_IF;
-                3: IF "DB_System_Coordinator_Instance".Dual_Controller_3.Error_Status THEN
-                       Dual_Controller_Error := TRUE;
-                       Current_Dual_Controller_Error_Code := "DB_System_Coordinator_Instance".Dual_Controller_3.Error_Code;
-                   END_IF;
-                4: IF "DB_System_Coordinator_Instance".Dual_Controller_4.Error_Status THEN
-                       Dual_Controller_Error := TRUE;
-                       Current_Dual_Controller_Error_Code := "DB_System_Coordinator_Instance".Dual_Controller_4.Error_Code;
-                   END_IF;
-                5: IF "DB_System_Coordinator_Instance".Dual_Controller_5.Error_Status THEN
-                       Dual_Controller_Error := TRUE;
-                       Current_Dual_Controller_Error_Code := "DB_System_Coordinator_Instance".Dual_Controller_5.Error_Code;
-                   END_IF;
-                6: IF "DB_System_Coordinator_Instance".Dual_Controller_6.Error_Status THEN
-                       Dual_Controller_Error := TRUE;
-                       Current_Dual_Controller_Error_Code := "DB_System_Coordinator_Instance".Dual_Controller_6.Error_Code;
-                   END_IF;
-            END_CASE;
-        END_FOR;
-        
-        // Categorize dual controller errors by type
-        IF Dual_Controller_Error THEN
-            IF Current_Dual_Controller_Error_Code >= 11 AND Current_Dual_Controller_Error_Code <= 14 THEN
-                Flow_Controller_Error := TRUE;          // Flow controller errors (11-14)
-            ELSIF Current_Dual_Controller_Error_Code >= 21 AND Current_Dual_Controller_Error_Code <= 24 THEN
-                Pressure_Controller_Error := TRUE;      // Pressure controller errors (21-24)
-            END_IF;
+        IF Current_Dual_Controller_Error_Code >= 11 AND Current_Dual_Controller_Error_Code <= 14 THEN
+            Flow_Controller_Error := TRUE;
+        ELSIF Current_Dual_Controller_Error_Code >= 21 AND Current_Dual_Controller_Error_Code <= 24 THEN
+            Pressure_Controller_Error := TRUE;
         END_IF;
         
         // ─────────────────────────────────────────────────────────────────────────

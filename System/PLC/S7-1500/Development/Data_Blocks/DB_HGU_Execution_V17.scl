@@ -33,6 +33,9 @@ VERSION : 3.0
       ACTIVE_MOTOR_COUNT : USInt := 0;              // Currently active motors
       SYSTEM_ACTIVE_PUMPS : Int := 0;               // Active pumps count
       SYSTEM_EFFICIENCY : Real := 0.0;              // Overall system efficiency (%)
+      SYSTEM_UPTIME : DInt := 0;                    // System uptime in seconds
+      MAINTENANCE_DUE_COUNT : USInt := 0;           // Number of motors requiring maintenance  
+      TOTAL_OPERATING_HOURS : Real := 0.0;         // Total operating hours across all motors
       
       // =============================================================================
       // SYSTEM SETPOINTS (User Adjustable) - 2000ms Update

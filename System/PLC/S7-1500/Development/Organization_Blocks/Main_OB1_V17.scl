@@ -5,9 +5,9 @@ FAMILY : 'Main'
 NAME : 'Main'
 VERSION : 3.0
 // =============================================================================
-// MAIN ORGANIZATION BLOCK - V17 ARCHITECTURE
+// MAIN ORGANIZATION BLOCK - V17 MODULAR ARCHITECTURE  
 // TIA Portal S7-1500 Structured Control Language (SCL)
-// Description: Simple system coordination calling FB_System_Coordinator
+// Description: System coordination with modular Safety/Auto/Manual architecture
 // =============================================================================
 
 VAR_TEMP
@@ -22,10 +22,10 @@ END_VAR
 BEGIN
 
 // =============================================================================
-// MAIN SYSTEM COORDINATION
+// MAIN SYSTEM COORDINATION (V2 MODULAR ARCHITECTURE)
 // =============================================================================
 
-// Call main system coordinator with SYSTEM_ENABLE control
+// Call main system coordinator V2 with modular safety/auto/manual control
 "DB_System_Coordinator_Instance"(
     Enable := "DB_HGU_Execution_V17".SYSTEM_ENABLE,  // Use SYSTEM_ENABLE for auto/manual mode
     SystemCommand := 1,
