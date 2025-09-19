@@ -5,138 +5,69 @@ interface LogoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  stage: 'initial' | 'final';
 }
 
-const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose, onConfirm, stage }) => {
+const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose, onConfirm }) => {
   if (!isOpen) return null;
 
   return (
     <div className="logout-modal-overlay">
-      <div className={`logout-modal ${stage === 'final' ? 'critical' : 'warning'}`}>
-        {/* Flashing Warning Lights */}
-        <div className="warning-lights">
-          <div className="warning-light left"></div>
-          <div className="warning-light right"></div>
-        </div>
-
-        {/* Header with Animated Icon */}
+      <div className="logout-modal premium-scada-modal">
+        {/* Compact Header */}
         <div className="modal-header">
-          <div className="warning-icon-container">
-            <span className="warning-icon">⚠️</span>
-            {stage === 'final' && <span className="critical-icon">🛑</span>}
-          </div>
-          <h2 className="modal-title">
-            {stage === 'initial' 
-              ? 'SİSTEM UYARISI - SYSTEM WARNING' 
-              : '🚨 KRİTİK UYARI - CRITICAL WARNING 🚨'}
-          </h2>
+          <div className="status-indicator"></div>
+          <h3 className="modal-title">System Logout & Shutdown</h3>
+          <div className="severity-level">CRITICAL</div>
         </div>
 
-        {/* Animated Alert Bar */}
-        <div className="alert-bar">
-          <div className="alert-text">
-            {stage === 'initial' ? 'DİKKAT' : 'TEHLİKE'} • 
-            {stage === 'initial' ? 'ATTENTION' : 'DANGER'} • 
-            {stage === 'initial' ? 'DİKKAT' : 'TEHLİKE'} • 
-            {stage === 'initial' ? 'ATTENTION' : 'DANGER'}
-          </div>
-        </div>
-
-        {/* Message Content */}
+        {/* Compact Message Content */}
         <div className="modal-content">
-          {stage === 'initial' ? (
-            <>
-              <div className="message-section">
-                <h3>🇹🇷 TÜRKÇE</h3>
-                <p className="warning-message">
-                  <strong>HİDROLİK SİSTEM ÇALIŞIYOR!</strong><br/>
-                  Çıkış yaparsanız tüm hidrolik sistemler DERHAL DURDURULACAKTIR.<br/>
-                  Bu işlem geri alınamaz ve sistem güvenliği için gereklidir.
-                </p>
-              </div>
-              
-              <div className="message-section">
-                <h3>🇬🇧 ENGLISH</h3>
-                <p className="warning-message">
-                  <strong>HYDRAULIC SYSTEM IS RUNNING!</strong><br/>
-                  If you logout, all hydraulic systems will be IMMEDIATELY STOPPED.<br/>
-                  This action cannot be undone and is required for system safety.
-                </p>
-              </div>
+          <div className="message-text critical">
+            <p><strong>Hydraulic system is currently active.</strong></p>
+            <p>This action will immediately:</p>
+            <p>• Stop all hydraulic operations</p>
+            <p>• Log out from the system</p>
+            <p>• Shut down all motors and release pressure</p>
+          </div>
 
-              <div className="system-status">
-                <div className="status-item">
-                  <span className="status-indicator active"></span>
-                  <span>Motor 1-6: ACTIVE</span>
-                </div>
-                <div className="status-item">
-                  <span className="status-indicator active"></span>
-                  <span>Pressure: 125.5 bar</span>
-                </div>
-                <div className="status-item">
-                  <span className="status-indicator active"></span>
-                  <span>Flow: 450 L/min</span>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="critical-message">
-                <div className="skull-icon">☠️</div>
-                <h3>SON UYARI - FINAL WARNING</h3>
-                <div className="skull-icon">☠️</div>
-              </div>
-              
-              <div className="shutdown-sequence">
-                <p className="sequence-title">KAPATMA SIRASI / SHUTDOWN SEQUENCE:</p>
-                <ol className="sequence-list">
-                  <li>✓ Tüm motorlar durdurulacak / All motors will stop</li>
-                  <li>✓ Basınç tahliye edilecek / Pressure will be released</li>
-                  <li>✓ Vanalar kapatılacak / Valves will be closed</li>
-                  <li>✓ Acil durdurma aktif edilecek / Emergency stop activated</li>
-                  <li>✓ Sistem kilidi devreye girecek / System lock engaged</li>
-                </ol>
-              </div>
+          <div className="system-status">
+            <div className="status-row">
+              <span className="status-label">Motors:</span>
+              <span className="status-value active">ACTIVE</span>
+            </div>
+            <div className="status-row">
+              <span className="status-label">Pressure:</span>
+              <span className="status-value">125.5 bar</span>
+            </div>
+            <div className="status-row">
+              <span className="status-label">Flow:</span>
+              <span className="status-value">450 L/min</span>
+            </div>
+          </div>
 
-              <div className="countdown-warning">
-                <span className="countdown-text">İŞLEM GERİ ALINAMAZ!</span>
-                <span className="countdown-text">THIS CANNOT BE UNDONE!</span>
-              </div>
-            </>
-          )}
+          <div className="shutdown-info">
+            <div className="info-title">Shutdown sequence:</div>
+            <div className="sequence-items">
+              <span>Stop motors</span> →
+              <span>Release pressure</span> →
+              <span>Close valves</span> →
+              <span>System logout</span>
+            </div>
+          </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Compact Action Buttons */}
         <div className="modal-actions">
-          <button 
-            className="btn-cancel"
-            onClick={onClose}
-          >
-            <span className="btn-icon">↩️</span>
-            {stage === 'initial' ? 'İPTAL / CANCEL' : 'VAZGEç / ABORT'}
+          <button className="btn-secondary" onClick={onClose}>
+            Cancel
           </button>
-          
-          <button 
-            className={`btn-confirm ${stage === 'final' ? 'btn-danger' : 'btn-warning'}`}
+          <button
+            className="btn-primary critical"
             onClick={onConfirm}
           >
-            <span className="btn-icon">
-              {stage === 'initial' ? '⚠️' : '💀'}
-            </span>
-            {stage === 'initial' 
-              ? 'ÇIKIŞ YAP / LOGOUT' 
-              : 'SİSTEMİ DURDUR VE ÇIKIŞ / STOP & EXIT'}
+            Stop System & Logout
           </button>
         </div>
-
-        {/* Emergency Contact */}
-        {stage === 'final' && (
-          <div className="emergency-contact">
-            <span className="emergency-icon">📞</span>
-            <span>Acil Durum / Emergency: +90 312 XXX XX XX</span>
-          </div>
-        )}
       </div>
     </div>
   );

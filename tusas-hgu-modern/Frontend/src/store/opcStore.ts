@@ -152,7 +152,7 @@ const getDefaultPressureSetpoint = (motorId?: number): number => {
   if (!motorId) return 280; // Default fallback
   
   switch (motorId) {
-    case 1: return 999; // TEMP: Set different value to see if OPC overrides it
+    case 1: return 12; // Actual PLC value: PUMP_1_PRESSURE_SETPOINT = 12 (not DB default 280)
     case 2: return 280; // DB default - adjust if actual PLC value is different
     case 3: return 280; // DB default - adjust if actual PLC value is different
     case 4: return 280; // DB default - adjust if actual PLC value is different

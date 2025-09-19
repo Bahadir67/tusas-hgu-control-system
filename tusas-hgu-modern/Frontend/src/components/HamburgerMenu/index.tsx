@@ -21,36 +21,32 @@ interface MenuItem {
 const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose, onNavigate }) => {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [logoutStage, setLogoutStage] = useState<'initial' | 'final'>('initial');
   const { logout, user } = useAuth();
 
   // Handle logout with safety warning modal
   const handleLogout = () => {
-    setLogoutStage('initial');
     setShowLogoutModal(true);
   };
 
   const handleLogoutConfirm = () => {
-    if (logoutStage === 'initial') {
-      // Move to final warning
-      setLogoutStage('final');
-    } else {
-      // Final confirmation - proceed with logout
-      console.log('⚠️ Stopping all hydraulic systems...');
-      console.log('🛑 System shutdown initiated...');
-      
-      // Simulate system shutdown delay
-      setTimeout(() => {
-        logout();
-        onClose();
-        setShowLogoutModal(false);
-      }, 2000);
-    }
+    // Single step - proceed with system shutdown and logout
+    console.log('⚠️ Stopping all hydraulic systems...');
+    console.log('🛑 System shutdown initiated...');
+    console.log('🔌 Disconnecting motors...');
+    console.log('💨 Releasing system pressure...');
+    console.log('🔒 Closing all valves...');
+    console.log('👤 Logging out user...');
+
+    // Simulate system shutdown delay
+    setTimeout(() => {
+      logout();
+      onClose();
+      setShowLogoutModal(false);
+    }, 2000);
   };
 
   const handleLogoutCancel = () => {
     setShowLogoutModal(false);
-    setLogoutStage('initial');
   };
 
   const menuItems: MenuItem[] = [
@@ -269,7 +265,6 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose
         isOpen={showLogoutModal}
         onClose={handleLogoutCancel}
         onConfirm={handleLogoutConfirm}
-        stage={logoutStage}
       />
     </>
   );
