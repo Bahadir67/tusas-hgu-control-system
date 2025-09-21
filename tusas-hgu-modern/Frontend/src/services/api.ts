@@ -28,6 +28,14 @@ export interface InfluxMotorSeriesResponse {
   MaxPoints?: number | null;
   MotorSeries: InfluxMotorSeriesPoint[];
   SystemSeries: InfluxSystemTrendPoint[];
+  // Optional camelCase keys for backward compatibility with older API responses
+  success?: boolean;
+  range?: string;
+  motors?: number[];
+  metrics?: string[];
+  maxPoints?: number | null;
+  motorSeries?: InfluxMotorSeriesPoint[];
+  systemSeries?: InfluxSystemTrendPoint[];
 }
 
 // Backend API base URL

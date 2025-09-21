@@ -39,8 +39,8 @@ const PressureCalibration: React.FC<PressureCalibrationProps> = ({
 }) => {
   // OPC Store state
   const motors = useOpcStore((state) => state.motors);
-  const systemPressure = useOpcStore((state) => state.systemPressure || 0);
-  const systemPressureSetpoint = useOpcStore((state) => state.systemPressureSetpoint || 0);
+  const systemPressure = useOpcStore((state) => state.system.totalPressure || 0);
+  const systemPressureSetpoint = useOpcStore((state) => state.system.pressureSetpoint || 0);
 
   // Loading and modal states
   const [isLoading, setIsLoading] = useState(false);
