@@ -1,0 +1,533 @@
+/* Industrial SCADA Theme for InfluxDB Monitor */
+
+.influxdb-monitor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  min-height: 100vh;
+  background: var(--color-bg-primary);
+  position: relative;
+}
+
+/* Header Section */
+.influxdb-header {
+  background: linear-gradient(135deg,
+    rgba(22, 32, 38, 0.95) 0%,
+    rgba(26, 34, 44, 0.9) 50%,
+    rgba(13, 18, 22, 0.95) 100%);
+  backdrop-filter: blur(15px) saturate(180%);
+  border: 1px solid rgba(96, 160, 255, 0.3);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.influxdb-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0, 255, 136, 0.6) 25%,
+    rgba(0, 153, 255, 0.8) 50%,
+    rgba(0, 255, 136, 0.6) 75%,
+    transparent 100%);
+  animation: dataFlowGlow 3s ease-in-out infinite alternate;
+}
+
+@keyframes dataFlowGlow {
+  0% { opacity: 0.7; filter: blur(1px); }
+  100% { opacity: 1; filter: blur(0px); }
+}
+
+.header-title-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.monitor-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-shadow: 0 0 10px rgba(0, 153, 255, 0.3);
+}
+
+.monitor-icon {
+  font-size: 28px;
+  filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.5));
+}
+
+.monitor-subtitle {
+  font-size: 12px;
+  color: rgba(168, 178, 192, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xl);
+}
+
+.time-range-selector,
+.auto-refresh-control {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.control-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.industrial-select,
+.industrial-select-small {
+  background: rgba(15, 20, 25, 0.9);
+  border: 1px solid rgba(96, 160, 255, 0.3);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-width: 100px;
+}
+
+.industrial-select-small {
+  min-width: 60px;
+  padding: var(--spacing-xs);
+}
+
+.industrial-select:focus,
+.industrial-select-small:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(0, 153, 255, 0.2);
+}
+
+.industrial-checkbox {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(96, 160, 255, 0.5);
+  border-radius: 2px;
+  background: rgba(15, 20, 25, 0.8);
+  margin-right: var(--spacing-xs);
+  position: relative;
+  cursor: pointer;
+}
+
+.industrial-checkbox:checked {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.industrial-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: -2px;
+  left: 2px;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Status Bar */
+.influxdb-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(22, 32, 38, 0.8);
+  border: 1px solid rgba(96, 160, 255, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  backdrop-filter: blur(8px);
+}
+
+.data-statistics {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--color-value-normal);
+  font-family: var(--font-mono);
+  text-shadow: 0 0 4px currentColor;
+}
+
+.stat-separator {
+  color: var(--color-border);
+  font-size: 16px;
+}
+
+/* Main Content Grid */
+.influxdb-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: var(--spacing-lg);
+  flex: 1;
+}
+
+/* Charts Panel */
+.charts-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.motor-selector,
+.metric-selector {
+  background: rgba(22, 32, 38, 0.85);
+  border: 1px solid rgba(96, 160, 255, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  backdrop-filter: blur(8px);
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(96, 160, 255, 0.3);
+  padding-bottom: var(--spacing-xs);
+}
+
+.motor-checkboxes,
+.metric-checkboxes {
+  display: flex;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.motor-checkbox,
+.metric-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  transition: background 0.2s ease;
+}
+
+.motor-checkbox:hover,
+.metric-checkbox:hover {
+  background: rgba(96, 160, 255, 0.1);
+}
+
+.checkbox-label {
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: auto;
+}
+
+.status-dot.status-running {
+  background: var(--color-running);
+  box-shadow: 0 0 8px var(--color-running);
+  animation: pulse 2s infinite;
+}
+
+.status-dot.status-ready {
+  background: var(--color-ready);
+  box-shadow: 0 0 8px var(--color-ready);
+}
+
+.metric-color-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  margin-left: auto;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Chart Containers */
+.motor-charts-container,
+.system-charts-container {
+  background: rgba(22, 32, 38, 0.9);
+  border: 1px solid rgba(96, 160, 255, 0.3);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  backdrop-filter: blur(12px);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.motor-charts-container::before,
+.system-charts-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(0, 255, 136, 0.4),
+    transparent);
+}
+
+/* Controls Panel */
+.controls-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.performance-metrics,
+.alert-config {
+  background: rgba(22, 32, 38, 0.85);
+  border: 1px solid rgba(96, 160, 255, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  backdrop-filter: blur(8px);
+}
+
+.performance-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
+
+.perf-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  background: rgba(15, 20, 25, 0.6);
+  border: 1px solid rgba(96, 160, 255, 0.2);
+  border-radius: var(--radius-sm);
+}
+
+.perf-label {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.perf-value {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--color-value-normal);
+  font-family: var(--font-mono);
+  text-shadow: 0 0 4px currentColor;
+}
+
+/* Alert Configuration */
+.alert-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.alert-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm);
+  background: rgba(15, 20, 25, 0.6);
+  border: 1px solid rgba(96, 160, 255, 0.2);
+  border-radius: var(--radius-sm);
+}
+
+.alert-name {
+  font-size: 12px;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.alert-threshold {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+
+.alert-status {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.alert-status.alert-active {
+  background: rgba(0, 255, 136, 0.2);
+  color: var(--color-running);
+  border: 1px solid var(--color-running);
+}
+
+.alert-status.alert-inactive {
+  background: rgba(85, 107, 121, 0.2);
+  color: var(--color-disabled);
+  border: 1px solid var(--color-disabled);
+}
+
+/* Responsive Design */
+@media (max-width: 1400px) {
+  .influxdb-content-grid {
+    grid-template-columns: 1fr 300px;
+  }
+
+  .motor-checkboxes,
+  .metric-checkboxes {
+    gap: var(--spacing-md);
+  }
+}
+
+@media (max-width: 1200px) {
+  .influxdb-content-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+
+  .controls-panel {
+    order: -1;
+  }
+
+  .header-controls {
+    flex-direction: column;
+    gap: var(--spacing-md);
+    align-items: flex-end;
+  }
+}
+
+@media (max-width: 768px) {
+  .influxdb-monitor {
+    padding: var(--spacing-md);
+  }
+
+  .influxdb-header {
+    flex-direction: column;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+  }
+
+  .header-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .motor-checkboxes,
+  .metric-checkboxes {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .performance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .data-statistics {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    align-items: flex-start;
+  }
+
+  .stat-separator {
+    display: none;
+  }
+}
+
+/* Touch-friendly Enhancements */
+@media (pointer: coarse) {
+  .industrial-checkbox {
+    width: 20px;
+    height: 20px;
+  }
+
+  .motor-checkbox,
+  .metric-checkbox {
+    padding: var(--spacing-sm);
+    min-height: 44px;
+  }
+
+  .industrial-select,
+  .industrial-select-small {
+    min-height: 44px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+}
+
+/* High Contrast Support */
+@media (prefers-contrast: high) {
+  .influxdb-header,
+  .motor-selector,
+  .metric-selector,
+  .motor-charts-container,
+  .system-charts-container,
+  .performance-metrics,
+  .alert-config {
+    background: rgba(0, 0, 0, 0.9);
+    border-color: #ffffff;
+  }
+
+  .panel-title,
+  .monitor-title {
+    color: #ffffff;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .status-dot,
+  .influxdb-header::before {
+    animation: none;
+  }
+}

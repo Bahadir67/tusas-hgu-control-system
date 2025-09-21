@@ -361,8 +361,11 @@ namespace TUSAS.HGU.Core.Services
                     }
                 }
 
-                _logger.LogDebug("OPC Bulk Read - Variables: {Count}, OPC Read: {OpcMs}ms, Total: {TotalMs}ms", 
-                    variablesToRead.Count, opcReadDuration.TotalMilliseconds, totalDuration.TotalMilliseconds);
+                if (_logger.IsEnabled(LogLevel.Debug))
+                {
+                    _logger.LogDebug("OPC Bulk Read - Variables: {Count}, OPC Read: {OpcMs}ms, Total: {TotalMs}ms",
+                        variablesToRead.Count, opcReadDuration.TotalMilliseconds, totalDuration.TotalMilliseconds);
+                }
 
             }
             catch (Exception ex)

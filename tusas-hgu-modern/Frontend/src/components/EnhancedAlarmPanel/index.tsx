@@ -113,7 +113,7 @@ const EnhancedAlarmPanel: React.FC = () => {
       }
       
       // Filter maintenance alarms
-      if (motor.lineFilter === 1) {
+      if (!!motor.lineFilter) {
         newAlarms.push({
           id: `motor-${motorId}-linefilter-maintenance`,
           timestamp: now,
@@ -126,7 +126,7 @@ const EnhancedAlarmPanel: React.FC = () => {
         });
       }
       
-      if (motor.lineFilter === 0) {
+      if (!motor.lineFilter) {
         newAlarms.push({
           id: `motor-${motorId}-linefilter-critical`,
           timestamp: now,
@@ -139,7 +139,7 @@ const EnhancedAlarmPanel: React.FC = () => {
         });
       }
       
-      if (motor.suctionFilter === 1) {
+      if (!!motor.suctionFilter) {
         newAlarms.push({
           id: `motor-${motorId}-suctionfilter-maintenance`,
           timestamp: now,
@@ -152,7 +152,7 @@ const EnhancedAlarmPanel: React.FC = () => {
         });
       }
       
-      if (motor.suctionFilter === 0) {
+      if (!motor.suctionFilter) {
         newAlarms.push({
           id: `motor-${motorId}-suctionfilter-critical`,
           timestamp: now,

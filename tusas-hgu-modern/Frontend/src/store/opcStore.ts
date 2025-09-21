@@ -129,6 +129,7 @@ interface OpcStore {
   fetchAllData: () => Promise<void>;
   fetchLeakageOnly: () => Promise<void>;
   writeVariable: (varName: string, value: any) => Promise<boolean>;
+  triggerOpcRefresh: () => Promise<{ success: boolean; error?: string }>;
 }
 
 // Helper function to get default flow setpoint by motor ID
@@ -152,7 +153,7 @@ const getDefaultPressureSetpoint = (motorId?: number): number => {
   if (!motorId) return 280; // Default fallback
   
   switch (motorId) {
-    case 1: return 12; // Actual PLC value: PUMP_1_PRESSURE_SETPOINT = 12 (not DB default 280)
+    case 1: return 0; // TEMP: Use 0 to clearly show when OPC data is missing
     case 2: return 280; // DB default - adjust if actual PLC value is different
     case 3: return 280; // DB default - adjust if actual PLC value is different
     case 4: return 280; // DB default - adjust if actual PLC value is different
@@ -201,7 +202,7 @@ const createEmptyMotor = (motorId?: number): MotorData => ({
 });
 
 // Create store
-export const useOpcStore = create<OpcStore>((set) => ({
+export const useOpcStore = create<OpcStore>((set, get) => ({
   // Initialize 7 motors with proper defaults
   motors: {
     1: createEmptyMotor(1),
@@ -228,8 +229,8 @@ export const useOpcStore = create<OpcStore>((set) => ({
     systemEfficiency: 0,
     
     // Setpoints - NO DUMMY VALUES
-    pressureSetpoint: undefined,
-    flowSetpoint: undefined,
+    pressureSetpoint: 0,
+    flowSetpoint: 0,
     
     // Temperature & Tank
     oilTemperature: 0,
@@ -263,7 +264,7 @@ export const useOpcStore = create<OpcStore>((set) => ({
     
     // Backward compatibility (deprecated)
     statusExecution: 1,
-    totalFlowSetpoint: undefined,
+    totalFlowSetpoint: 0,
     waterTemperature: 0,
     coolingFlowRate: 0,
     coolingSystemStatus: 0,
@@ -290,10 +291,10 @@ export const useOpcStore = create<OpcStore>((set) => ({
           ...motors[i],
           // Override with correct values for softstarter
           rpm: 1500, // Always 1500 RPM (fixed speed softstarter)
-          current: null, // Not measurable in softstarter
-          temperature: null, // Not measurable in softstarter
-          status: null, // No status feedback from softstarter
-          errorCode: null, // No error codes from softstarter
+          current: motors[i].current ?? 0, // Not measurable in softstarter
+          temperature: motors[i].temperature ?? 0, // Not measurable in softstarter
+          status: motors[i].status ?? 0, // No status feedback from softstarter
+          errorCode: motors[i].errorCode ?? 0, // No error codes from softstarter
           targetRpm: 1500, // Fixed RPM, not adjustable
           
           // Valid OPC variables for MOTOR_7
@@ -303,9 +304,9 @@ export const useOpcStore = create<OpcStore>((set) => ({
           resetCmd: data[`MOTOR_${i}_RESET_CMD`]?.value ?? motors[i].resetCmd,
           
           // No ACK feedback from softstarter
-          startAck: null,
-          stopAck: null, 
-          resetAck: null,
+          startAck: motors[i].startAck ?? false,
+          stopAck: motors[i].stopAck ?? false, 
+          resetAck: motors[i].resetAck ?? false,
           
           // Pump-related variables (still valid)
           leak: data[`PUMP_${i}_LEAK_RATE`]?.value ?? motors[i].leak,
@@ -423,10 +424,10 @@ export const useOpcStore = create<OpcStore>((set) => ({
           ...motors[i],
           // Override with correct values for softstarter
           rpm: 1500, // Always 1500 RPM (fixed speed softstarter)
-          current: null, // Not measurable in softstarter
-          temperature: null, // Not measurable in softstarter
-          status: null, // No status feedback from softstarter
-          errorCode: null, // No error codes from softstarter
+          current: motors[i].current ?? 0, // Not measurable in softstarter
+          temperature: motors[i].temperature ?? 0, // Not measurable in softstarter
+          status: motors[i].status ?? 0, // No status feedback from softstarter
+          errorCode: motors[i].errorCode ?? 0, // No error codes from softstarter
           targetRpm: 1500, // Fixed RPM, not adjustable
           
           // Valid OPC variables for MOTOR_7
@@ -436,9 +437,9 @@ export const useOpcStore = create<OpcStore>((set) => ({
           resetCmd: data[`MOTOR_${i}_RESET_CMD`]?.value ?? motors[i].resetCmd,
           
           // No ACK feedback from softstarter
-          startAck: null,
-          stopAck: null, 
-          resetAck: null,
+          startAck: motors[i].startAck ?? false,
+          stopAck: motors[i].stopAck ?? false, 
+          resetAck: motors[i].resetAck ?? false,
           
           // Pump-related variables (still valid)
           leak: data[`PUMP_${i}_LEAK_RATE`]?.value ?? motors[i].leak,
@@ -684,46 +685,16 @@ export const useOpcStore = create<OpcStore>((set) => ({
   // Trigger immediate OPC refresh - fresh data without waiting for timer
   triggerOpcRefresh: async () => {
     try {
-      set((state) => ({ isLoading: true }));
-      
-      const result = await opcApiService.triggerOpcRefresh();
-      
-      if (result.success && result.data?.Values) {
-        // Update store with fresh data
-        const freshData = result.data.Values;
-        const currentState = get();
-        
-        // Update system data
-        const updatedSystem = mapOpcDataToSystem(freshData, currentState.system);
-        
-        // Update motors data
-        const updatedMotors = { ...currentState.motors };
-        for (let i = 1; i <= 7; i++) {
-          updatedMotors[i] = mapOpcDataToMotor(freshData, i, updatedMotors[i]);
-        }
-        
-        set({
-          system: updatedSystem,
-          motors: updatedMotors,
-          isLoading: false,
-          lastUpdated: new Date().toISOString()
-        });
-        
-        console.log('✅ OPC refresh successful - Fresh data loaded');
-        return { success: true, valuesCount: Object.keys(freshData).length };
-      } else {
-        set((state) => ({ 
-          errors: [...state.errors, `OPC refresh failed: ${result.error}`],
-          isLoading: false
-        }));
-        return { success: false, error: result.error };
-      }
+      set({ isLoading: true });
+      const page = get().currentPage;
+      await get().fetchPageData(page);
+      set({ isLoading: false, lastUpdate: new Date() });
+      return { success: true };
     } catch (error) {
-      set((state) => ({ 
-        errors: [...state.errors, `OPC refresh error: ${error}`],
-        isLoading: false
+      set((state) => ({
+        isLoading: false,
+        errors: [...state.errors, `OPC refresh error: ${error}`]
       }));
-      console.error('❌ OPC refresh error:', error);
       return { success: false, error: String(error) };
     }
   },

@@ -28,14 +28,15 @@ class OpcApiService {
     this.baseUrl = baseUrl;
     
     // Listen for auth events from middleware
-    window.addEventListener('auth-required', this.handleAuthRequired.bind(this));
+    window.addEventListener('auth-required', this.handleAuthRequired);
   }
   
   // Handle authentication required events
-  private handleAuthRequired(event: CustomEvent): void {
-    console.warn('🔐 Authentication required for OPC operations:', event.detail.message);
+  private handleAuthRequired = (event: Event): void => {
+    const detail = (event as CustomEvent<{ message?: string }>).detail;
+    console.warn('🔐 Authentication required for OPC operations:', detail?.message ?? 'Authentication required');
     // The AuthGuard will handle redirecting to login
-  }
+  };
 
   // Set authentication token
   setAuthToken(token: string | null): void {
@@ -87,6 +88,16 @@ class OpcApiService {
       timestamp: Date.now()
     });
   }
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
 
   // Batch read variables for a specific page
   async getBatchVariablesForPage(pageKey: keyof typeof PAGE_VARIABLE_SETS): Promise<OpcBatchResponse> {
@@ -128,7 +139,7 @@ class OpcApiService {
         success: false,
         timestamp: new Date().toISOString(),
         variables: {},
-        errors: [`Failed to fetch OPC data for page ${pageKey}: ${error.message}`]
+        errors: [`Failed to fetch OPC data for page ${pageKey}: ${this.getErrorMessage(error)}`]
       };
     }
   }
@@ -178,7 +189,7 @@ class OpcApiService {
         success: false,
         timestamp: new Date().toISOString(),
         variables: {},
-        errors: [`Failed to fetch all OPC variables: ${error.message}`]
+        errors: [`Failed to fetch all OPC variables: ${this.getErrorMessage(error)}`]
       };
     }
   }
@@ -210,7 +221,7 @@ class OpcApiService {
       
     } catch (error) {
       console.error('Error writing variable:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { success: false, error: this.getErrorMessage(error) };
     }
   }
 
@@ -286,7 +297,7 @@ class OpcApiService {
         success: false,
         timestamp: new Date().toISOString(),
         variables: {},
-        errors: [`Failed to fetch leakage data: ${error.message}`]
+        errors: [`Failed to fetch leakage data: ${this.getErrorMessage(error)}`]
       };
     }
   }

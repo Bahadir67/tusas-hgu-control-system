@@ -13,21 +13,21 @@ interface User {
   lastLoginAt?: string;
 }
 
-interface AuthState {
+export interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
 
-interface AuthContextType extends AuthState {
+export interface AuthContextType extends AuthState {
   login: (username: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   refreshAuth: () => Promise<void>;
 }
 
 // Create Context
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Custom hook
 export const useAuth = (): AuthContextType => {

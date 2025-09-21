@@ -1,0 +1,499 @@
+/* TUSAŞ HGU OPC Data Monitor - Industrial SCADA Interface */
+
+/* ========================================
+   SCADA INDUSTRIAL DESIGN SYSTEM
+   ======================================== */
+:root {
+  /* SCADA Colors - Industrial Standard */
+  --scada-bg-dark: #1a1a1a;
+  --scada-bg-medium: #2a2a2a;
+  --scada-bg-light: #3a3a3a;
+  --scada-bg-modal: #242424;
+
+  /* Status Colors - Industry Standard */
+  --scada-blue: #4a90e2;      /* Ready/Information */
+  --scada-green: #7ed321;     /* Running/OK */
+  --scada-yellow: #f5a623;    /* Warning */
+  --scada-red: #d0021b;       /* Error/Alarm */
+  --scada-gray: #9b9b9b;      /* Inactive/Disabled */
+
+  /* Text Colors - High Contrast */
+  --scada-text-primary: #ffffff;
+  --scada-text-secondary: #cccccc;
+  --scada-text-muted: #999999;
+
+  /* Borders and Outlines */
+  --scada-border: #555555;
+  --scada-border-light: #666666;
+
+  /* Functional Properties */
+  --scada-radius: 4px;
+  --scada-transition: 200ms ease;
+  --scada-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ========================================
+   MAIN CONTAINER - INDUSTRIAL LAYOUT
+   ======================================== */
+.opc-data-monitor {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--scada-bg-dark);
+  color: var(--scada-text-primary);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden;
+}
+
+/* ========================================
+   MONITOR HEADER - SCADA STANDARD
+   ======================================== */
+.monitor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--scada-bg-medium);
+  border-bottom: 1px solid var(--scada-border);
+  flex-shrink: 0;
+}
+
+.header-title h2 {
+  margin: 0 0 4px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--scada-text-primary);
+}
+
+.header-subtitle {
+  font-size: 12px;
+  color: var(--scada-text-muted);
+  font-weight: normal;
+}
+
+.header-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.filter-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.filter-select,
+.search-input {
+  padding: 8px 12px;
+  background: var(--scada-bg-dark);
+  border: 1px solid var(--scada-border);
+  border-radius: var(--scada-radius);
+  color: var(--scada-text-primary);
+  font-size: 14px;
+  min-width: 120px;
+}
+
+.filter-select:focus,
+.search-input:focus {
+  outline: none;
+  border-color: var(--scada-blue);
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.search-input {
+  min-width: 200px;
+}
+
+.refresh-button {
+  padding: 8px 16px;
+  background: var(--scada-blue);
+  border: 1px solid var(--scada-blue);
+  border-radius: var(--scada-radius);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--scada-transition);
+}
+
+.refresh-button:hover:not(:disabled) {
+  background: #3a7bd5;
+  border-color: #3a7bd5;
+}
+
+.refresh-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.last-update {
+  font-size: 12px;
+  color: var(--scada-text-muted);
+  margin-left: 16px;
+}
+
+/* ========================================
+   ERROR MESSAGE - INDUSTRIAL STANDARD
+   ======================================== */
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--scada-red);
+  color: white;
+  font-size: 14px;
+  border-bottom: 1px solid var(--scada-border);
+}
+
+.error-icon {
+  font-size: 16px;
+}
+
+/* ========================================
+   DATA TABLE CONTAINER - SCROLLABLE
+   ======================================== */
+.data-table-container {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: var(--scada-bg-dark);
+}
+
+/* ========================================
+   OPC DATA TABLE - INDUSTRIAL STYLE
+   ======================================== */
+.opc-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: var(--scada-bg-dark);
+}
+
+.opc-data-table thead {
+  position: sticky;
+  top: 0;
+  background: var(--scada-bg-medium);
+  z-index: 10;
+}
+
+.opc-data-table th {
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--scada-text-primary);
+  border-bottom: 2px solid var(--scada-border);
+  border-right: 1px solid var(--scada-border-light);
+  white-space: nowrap;
+}
+
+.opc-data-table th:last-child {
+  border-right: none;
+}
+
+.opc-data-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--scada-border);
+  border-right: 1px solid var(--scada-border-light);
+  vertical-align: middle;
+}
+
+.opc-data-table td:last-child {
+  border-right: none;
+}
+
+.opc-data-table tbody tr {
+  transition: background-color var(--scada-transition);
+}
+
+.opc-data-table tbody tr:hover {
+  background: var(--scada-bg-medium);
+}
+
+.opc-data-table tbody tr.motor {
+  background: rgba(74, 144, 226, 0.05);
+}
+
+.opc-data-table tbody tr.system {
+  background: rgba(126, 211, 33, 0.05);
+}
+
+/* Column widths */
+.col-display {
+  min-width: 250px;
+  max-width: 300px;
+}
+
+.col-status {
+  min-width: 80px;
+  text-align: center;
+}
+
+.col-value {
+  min-width: 100px;
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+.col-unit {
+  min-width: 60px;
+  text-align: center;
+}
+
+.col-timestamp {
+  min-width: 120px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--scada-text-muted);
+}
+
+/* ========================================
+   STATUS INDICATOR - VISUAL FEEDBACK
+   ======================================== */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.status-text {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* ========================================
+   VALUE FORMATTING - INDUSTRIAL STYLE
+   ======================================== */
+.value-text {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ========================================
+   NO DATA STATE - INDUSTRIAL STYLE
+   ======================================== */
+.no-data {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--scada-text-muted);
+  text-align: center;
+}
+
+.no-data-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.no-data-text {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* ========================================
+   LOADING OVERLAY - INDUSTRIAL STYLE
+   ======================================== */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--scada-border);
+  border-top: 3px solid var(--scada-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  color: var(--scada-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ========================================
+   MONITOR FOOTER - SCADA STANDARD
+   ======================================== */
+.monitor-footer {
+  padding: 12px 20px;
+  background: var(--scada-bg-medium);
+  border-top: 1px solid var(--scada-border);
+  flex-shrink: 0;
+}
+
+.stats-info {
+  display: flex;
+  gap: 24px;
+  font-size: 12px;
+  color: var(--scada-text-muted);
+}
+
+.stats-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ========================================
+   RESPONSIVE DESIGN - MOBILE FIRST
+   ======================================== */
+@media (max-width: 1200px) {
+  .opc-data-table {
+    font-size: 12px;
+  }
+
+  .col-display {
+    min-width: 200px;
+    max-width: 250px;
+  }
+}
+
+@media (max-width: 768px) {
+  .monitor-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .header-controls {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .filter-controls {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .opc-data-table {
+    font-size: 11px;
+  }
+
+  .opc-data-table th,
+  .opc-data-table td {
+    padding: 6px 4px;
+  }
+
+  .col-variable,
+  .col-display {
+    min-width: 120px;
+    max-width: 120px;
+  }
+
+  .col-value {
+    min-width: 80px;
+  }
+
+  .col-timestamp {
+    min-width: 100px;
+  }
+
+  .stats-info {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .opc-data-table {
+    font-size: 10px;
+  }
+
+  .col-display {
+    min-width: 150px;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-value {
+    min-width: 70px;
+  }
+
+  .col-unit {
+    min-width: 50px;
+  }
+
+  .col-timestamp {
+    min-width: 80px;
+  }
+}
+
+/* ========================================
+   ACCESSIBILITY & FOCUS MANAGEMENT
+   ======================================== */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.opc-data-table tbody tr:focus-visible {
+  outline: 2px solid var(--scada-blue);
+  outline-offset: -2px;
+}
+
+.filter-select:focus-visible,
+.search-input:focus-visible,
+.refresh-button:focus-visible {
+  outline: 2px solid var(--scada-blue);
+  outline-offset: 2px;
+}
+
+/* ========================================
+   HIGH CONTRAST MODE SUPPORT
+   ======================================== */
+@media (prefers-contrast: high) {
+  :root {
+    --scada-bg-dark: #000000;
+    --scada-bg-medium: #1a1a1a;
+    --scada-bg-light: #333333;
+    --scada-text-primary: #ffffff;
+    --scada-text-secondary: #ffffff;
+    --scada-border: #ffffff;
+  }
+
+  .opc-data-table th {
+    border-bottom-width: 3px;
+  }
+
+  .opc-data-table td {
+    border-bottom-width: 2px;
+  }
+}

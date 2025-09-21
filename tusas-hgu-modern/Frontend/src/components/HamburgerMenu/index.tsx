@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import LogoutModal from '../LogoutModal';
+import PressureCalibration from '../PressureCalibration';
+import FlowCalibration from '../FlowCalibration';
+import TemperatureCalibration from '../TemperatureCalibration';
+import OpcDataMonitor from '../OpcDataMonitor';
 import './HamburgerMenu.css';
 
 interface HamburgerMenuProps {
@@ -21,6 +25,10 @@ interface MenuItem {
 const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose, onNavigate }) => {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showPressureCalibration, setShowPressureCalibration] = useState(false);
+  const [showFlowCalibration, setShowFlowCalibration] = useState(false);
+  const [showTemperatureCalibration, setShowTemperatureCalibration] = useState(false);
+  const [showOpcDataMonitor, setShowOpcDataMonitor] = useState(false);
   const { logout, user } = useAuth();
 
   // Handle logout with safety warning modal
@@ -87,9 +95,9 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose
       label: 'Calibration',
       icon: '🎯',
       items: [
-        { id: 'pressure-cal', label: 'Pressure Sensors', icon: '📏', action: () => console.log('Pressure cal') },
-        { id: 'flow-cal', label: 'Flow Meters', icon: '💧', action: () => console.log('Flow cal') },
-        { id: 'temp-cal', label: 'Temperature Sensors', icon: '🌡️', action: () => console.log('Temp cal') }
+        { id: 'pressure-cal', label: 'Pressure Sensors', icon: '📏', action: () => setShowPressureCalibration(true) },
+        { id: 'flow-cal', label: 'Flow Meters', icon: '💧', action: () => setShowFlowCalibration(true) },
+        { id: 'temp-cal', label: 'Temperature Sensors', icon: '🌡️', action: () => setShowTemperatureCalibration(true) }
       ]
     },
     {
@@ -108,6 +116,7 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose
       icon: '🔧',
       items: [
         { id: 'diagnostics', label: 'System Diagnostics', icon: '🔍', action: () => console.log('Diagnostics') },
+        { id: 'opc-monitor', label: 'OPC Data Monitor', icon: '📊', action: () => setShowOpcDataMonitor(true) },
         { id: 'filter-status', label: 'Filter Status', icon: '🔽', action: () => console.log('Filter status') },
         { id: 'scheduled-maint', label: 'Scheduled Tasks', icon: '📅', action: () => console.log('Scheduled') },
         { id: 'logs', label: 'System Logs', icon: '📋', action: () => console.log('Logs') }
@@ -266,6 +275,57 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose
         onClose={handleLogoutCancel}
         onConfirm={handleLogoutConfirm}
       />
+
+      {/* Calibration Modals */}
+      <PressureCalibration
+        isOpen={showPressureCalibration}
+        onClose={() => setShowPressureCalibration(false)}
+        onSave={(calibrationData) => {
+          console.log('Pressure calibration saved:', calibrationData);
+          // TODO: Implement OPC write for pressure calibration
+          setShowPressureCalibration(false);
+        }}
+      />
+
+      <FlowCalibration
+        isOpen={showFlowCalibration}
+        onClose={() => setShowFlowCalibration(false)}
+        onSave={(calibrationData) => {
+          console.log('Flow calibration saved:', calibrationData);
+          // TODO: Implement OPC write for flow calibration
+          setShowFlowCalibration(false);
+        }}
+      />
+
+      <TemperatureCalibration
+        isOpen={showTemperatureCalibration}
+        onClose={() => setShowTemperatureCalibration(false)}
+        onSave={(calibrationData) => {
+          console.log('Temperature calibration saved:', calibrationData);
+          // TODO: Implement OPC write for temperature calibration
+          setShowTemperatureCalibration(false);
+        }}
+      />
+
+      {/* OPC Data Monitor Modal */}
+      {showOpcDataMonitor && (
+        <div className="modal-overlay" onClick={() => setShowOpcDataMonitor(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>OPC Data Monitor</h3>
+              <button
+                className="modal-close"
+                onClick={() => setShowOpcDataMonitor(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <OpcDataMonitor />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

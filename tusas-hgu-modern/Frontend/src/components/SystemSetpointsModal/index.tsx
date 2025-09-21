@@ -131,7 +131,8 @@ const SystemSetpointsModal: React.FC<SystemSetpointsModalProps> = ({ onClose }) 
     } catch (error) {
       console.error('Failed to load OPC setpoints:', error);
       console.error('Error details:', error);
-      alert(`Could not load current values from OPC server: ${error.message || error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`Could not load current values from OPC server: ${message}`);
     } finally {
       setIsLoadingOpc(false);
     }

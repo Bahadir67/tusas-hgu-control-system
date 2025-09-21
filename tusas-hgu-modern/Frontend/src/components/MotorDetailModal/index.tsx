@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useOpcStore } from '../../store/opcStore';
 import { opcApi } from '../../services/api';
 import SimpleGauge from '../SimpleGauge';
+import MaintenanceLogModal from '../MaintenanceLogModal';
+import MaintenanceHistoryDisplay from '../MaintenanceHistoryDisplay';
 import './MotorDetailModal.css';
 
 interface MotorDetailModalProps {
@@ -18,8 +20,11 @@ interface TrendData {
 const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, onClose }) => {
   const motor = useOpcStore((state) => state.motors[motorId]);
   const fetchLeakageOnly = useOpcStore((state) => state.fetchLeakageOnly);
+  const fetchAllData = useOpcStore((state) => state.fetchAllData);
   const [activeTab, setActiveTab] = useState<'realtime' | 'trends' | 'settings' | 'maintenance'>('realtime');
   const [isLoading, setIsLoading] = useState(false);
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [maintenanceRefreshTrigger, setMaintenanceRefreshTrigger] = useState(0);
   const [trendData, setTrendData] = useState<{
     pressure: TrendData[];
     flow: TrendData[];
@@ -89,7 +94,7 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
 
   // Continuous leakage updates while modal is open
   useEffect(() => {
-    let leakageInterval: NodeJS.Timeout;
+    let leakageInterval: ReturnType<typeof setInterval> | undefined;
     
     if (isOpen) {
       console.log(`🔄 Starting leakage updates for Motor ${motorId}`);
@@ -179,17 +184,7 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
     }
   };
 
-  const handleLeakTest = async () => {
-    try {
-      setIsLoading(true);
-      await opcApi.writeVariable(`PUMP_${motorId}_LEAK_TEST_START`, true);
-      // Show success message
-    } catch (error) {
-      console.error('Failed to start leak test:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Leak test removed - not needed in real-time tab
 
   console.log('MotorDetailModal render check:', { motorId, isOpen, motor: !!motor });
   
@@ -408,21 +403,6 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                     <div className="card-unit">hrs</div>
                   </div>
                 </div>
-              </div>
-
-              {/* Control Actions */}
-              <div className="control-actions">
-                <button 
-                  className="action-button leak-test"
-                  onClick={handleLeakTest}
-                  disabled={isLoading}
-                >
-                  🔍 Start Leak Test
-                </button>
-                
-                <button className="action-button emergency">
-                  🛑 Emergency Stop
-                </button>
               </div>
             </div>
           )}
@@ -813,9 +793,43 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                   <div className="advanced-grid">
                     <div className="control-switch">
                       <label>
-                        <input type="checkbox" checked={motor.enabled} readOnly />
+                        <input 
+                          type="checkbox" 
+                          checked={motor.enabled} 
+                          onChange={async (e) => {
+                            const newValue = e.target.checked;
+                            console.log(`🔧 Motor ${motorId} Enable/Disable: ${newValue}`);
+                            
+                            try {
+                              setIsLoading(true);
+                              const variableName = `MOTOR_${motorId}_ENABLE`;
+                              
+                              // Use opcApi service for OPC write operation
+                              const result = await opcApi.writeVariable(variableName, newValue);
+
+                              console.log(`✅ Motor ${motorId} Enable status updated:`, result);
+                              
+                              // Refresh OPC data to get the latest values
+                              try {
+                                await fetchAllData();
+                              } catch (err) {
+                                console.error('Failed to refresh OPC data:', err);
+                              }
+                              
+                              // Show success message
+                              alert(`Motor ${motorId} ${newValue ? 'enabled' : 'disabled'} successfully`);
+                            } catch (error) {
+                              console.error(`❌ Error updating motor ${motorId} enable status:`, error);
+                              const message = error instanceof Error ? error.message : String(error);
+                              alert(`Failed to update motor status: ${message}`);
+                            } finally {
+                              setIsLoading(false);
+                            }
+                          }}
+                          disabled={isLoading}
+                        />
                         <span className="switch-slider"></span>
-                        Motor Enabled
+                        Motor Enabled {motor.enabled ? '(Active)' : '(Disabled)'}
                       </label>
                     </div>
                   </div>
@@ -830,57 +844,57 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
               <div className="maintenance-content">
                 <h3>Maintenance & Service Information</h3>
                 
-                {/* Service Status Cards */}
+                {/* Service Status Cards - Using Real OPC Data */}
                 <div className="service-status-grid">
                   <div className="service-card">
                     <div className="service-header">
                       <span className="service-icon">⏰</span>
-                      <span className="service-title">Runtime Hours</span>
+                      <span className="service-title">Operating Hours</span>
                     </div>
                     <div className="service-value">
-                      {(2340 + motorId * 127).toLocaleString()} hrs
+                      {motor.operatingHours?.toFixed(1) || '0'} hrs
                     </div>
                     <div className="service-detail">
-                      Total operational time since commissioning
+                      Total operational time (MOTOR_{motorId}_OPERATING_HOURS)
                     </div>
                   </div>
 
                   <div className="service-card">
                     <div className="service-header">
                       <span className="service-icon">🔧</span>
-                      <span className="service-title">Last Service</span>
+                      <span className="service-title">Maintenance Status</span>
                     </div>
-                    <div className="service-value">
-                      {new Date(Date.now() - (15 + motorId * 3) * 24 * 60 * 60 * 1000).toLocaleDateString('tr-TR')}
+                    <div className={`service-value ${motor.maintenanceDue ? 'text-warning' : 'text-success'}`}>
+                      {motor.maintenanceDue ? 'DUE NOW' : 'OK'}
                     </div>
                     <div className="service-detail">
-                      Routine maintenance performed
+                      {motor.maintenanceDue ? 'Maintenance required' : 'No maintenance needed'}
                     </div>
                   </div>
 
                   <div className="service-card">
                     <div className="service-header">
                       <span className="service-icon">📅</span>
-                      <span className="service-title">Next Service</span>
+                      <span className="service-title">Maintenance Limit</span>
                     </div>
                     <div className="service-value">
-                      {new Date(Date.now() + (30 - motorId * 2) * 24 * 60 * 60 * 1000).toLocaleDateString('tr-TR')}
+                      {motor.maintenanceHours?.toFixed(0) || '0'} hrs
                     </div>
                     <div className="service-detail">
-                      Scheduled maintenance due
+                      Service interval (MOTOR_{motorId}_MAINTENANCE_HOURS)
                     </div>
                   </div>
 
                   <div className="service-card">
                     <div className="service-header">
-                      <span className="service-icon">🔄</span>
-                      <span className="service-title">Start Cycles</span>
+                      <span className="service-icon">⏳</span>
+                      <span className="service-title">Hours Until Service</span>
                     </div>
                     <div className="service-value">
-                      {(15420 + motorId * 892).toLocaleString()}
+                      {Math.max(0, (motor.maintenanceHours || 0) - (motor.operatingHours || 0)).toFixed(1)} hrs
                     </div>
                     <div className="service-detail">
-                      Total motor start operations
+                      Remaining hours before maintenance
                     </div>
                   </div>
                 </div>
@@ -942,62 +956,124 @@ const MotorDetailModal: React.FC<MotorDetailModalProps> = ({ motorId, isOpen, on
                   </div>
                 </div>
 
-                {/* Maintenance History */}
-                <div className="maintenance-history">
-                  <h4>Recent Maintenance History</h4>
-                  <div className="history-table">
-                    <div className="history-header">
-                      <span>Date</span>
-                      <span>Type</span>
-                      <span>Technician</span>
-                      <span>Status</span>
-                    </div>
-                    {[
-                      { date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), type: 'Routine Service', tech: 'Tech_01', status: 'Completed' },
-                      { date: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000), type: 'Filter Replacement', tech: 'Tech_02', status: 'Completed' },
-                      { date: new Date(Date.now() - 78 * 24 * 60 * 60 * 1000), type: 'Bearing Lubrication', tech: 'Tech_01', status: 'Completed' },
-                      { date: new Date(Date.now() - 95 * 24 * 60 * 60 * 1000), type: 'Sensor Calibration', tech: 'Tech_03', status: 'Completed' },
-                    ].map((item, index) => (
-                      <div key={index} className="history-row">
-                        <span>{item.date.toLocaleDateString('tr-TR')}</span>
-                        <span>{item.type}</span>
-                        <span>{item.tech}</span>
-                        <span className="status-completed">{item.status}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Alerts and Recommendations */}
+                {/* Alerts and Recommendations - Based on Real Data */}
                 <div className="maintenance-alerts">
-                  <h4>Alerts & Recommendations</h4>
+                  <h4>Status & Recommendations</h4>
                   <div className="alerts-list">
-                    {motor.temperature > 65 && (
+                    {motor.maintenanceDue && (
                       <div className="alert warning">
                         <span className="alert-icon">⚠️</span>
                         <div className="alert-content">
-                          <div className="alert-title">Temperature Monitoring</div>
-                          <div className="alert-message">Motor temperature is elevated. Consider checking cooling system.</div>
+                          <div className="alert-title">Maintenance Required</div>
+                          <div className="alert-message">Motor has reached {motor.operatingHours?.toFixed(0)} hours. Maintenance is due.</div>
                         </div>
                       </div>
                     )}
                     
-                    {/* Line filter alert removed per user request */}
-                    
-                    <div className="alert info">
-                      <span className="alert-icon">📅</span>
-                      <div className="alert-content">
-                        <div className="alert-title">Scheduled Maintenance</div>
-                        <div className="alert-message">Next routine service due in {30 - motorId * 2} days. Auto-scheduled for optimal performance.</div>
+                    {motor.temperature !== null && motor.temperature > 65 && (
+                      <div className="alert warning">
+                        <span className="alert-icon">🌡️</span>
+                        <div className="alert-content">
+                          <div className="alert-title">High Temperature</div>
+                          <div className="alert-message">Motor temperature ({motor.temperature.toFixed(1)}°C) is elevated. Check cooling system.</div>
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    
+                    {!motor.lineFilter && (
+                      <div className="alert error">
+                        <span className="alert-icon">🔴</span>
+                        <div className="alert-content">
+                          <div className="alert-title">Line Filter Error</div>
+                          <div className="alert-message">Line filter status error detected. Inspection required.</div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {!motor.suctionFilter && (
+                      <div className="alert error">
+                        <span className="alert-icon">🔴</span>
+                        <div className="alert-content">
+                          <div className="alert-title">Suction Filter Error</div>
+                          <div className="alert-message">Suction filter status error detected. Inspection required.</div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {(motor.leak || 0) > 1.0 && (
+                      <div className="alert error">
+                        <span className="alert-icon">💧</span>
+                        <div className="alert-content">
+                          <div className="alert-title">Leak Detected</div>
+                          <div className="alert-message">Significant leak rate: {motor.leak?.toFixed(2)} L/min. Immediate action required.</div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {!motor.maintenanceDue && motor.temperature < 65 && motor.lineFilter && motor.suctionFilter && (motor.leak || 0) < 0.5 && (
+                      <div className="alert success">
+                        <span className="alert-icon">✅</span>
+                        <div className="alert-content">
+                          <div className="alert-title">All Systems Normal</div>
+                          <div className="alert-message">Motor is operating within normal parameters. No maintenance required.</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Maintenance Actions */}
+                <div className="maintenance-actions">
+                  <h4>Maintenance Actions</h4>
+                  <div className="action-buttons">
+                    <button 
+                      className="log-maintenance-btn primary"
+                      onClick={() => setShowMaintenanceModal(true)}
+                      disabled={isLoading}
+                    >
+                      📝 Log Maintenance
+                    </button>
+                    <button 
+                      className="log-maintenance-btn secondary"
+                      onClick={() => setMaintenanceRefreshTrigger(prev => prev + 1)}
+                      disabled={isLoading}
+                      title="Refresh maintenance history"
+                    >
+                      🔄 Refresh History
+                    </button>
+                  </div>
+                </div>
+
+                {/* Maintenance History Display */}
+                <MaintenanceHistoryDisplay 
+                  motorId={motorId} 
+                  refreshTrigger={maintenanceRefreshTrigger}
+                />
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Maintenance Log Modal */}
+      {showMaintenanceModal && (
+        <MaintenanceLogModal
+          motorId={motorId}
+          currentHours={motor?.operatingHours || 0}
+          isOpen={showMaintenanceModal}
+          onClose={() => setShowMaintenanceModal(false)}
+          onSuccess={async () => {
+            // Refresh OPC data after successful maintenance log
+            try {
+              await fetchAllData();
+            } catch (err) {
+              console.error('Failed to refresh OPC data:', err);
+            }
+            // Refresh maintenance history after successful log
+            setMaintenanceRefreshTrigger(prev => prev + 1);
+          }}
+        />
+      )}
     </>
   );
 };

@@ -1,3 +1,5 @@
+using System.Linq;
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using TUSAS.HGU.Core.Services;
@@ -25,9 +27,14 @@ namespace TUSAS.HGU.API.Controllers
         {
             try
             {
+                _logger.LogInformation("InfluxDB health check başlatıldı");
+
                 var isConnected = await _influxDbService.CheckConnectionAsync();
+                _logger.LogInformation("InfluxDB connection check sonucu: {IsConnected}", isConnected);
+
                 var hasRecentData = await _influxDbService.HasRecentDataAsync(TimeSpan.FromMinutes(5));
-                
+                _logger.LogInformation("InfluxDB recent data check (son 5 dk): {HasRecentData}", hasRecentData);
+
                 var health = new
                 {
                     IsHealthy = isConnected,
@@ -35,14 +42,15 @@ namespace TUSAS.HGU.API.Controllers
                     HasRecentData = hasRecentData,
                     LastCheck = DateTime.Now,
                     Status = isConnected ? "Healthy" : "Unhealthy",
-                    Message = isConnected ? 
-                        "InfluxDB is accessible and responding" : 
+                    Message = isConnected ?
+                        "InfluxDB is accessible and responding" :
                         "InfluxDB connection failed"
                 };
 
                 var statusCode = isConnected ? 200 : 503;
-                _logger.LogInformation("InfluxDB health check - Status: {Status}", health.Status);
-                
+                _logger.LogInformation("InfluxDB health check tamamlandı - Status: {Status}, HasData: {HasData}",
+                    health.Status, hasRecentData);
+
                 return StatusCode(statusCode, health);
             }
             catch (Exception ex)
@@ -65,13 +73,19 @@ namespace TUSAS.HGU.API.Controllers
         {
             try
             {
+                _logger.LogInformation("InfluxDB statistics sorgusu başlatıldı");
+
                 // Son 24 saatteki veri sayısı
                 var dataCount24h = await _influxDbService.GetDataPointCountAsync();
-                
+                _logger.LogInformation("InfluxDB son 24 saatteki veri sayısı: {DataCount}", dataCount24h);
+
                 // Son 1 saatteki veri kontrolü
                 var hasRecentData1h = await _influxDbService.HasRecentDataAsync(TimeSpan.FromHours(1));
                 var hasRecentData5m = await _influxDbService.HasRecentDataAsync(TimeSpan.FromMinutes(5));
-                
+
+                _logger.LogInformation("InfluxDB veri tazelik kontrolü - Son 1h: {Data1h}, Son 5dk: {Data5m}",
+                    hasRecentData1h, hasRecentData5m);
+
                 var stats = new
                 {
                     DataPoints = new
@@ -90,14 +104,15 @@ namespace TUSAS.HGU.API.Controllers
                     {
                         IsActive = hasRecentData5m,
                         Status = hasRecentData5m ? "Active" : "Stale",
-                        Message = hasRecentData5m ? 
-                            "Data collection is active" : 
+                        Message = hasRecentData5m ?
+                            "Data collection is active" :
                             "No recent data - collection may be stopped"
                     },
                     Timestamp = DateTime.Now
                 };
 
-                _logger.LogInformation("InfluxDB statistics requested - 24h count: {Count}", dataCount24h);
+                _logger.LogInformation("InfluxDB statistics tamamlandı - Veri/saat: {PerHour}, Aktif: {IsActive}",
+                    dataCount24h / 24, hasRecentData5m);
                 return Ok(stats);
             }
             catch (Exception ex)
@@ -110,17 +125,89 @@ namespace TUSAS.HGU.API.Controllers
         /// <summary>
         /// Son sensor verilerini InfluxDB'den getir
         /// </summary>
+
+        /// <summary>
+        /// InfluxDB'den motor ve sistem zaman serilerini getirir
+        /// </summary>
+        [HttpPost("motor-series")]
+        public async Task<IActionResult> GetMotorSeries([FromBody] InfluxMotorSeriesRequest request)
+        {
+            if (request == null)
+            {
+                return BadRequest(new { Message = "Request body is required." });
+            }
+
+            var supportedMetrics = new HashSet<string>(InfluxDbService.SupportedMotorMetrics, StringComparer.OrdinalIgnoreCase);
+
+            var motorIds = (request.Motors ?? new List<int>())
+                .Where(id => id >= 1 && id <= 7)
+                .Distinct()
+                .OrderBy(id => id)
+                .ToList();
+
+            var metrics = (request.Metrics ?? new List<string>())
+                .Where(metric => !string.IsNullOrWhiteSpace(metric))
+                .Select(metric => metric.Trim().ToLowerInvariant())
+                .Where(metric => supportedMetrics.Contains(metric))
+                .Distinct()
+                .ToList();
+
+            if (motorIds.Count == 0 || metrics.Count == 0)
+            {
+                return BadRequest(new
+                {
+                    Message = "At least one valid motor and metric must be provided.",
+                    SupportedMetrics = supportedMetrics
+                });
+            }
+
+            try
+            {
+                _logger.LogInformation("InfluxDB motor-series request - Motors: {MotorCount}, Metrics: {MetricCount}, Range: {Range}, MaxPoints: {MaxPoints}",
+                    motorIds.Count,
+                    metrics.Count,
+                    string.IsNullOrWhiteSpace(request.Range) ? "1h" : request.Range,
+                    request.MaxPoints);
+
+                var result = await _influxDbService.GetMotorSeriesAsync(motorIds, metrics, request.Range, request.MaxPoints);
+
+                _logger.LogInformation("InfluxDB motor-series result - MotorPoints: {MotorPoints}, SystemPoints: {SystemPoints}, EffectiveRange: {Range}",
+                    result.MotorSeries.Count,
+                    result.SystemSeries.Count,
+                    result.EffectiveRange);
+
+                return Ok(new
+                {
+                    Success = true,
+                    Range = result.EffectiveRange,
+                    Motors = motorIds,
+                    Metrics = metrics,
+                    MaxPoints = request.MaxPoints,
+                    MotorSeries = result.MotorSeries,
+                    SystemSeries = result.SystemSeries
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving motor series data from InfluxDB");
+                return StatusCode(500, new { Success = false, Error = ex.Message });
+            }
+        }
+
         [HttpGet("sensors/latest/{sensorName}")]
         public async Task<IActionResult> GetLatestSensorData(string sensorName)
         {
             try
             {
+                _logger.LogInformation("InfluxDB sensor data sorgusu: {SensorName}", sensorName);
+
                 var sensorReading = await _influxDbService.GetLatestSensorReadingAsync("hgu_sensors", sensorName);
-                
+
                 if (!sensorReading.IsValid)
                 {
-                    return NotFound(new 
-                    { 
+                    _logger.LogWarning("InfluxDB'de sensor verisi bulunamadı: {SensorName}", sensorName);
+                    return NotFound(new
+                    {
                         Message = $"No recent data found for sensor: {sensorName}",
                         SensorName = sensorName,
                         Timestamp = DateTime.Now
@@ -137,7 +224,8 @@ namespace TUSAS.HGU.API.Controllers
                     Age = DateTime.Now - sensorReading.Timestamp
                 };
 
-                _logger.LogInformation("Latest sensor data requested for: {SensorName}", sensorName);
+                _logger.LogInformation("InfluxDB sensor data başarılı: {SensorName}, Value: {Value}, Age: {Age}ms",
+                    sensorName, sensorReading.NumericValue, (DateTime.Now - sensorReading.Timestamp).TotalMilliseconds);
                 return Ok(response);
             }
             catch (Exception ex)
@@ -232,17 +320,22 @@ namespace TUSAS.HGU.API.Controllers
                     return BadRequest(new { Message = "Query cannot be empty" });
                 }
 
+                _logger.LogInformation("InfluxDB Flux query başlatıldı: {Query}", request.Query);
+
                 // Güvenlik için tehlikeli komutları engelle
                 var dangerousKeywords = new[] { "drop", "delete", "create", "alter" };
                 var queryLower = request.Query.ToLowerInvariant();
-                
+
                 if (dangerousKeywords.Any(keyword => queryLower.Contains(keyword)))
                 {
+                    _logger.LogWarning("InfluxDB tehlikeli query engellendi: {Query}", request.Query);
                     return BadRequest(new { Message = "Dangerous query operations not allowed" });
                 }
 
+                var startTime = DateTime.Now;
                 var result = await _influxDbService.QueryAsync(request.Query);
-                
+                var duration = DateTime.Now - startTime;
+
                 var response = new
                 {
                     Query = request.Query,
@@ -251,7 +344,8 @@ namespace TUSAS.HGU.API.Controllers
                     Success = !string.IsNullOrEmpty(result)
                 };
 
-                _logger.LogInformation("Custom Flux query executed - Length: {Length}", result?.Length ?? 0);
+                _logger.LogInformation("InfluxDB Flux query tamamlandı - Süre: {Duration}ms, Sonuç boyutu: {Length}",
+                    duration.TotalMilliseconds, result?.Length ?? 0);
                 return Ok(response);
             }
             catch (Exception ex)
@@ -299,4 +393,13 @@ namespace TUSAS.HGU.API.Controllers
     {
         public string Query { get; set; } = string.Empty;
     }
+
+    public class InfluxMotorSeriesRequest
+    {
+        public List<int>? Motors { get; set; }
+        public List<string>? Metrics { get; set; }
+        public string? Range { get; set; }
+        public int? MaxPoints { get; set; }
+    }
+
 }

@@ -5,6 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Linq;
 using Newtonsoft.Json;
+using System.Globalization;
+using System.IO;
+using Microsoft.VisualBasic.FileIO;
+using System.Text.RegularExpressions;
 
 namespace TUSAS.HGU.Core.Services
 {
@@ -16,6 +20,30 @@ namespace TUSAS.HGU.Core.Services
         private readonly string _org;
         private readonly string _bucket;
         private WorkstationOpcUaClient? _opcUaClient;
+        private static readonly Dictionary<string, Func<int, string>> MotorMetricSensors = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["pressure"] = motorId => $"PUMP_{motorId}_PRESSURE_ACTUAL",
+            ["flow"] = motorId => $"PUMP_{motorId}_FLOW_ACTUAL",
+            ["temperature"] = motorId => $"MOTOR_{motorId}_TEMPERATURE_C",
+            ["rpm"] = motorId => $"MOTOR_{motorId}_RPM_ACTUAL",
+            ["current"] = motorId => $"MOTOR_{motorId}_CURRENT_A"
+        };
+
+        private static readonly Dictionary<string, string> SystemSensorMap = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["totalFlow"] = "TOTAL_SYSTEM_FLOW",
+            ["totalPressure"] = "TOTAL_SYSTEM_PRESSURE",
+            ["activePumps"] = "SYSTEM_ACTIVE_PUMPS",
+            ["efficiency"] = "SYSTEM_EFFICIENCY",
+            ["tankLevel"] = "TANK_LEVEL_PERCENT",
+            ["oilTemperature"] = "TANK_OIL_TEMPERATURE"
+        };
+
+        private static readonly Regex TimeRangePattern = new("^\\d+(s|m|h|d|w)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        public static IEnumerable<string> SupportedMotorMetrics => MotorMetricSensors.Keys;
+
+
 
         public InfluxDbService(string url, string token, string org, string bucket)
         {
@@ -48,7 +76,7 @@ namespace TUSAS.HGU.Core.Services
                 }
                 
                 // Test auth with a simple query
-                var testQuery = "from(bucket: \"tusas_hgu\") |> range(start: -1m) |> limit(n: 1)";
+                var testQuery = $"from(bucket: \"{_bucket}\") |> range(start: -1m) |> limit(n: 1)";
                 var content = new StringContent(testQuery, Encoding.UTF8, "application/vnd.flux");
                 var authResponse = await _httpClient.PostAsync($"{_url}/api/v2/query?org={_org}", content);
                 
@@ -83,6 +111,335 @@ namespace TUSAS.HGU.Core.Services
             catch
             {
                 return string.Empty;
+            }
+        }
+
+
+        public async Task<InfluxMotorSeriesResponse> GetMotorSeriesAsync(IEnumerable<int> motorIds, IEnumerable<string> metrics, string? timeRangeLiteral, int? maxPoints = null)
+        {
+            var response = new InfluxMotorSeriesResponse();
+            if (motorIds == null || metrics == null)
+            {
+                return response;
+            }
+
+            var motorList = motorIds
+                .Where(id => id >= 1 && id <= 7)
+                .Distinct()
+                .OrderBy(id => id)
+                .ToList();
+
+            var metricList = metrics
+                .Where(metric => !string.IsNullOrWhiteSpace(metric))
+                .Select(metric => metric.Trim().ToLowerInvariant())
+                .Where(metric => MotorMetricSensors.ContainsKey(metric))
+                .Distinct()
+                .ToList();
+
+            if (motorList.Count == 0 || metricList.Count == 0)
+            {
+                return response;
+            }
+
+            var sanitizedRange = SanitizeRangeLiteral(timeRangeLiteral);
+            response.EffectiveRange = sanitizedRange;
+            var rangeSpan = ParseDurationLiteral(sanitizedRange);
+            var aggregateWindow = GetAggregateWindowLiteral(rangeSpan);
+
+            var sensorClauses = new List<string>();
+            foreach (var motorId in motorList)
+            {
+                foreach (var metric in metricList)
+                {
+                    var sensorName = MotorMetricSensors[metric](motorId);
+                    sensorClauses.Add($"r.sensor == \"{sensorName}\"");
+                }
+            }
+
+            foreach (var systemSensor in SystemSensorMap.Values)
+            {
+                sensorClauses.Add($"r.sensor == \"{systemSensor}\"");
+            }
+
+            if (sensorClauses.Count == 0)
+            {
+                return response;
+            }
+
+            var sensorFilter = string.Join(" or ", sensorClauses);
+            var limitClause = maxPoints.HasValue && maxPoints.Value > 0
+                ? $"\n  |> limit(n: {maxPoints.Value})"
+                : string.Empty;
+
+            var fluxQuery = $@"
+from(bucket: ""{_bucket}"")
+  |> range(start: -{sanitizedRange})
+  |> filter(fn: (r) => r._measurement == ""hgu_sensors"")
+  |> filter(fn: (r) => {sensorFilter})
+  |> aggregateWindow(every: {aggregateWindow}, fn: mean, createEmpty: false)
+  |> pivot(rowKey: [""_time""], columnKey: [""sensor""], valueColumn: ""_value"")
+  |> sort(columns: [""_time""]){limitClause}
+";
+
+            var csvResult = await QueryAsync(fluxQuery);
+            if (string.IsNullOrWhiteSpace(csvResult))
+            {
+                return response;
+            }
+
+            var rows = ParsePivotCsv(csvResult);
+            if (rows.Count == 0)
+            {
+                return response;
+            }
+
+            BuildMotorAndSystemSeries(rows, response, motorList, metricList);
+            return response;
+        }
+
+        private static string SanitizeRangeLiteral(string? literal)
+        {
+            if (!string.IsNullOrWhiteSpace(literal) && TimeRangePattern.IsMatch(literal))
+            {
+                return literal.ToLowerInvariant();
+            }
+
+            return "1h";
+        }
+
+        private static TimeSpan ParseDurationLiteral(string literal)
+        {
+            if (string.IsNullOrWhiteSpace(literal))
+            {
+                return TimeSpan.FromHours(1);
+            }
+
+            var suffix = char.ToLowerInvariant(literal[^1]);
+            if (!double.TryParse(literal[..^1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var amount) || amount <= 0)
+            {
+                return TimeSpan.FromHours(1);
+            }
+
+            return suffix switch
+            {
+                's' => TimeSpan.FromSeconds(amount),
+                'm' => TimeSpan.FromMinutes(amount),
+                'h' => TimeSpan.FromHours(amount),
+                'd' => TimeSpan.FromDays(amount),
+                'w' => TimeSpan.FromDays(amount * 7),
+                _ => TimeSpan.FromHours(1)
+            };
+        }
+
+        private static string GetAggregateWindowLiteral(TimeSpan range)
+        {
+            if (range <= TimeSpan.FromMinutes(15))
+            {
+                return "30s";
+            }
+
+            if (range <= TimeSpan.FromHours(1))
+            {
+                return "1m";
+            }
+
+            if (range <= TimeSpan.FromHours(6))
+            {
+                return "5m";
+            }
+
+            if (range <= TimeSpan.FromHours(24))
+            {
+                return "15m";
+            }
+
+            if (range <= TimeSpan.FromDays(7))
+            {
+                return "1h";
+            }
+
+            return "6h";
+        }
+
+        private static List<Dictionary<string, string>> ParsePivotCsv(string csv)
+        {
+            var cleaned = new StringBuilder();
+            using (var reader = new StringReader(csv))
+            {
+                string? line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    if (string.IsNullOrWhiteSpace(line))
+                    {
+                        continue;
+                    }
+
+                    if (line.StartsWith("#"))
+                    {
+                        continue;
+                    }
+
+                    cleaned.AppendLine(line);
+                }
+            }
+
+            if (cleaned.Length == 0)
+            {
+                return new List<Dictionary<string, string>>();
+            }
+
+            var rows = new List<Dictionary<string, string>>();
+            using (var parser = new TextFieldParser(new StringReader(cleaned.ToString())))
+            {
+                parser.TextFieldType = FieldType.Delimited;
+                parser.SetDelimiters(",");
+                parser.HasFieldsEnclosedInQuotes = true;
+
+                string[]? headers = null;
+                while (!parser.EndOfData)
+                {
+                    var fields = parser.ReadFields();
+                    if (fields == null)
+                    {
+                        continue;
+                    }
+
+                    if (headers == null)
+                    {
+                        headers = fields;
+                        continue;
+                    }
+
+                    var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    for (var i = 0; i < headers.Length && i < fields.Length; i++)
+                    {
+                        row[headers[i]] = fields[i];
+                    }
+
+                    rows.Add(row);
+                }
+            }
+
+            return rows;
+        }
+
+        private static bool TryGetDouble(Dictionary<string, string> row, string key, out double value)
+        {
+            value = default;
+            if (!row.TryGetValue(key, out var raw) || string.IsNullOrWhiteSpace(raw))
+            {
+                return false;
+            }
+
+            return double.TryParse(raw, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value);
+        }
+
+        private static void BuildMotorAndSystemSeries(List<Dictionary<string, string>> rows, InfluxMotorSeriesResponse response, List<int> motorList, List<string> metricList)
+        {
+            foreach (var row in rows)
+            {
+                if (!row.TryGetValue("_time", out var timeValue) || string.IsNullOrWhiteSpace(timeValue))
+                {
+                    continue;
+                }
+
+                if (!DateTime.TryParse(timeValue, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var timestamp))
+                {
+                    continue;
+                }
+
+                foreach (var motorId in motorList)
+                {
+                    var point = new MotorSeriesPoint
+                    {
+                        Timestamp = timestamp,
+                        MotorId = motorId
+                    };
+
+                    var hasMetric = false;
+                    foreach (var metric in metricList)
+                    {
+                        var sensorName = MotorMetricSensors[metric](motorId);
+                        if (!TryGetDouble(row, sensorName, out var numericValue))
+                        {
+                            continue;
+                        }
+
+                        switch (metric)
+                        {
+                            case "pressure":
+                                point.Pressure = numericValue;
+                                break;
+                            case "flow":
+                                point.Flow = numericValue;
+                                break;
+                            case "temperature":
+                                point.Temperature = numericValue;
+                                break;
+                            case "rpm":
+                                point.Rpm = numericValue;
+                                break;
+                            case "current":
+                                point.Current = numericValue;
+                                break;
+                        }
+
+                        hasMetric = true;
+                    }
+
+                    if (hasMetric)
+                    {
+                        response.MotorSeries.Add(point);
+                    }
+                }
+
+                var systemPoint = new SystemTrendPoint
+                {
+                    Timestamp = timestamp
+                };
+
+                var hasSystem = false;
+
+                if (TryGetDouble(row, SystemSensorMap["totalFlow"], out var totalFlow))
+                {
+                    systemPoint.TotalFlow = totalFlow;
+                    hasSystem = true;
+                }
+
+                if (TryGetDouble(row, SystemSensorMap["totalPressure"], out var totalPressure))
+                {
+                    systemPoint.TotalPressure = totalPressure;
+                    hasSystem = true;
+                }
+
+                if (TryGetDouble(row, SystemSensorMap["activePumps"], out var activePumps))
+                {
+                    systemPoint.ActivePumps = activePumps;
+                    hasSystem = true;
+                }
+
+                if (TryGetDouble(row, SystemSensorMap["efficiency"], out var efficiency))
+                {
+                    systemPoint.Efficiency = efficiency;
+                    hasSystem = true;
+                }
+
+                if (TryGetDouble(row, SystemSensorMap["tankLevel"], out var tankLevel))
+                {
+                    systemPoint.TankLevel = tankLevel;
+                    hasSystem = true;
+                }
+
+                if (TryGetDouble(row, SystemSensorMap["oilTemperature"], out var oilTemperature))
+                {
+                    systemPoint.OilTemperature = oilTemperature;
+                    hasSystem = true;
+                }
+
+                if (hasSystem)
+                {
+                    response.SystemSeries.Add(systemPoint);
+                }
             }
         }
 
@@ -590,4 +947,33 @@ namespace TUSAS.HGU.Core.Services
             return Value;
         }
     }
+    public class InfluxMotorSeriesResponse
+    {
+        public string EffectiveRange { get; set; } = "1h";
+        public List<MotorSeriesPoint> MotorSeries { get; } = new();
+        public List<SystemTrendPoint> SystemSeries { get; } = new();
+    }
+
+    public class MotorSeriesPoint
+    {
+        public DateTime Timestamp { get; set; }
+        public int MotorId { get; set; }
+        public double? Pressure { get; set; }
+        public double? Flow { get; set; }
+        public double? Temperature { get; set; }
+        public double? Rpm { get; set; }
+        public double? Current { get; set; }
+    }
+
+    public class SystemTrendPoint
+    {
+        public DateTime Timestamp { get; set; }
+        public double? TotalFlow { get; set; }
+        public double? TotalPressure { get; set; }
+        public double? ActivePumps { get; set; }
+        public double? Efficiency { get; set; }
+        public double? TankLevel { get; set; }
+        public double? OilTemperature { get; set; }
+    }
+
 }

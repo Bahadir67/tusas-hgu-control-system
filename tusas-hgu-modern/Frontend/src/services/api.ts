@@ -1,5 +1,35 @@
 import axios from 'axios';
 
+export interface InfluxMotorSeriesPoint {
+  timestamp: string;
+  motorId: number;
+  pressure?: number | null;
+  flow?: number | null;
+  temperature?: number | null;
+  rpm?: number | null;
+  current?: number | null;
+}
+
+export interface InfluxSystemTrendPoint {
+  timestamp: string;
+  totalFlow?: number | null;
+  totalPressure?: number | null;
+  activePumps?: number | null;
+  efficiency?: number | null;
+  tankLevel?: number | null;
+  oilTemperature?: number | null;
+}
+
+export interface InfluxMotorSeriesResponse {
+  Success: boolean;
+  Range: string;
+  Motors: number[];
+  Metrics: string[];
+  MaxPoints?: number | null;
+  MotorSeries: InfluxMotorSeriesPoint[];
+  SystemSeries: InfluxSystemTrendPoint[];
+}
+
 // Backend API base URL
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -15,7 +45,7 @@ export const apiClient = axios.create({
 // Add auth token to requests
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('auth_token') ?? localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -32,7 +62,9 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token expired or invalid
+      localStorage.removeItem('auth_token');
       localStorage.removeItem('token');
+      localStorage.removeItem('auth_user');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
@@ -87,10 +119,55 @@ export const opcApi = {
   },
 };
 
+// InfluxDB API service functions
+export const influxApi = {
+  // Get InfluxDB health status
+  getHealth: async () => {
+    const response = await api.get('/influx/health');
+    return response.data;
+  },
+
+  // Get InfluxDB statistics
+  getStats: async () => {
+    const response = await api.get('/influx/stats');
+    return response.data;
+  },
+
+  // Get latest sensor data
+  getLatestSensor: async (sensorName: string) => {
+    const response = await api.get(`/influx/sensors/latest/${sensorName}`);
+    return response.data;
+  },
+
+  // Execute custom Flux query
+  executeQuery: async (query: string) => {
+    const response = await api.post('/influx/query', { query });
+    return response.data;
+  },
+
+  // Test write to InfluxDB
+  testWrite: async () => {
+    const response = await api.post('/influx/test-write');
+    return response.data;
+  },
+
+  // Retrieve motor and system time-series from InfluxDB
+  getMotorSeries: async (payload: { motors: number[]; metrics: string[]; range?: string; maxPoints?: number }) => {
+    const response = await api.post('/influx/motor-series', payload);
+    return response.data as InfluxMotorSeriesResponse;
+  },
+
+  // Get InfluxDB configuration
+  getConfig: async () => {
+    const response = await api.get('/influx/config');
+    return response.data;
+  },
+};
+
 // Helper function to get all motor variables
 export const getMotorVariables = (): string[] => {
   const variables: string[] = [];
-  
+
   // For each motor (1-7)
   for (let i = 1; i <= 7; i++) {
     variables.push(
@@ -109,7 +186,7 @@ export const getMotorVariables = (): string[] => {
       `MOTOR_${i}_ENABLE_EXECUTION`
     );
   }
-  
+
   // Add system variables
   variables.push(
     'SYSTEM_TOTAL_FLOW',
@@ -118,7 +195,7 @@ export const getMotorVariables = (): string[] => {
     'TANK_LEVEL',
     'AQUA_SENSOR'
   );
-  
+
   return variables;
 };
 
@@ -149,3 +226,4 @@ export const startDataPolling = (callback: (data: any) => void, interval = 1000)
     isPolling = false;
   };
 };
+

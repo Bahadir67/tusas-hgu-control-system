@@ -10,6 +10,7 @@ import SystemOverviewPanel from './components/SystemOverviewPanel';
 import TankCoolingPanel from './components/TankCoolingPanel';
 import { LogsPage } from './components/LogsPage';
 import AlarmsPage from './components/AlarmsPage';
+import InfluxDBMonitor from './components/InfluxDBMonitor';
 import './styles/industrial-theme.css';
 import './styles/modern-layout.css';
 
@@ -40,7 +41,7 @@ function App() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   
   // Use store's currentPage directly
-  const currentPage = storeCurrentPage as 'main' | 'motors' | 'logs' | 'alarms' | 'stats';
+  const currentPage = storeCurrentPage as 'main' | 'motors' | 'logs' | 'alarms' | 'stats' | 'influxdb';
 
   // Set auth token when it changes
   useEffect(() => {
@@ -58,11 +59,13 @@ function App() {
         if (currentPage === 'logs') navigateToPage('motors');
         if (currentPage === 'alarms') navigateToPage('logs');
         if (currentPage === 'stats') navigateToPage('alarms');
-      } else if (e.key === 'ArrowRight' && currentPage !== 'stats') {
+        if (currentPage === 'influxdb') navigateToPage('stats');
+      } else if (e.key === 'ArrowRight' && currentPage !== 'influxdb') {
         if (currentPage === 'main') navigateToPage('motors');
         if (currentPage === 'motors') navigateToPage('logs');
         if (currentPage === 'logs') navigateToPage('alarms');
         if (currentPage === 'alarms') navigateToPage('stats');
+        if (currentPage === 'stats') navigateToPage('influxdb');
       }
     };
 
@@ -81,14 +84,18 @@ function App() {
         });
         setConnection(connectionCheck.ok);
         
-        // Fetch initial data for current page
-        await fetchPageData(currentPage);
+        // Fetch initial data for current page (skip InfluxDB - uses own API)
+        if (currentPage !== 'influxdb') {
+          await fetchPageData(currentPage);
+        }
         
       } catch (error) {
         console.error('OPC Backend not available - NO MOCK DATA');
         setConnection(false);
-        // No mock data - will show errors instead
-        await fetchPageData(currentPage);
+        // No mock data - will show errors instead (skip InfluxDB - uses own API)
+        if (currentPage !== 'influxdb') {
+          await fetchPageData(currentPage);
+        }
       }
     };
 
@@ -100,7 +107,10 @@ function App() {
     // Set up periodic data updates (every 2 seconds for page-specific data)
     const interval = setInterval(async () => {
       try {
-        await fetchPageData(currentPage);
+        // Skip InfluxDB - uses own API with own refresh
+        if (currentPage !== 'influxdb') {
+          await fetchPageData(currentPage);
+        }
         
         // Generate random alarms for testing (remove in production)
         if (Math.random() > 0.95) {
@@ -120,24 +130,24 @@ function App() {
   }, [currentPage, fetchPageData, setConnection, clearErrors, token]);  // Re-fetch when page changes or token updates
 
   // Navigation functions with data fetching
-  const navigateToPage = (page: 'main' | 'motors' | 'logs' | 'alarms' | 'stats') => {
+  const navigateToPage = (page: 'main' | 'motors' | 'logs' | 'alarms' | 'stats' | 'influxdb') => {
     if (page === currentPage || isTransitioning) return;
-    
+
     setIsTransitioning(true);
-    
+
     // Clear any existing errors
     clearErrors();
-    
+
     // Update page in store and fetch new data
     setStoreCurrentPage(page as any);
-    
-    // Fetch data for new page immediately
+
+    // Fetch data for new page immediately (skip InfluxDB - uses own API)
     if (['main', 'motors', 'logs', 'alarms', 'stats'].includes(page)) {
       fetchPageData(page as any).catch(error => {
         console.error(`Failed to fetch data for page ${page}:`, error);
       });
     }
-    
+
     setTimeout(() => {
       setIsTransitioning(false);
     }, 150);
@@ -170,7 +180,7 @@ function App() {
         const refreshResult = await triggerOpcRefresh();
         
         if (refreshResult.success) {
-          console.log(`✅ Fresh data loaded - ${refreshResult.valuesCount} variables updated`);
+          console.log('✅ Fresh data loaded via manual refresh');
         } else {
           console.warn('⚠️ OPC refresh failed, will update on next timer cycle');
         }
@@ -200,12 +210,14 @@ function App() {
           if (currentPage === 'logs') navigateToPage('motors');
           if (currentPage === 'alarms') navigateToPage('logs');
           if (currentPage === 'stats') navigateToPage('alarms');
-        } else if (deltaX < 0 && currentPage !== 'stats') {
+          if (currentPage === 'influxdb') navigateToPage('stats');
+        } else if (deltaX < 0 && currentPage !== 'influxdb') {
           // Swipe left - go to next page
           if (currentPage === 'main') navigateToPage('motors');
           if (currentPage === 'motors') navigateToPage('logs');
           if (currentPage === 'logs') navigateToPage('alarms');
           if (currentPage === 'alarms') navigateToPage('stats');
+          if (currentPage === 'stats') navigateToPage('influxdb');
         }
         document.removeEventListener('touchmove', handleTouchMove);
       }
@@ -358,7 +370,7 @@ function App() {
                 <span className="stats-text">SYSTEM STATISTICS</span>
               </div>
             </div>
-            
+
             <div className="stats-content">
               <div className="stats-placeholder">
                 <div className="stats-item">
@@ -377,8 +389,11 @@ function App() {
             </div>
           </div>
         );
-        
-        
+
+      case 'influxdb':
+        return <InfluxDBMonitor />;
+
+
       default:
         return null;
     }
@@ -392,7 +407,7 @@ function App() {
         onToggle={() => setIsMenuOpen(!isMenuOpen)}
         onClose={() => setIsMenuOpen(false)}
         onNavigate={(page) => {
-          navigateToPage(page as 'main' | 'motors' | 'logs' | 'alarms' | 'stats');
+          navigateToPage(page as 'main' | 'motors' | 'logs' | 'alarms' | 'stats' | 'influxdb');
           setIsMenuOpen(false);
         }}
       />
@@ -436,6 +451,7 @@ function App() {
               {currentPage === 'logs' && 'TUSAŞ HGU Logs'}
               {currentPage === 'alarms' && 'TUSAŞ HGU Alarms'}
               {currentPage === 'stats' && 'TUSAŞ HGU Stats'}
+              {currentPage === 'influxdb' && 'TUSAŞ HGU Database'}
             </h1>
             <div className="subtitle-modern">Hydraulic Ground Equipment - Real-time SCADA</div>
           </div>
@@ -443,25 +459,29 @@ function App() {
         
         {/* Page Indicators */}
         <div className="page-indicators">
-          <div 
+          <div
             className={`page-dot ${currentPage === 'main' ? 'active' : ''}`}
             onClick={() => navigateToPage('main')}
           />
-          <div 
+          <div
             className={`page-dot ${currentPage === 'motors' ? 'active' : ''}`}
             onClick={() => navigateToPage('motors')}
           />
-          <div 
+          <div
             className={`page-dot ${currentPage === 'logs' ? 'active' : ''}`}
             onClick={() => navigateToPage('logs')}
           />
-          <div 
+          <div
             className={`page-dot ${currentPage === 'alarms' ? 'active' : ''}`}
             onClick={() => navigateToPage('alarms')}
           />
-          <div 
+          <div
             className={`page-dot ${currentPage === 'stats' ? 'active' : ''}`}
             onClick={() => navigateToPage('stats')}
+          />
+          <div
+            className={`page-dot ${currentPage === 'influxdb' ? 'active' : ''}`}
+            onClick={() => navigateToPage('influxdb')}
           />
         </div>
         

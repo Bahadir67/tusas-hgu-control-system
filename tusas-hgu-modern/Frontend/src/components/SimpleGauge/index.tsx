@@ -41,16 +41,10 @@ const SimpleGauge: React.FC<SimpleGaugeProps> = ({
     .filter(Boolean)
     .join(' | ');
   
-  const opcHint = useOpcHint(
-    value,
-    opcVariable || 'UNKNOWN',
-    label || 'Value',
-    unit,
-    combinedAdditionalInfo
-  );
-  
-  // Use custom title if provided, otherwise use OPC hint
-  const tooltipTitle = customTitle || opcHint;
+  const opcHint = useOpcHint(opcVariable || 'UNKNOWN');
+
+  // Use custom title if provided, otherwise combine OPC hint and extra info
+  const tooltipTitle = customTitle || [opcHint, combinedAdditionalInfo].filter(Boolean).join(' | ');
   
   // Determine color based on thresholds
   const getColor = () => {

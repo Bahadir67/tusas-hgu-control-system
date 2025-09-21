@@ -114,6 +114,12 @@ namespace TUSAS.HGU.API.Controllers
             {
                 var tokenId = HttpContext.User.FindFirst("TokenId")?.Value;
                 var username = HttpContext.User.Identity?.Name;
+                var userId = HttpContext.User.FindFirst("UserId")?.Value;
+
+                _logger.LogInformation("🔍 DEBUG: Logout request received");
+                _logger.LogInformation("🔍 DEBUG: TokenId claim: {TokenId}", tokenId ?? "NULL");
+                _logger.LogInformation("🔍 DEBUG: Username claim: {Username}", username ?? "NULL");
+                _logger.LogInformation("🔍 DEBUG: UserId claim: {UserId}", userId ?? "NULL");
 
                 if (string.IsNullOrEmpty(tokenId))
                 {
@@ -121,7 +127,7 @@ namespace TUSAS.HGU.API.Controllers
                     return BadRequest(new { success = false, message = "Invalid session" });
                 }
 
-                _logger.LogInformation("🔐 Logout attempt for user: {Username}", username);
+                _logger.LogInformation("🔐 Logout attempt for user: {Username} with tokenId: {TokenId}", username, tokenId);
 
                 var success = await _authService.LogoutAsync(
                     tokenId, 

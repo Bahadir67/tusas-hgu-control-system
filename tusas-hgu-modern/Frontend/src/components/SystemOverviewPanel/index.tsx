@@ -22,7 +22,6 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
     pressureSetpoint: system?.pressureSetpoint,
     efficiency: system?.systemEfficiency, // Must come from OPC
     activePumps: system?.activePumps,
-    totalPower: system?.totalPower, // Must come from OPC - no dummy value
     systemEnable: system?.systemEnable || false // System enable/disable status
   };
 
@@ -55,9 +54,11 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
     return '#ef4444';                       // Poor
   };
 
-  const handleClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleClick = (event?: React.MouseEvent) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     setShowSetpointsModal(true);
   };
 
@@ -181,8 +182,8 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
 
         <div className="secondary-metric">
           <div className="secondary-label">Total Power</div>
-          <div className="secondary-value" style={{ color: systemData.totalPower !== undefined ? '#8b5cf6' : '#ef4444' }}>
-            {systemData.totalPower !== undefined ? `${systemData.totalPower.toFixed(1)}kW` : 'ERR'}
+          <div className="secondary-value" style={{ color: '#8b5cf6' }}>
+            Data unavailable
           </div>
         </div>
       </div>

@@ -1,0 +1,634 @@
+/* SCADA Flow Calibration Modal Styles */
+
+.flow-calibration-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: var(--spacing-lg);
+  backdrop-filter: blur(4px);
+}
+
+.flow-calibration-modal {
+  background: var(--color-bg-glass);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 1400px;
+  max-height: 95vh;
+  overflow-y: auto;
+  font-family: var(--font-family);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--color-border-glow);
+}
+
+.flow-calibration-header {
+  background: var(--color-bg-secondary);
+  border-bottom: 2px solid var(--color-accent);
+  padding: var(--spacing-xl);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.flow-calibration-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.close-button {
+  background: none;
+  border: 2px solid var(--color-error);
+  color: var(--color-error);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.close-button:hover {
+  background-color: var(--color-error);
+  color: white;
+  transform: scale(1.1);
+}
+
+.close-button:focus {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+.flow-calibration-content {
+  padding: var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+/* Reference Flow Section */
+.reference-flow-section {
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  backdrop-filter: blur(8px);
+}
+
+.reference-flow-section h3 {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: 18px;
+  color: var(--color-warning);
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--color-warning);
+  padding-bottom: var(--spacing-sm);
+}
+
+.reference-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.reference-controls label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+/* Motor Flows Section */
+.motor-flows-section h3 {
+  margin: 0 0 var(--spacing-lg) 0;
+  font-size: 20px;
+  color: var(--color-running);
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--color-running);
+  padding-bottom: var(--spacing-sm);
+}
+
+.motor-flows-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.flow-meter-card {
+  background: var(--color-bg-panel);
+  backdrop-filter: blur(8px);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  transition: all 0.3s ease;
+}
+
+.flow-meter-card:hover {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-md), 0 0 20px var(--color-accent-soft);
+  transform: translateY(-2px);
+}
+
+.flow-meter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.flow-meter-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: 0.5px;
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 8px currentColor;
+  animation: statusPulse 2s infinite;
+}
+
+.status-indicator.large {
+  width: 16px;
+  height: 16px;
+}
+
+.flow-readings {
+  margin-bottom: var(--spacing-md);
+}
+
+.current-flow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.flow-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+}
+
+.flow-value.large {
+  font-size: 36px;
+  color: var(--color-running);
+}
+
+.unit {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.direction-indicator {
+  font-size: 20px;
+  color: var(--color-warning);
+  font-weight: bold;
+  margin-left: auto;
+}
+
+.flow-range {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.flow-range.stopped { background-color: var(--color-disabled); color: white; }
+.flow-range.low { background-color: var(--color-warning); color: white; }
+.flow-range.medium { background-color: var(--color-running); color: white; }
+.flow-range.high { background-color: var(--color-value-high); color: white; }
+
+.totalizer {
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--color-bg-control);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--color-maintenance);
+}
+
+.totalizer label {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+/* Calibration Controls */
+.calibration-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.control-row.limits {
+  justify-content: space-between;
+}
+
+.control-row label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  min-width: 80px;
+}
+
+.calibration-input, .limit-input, .flow-input, .curve-input {
+  background-color: var(--color-bg-control);
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  width: 80px;
+  text-align: right;
+  transition: all 0.3s ease;
+}
+
+.calibration-input:focus, .limit-input:focus, .flow-input:focus, .curve-input:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  background-color: var(--color-bg-secondary);
+  box-shadow: 0 0 8px var(--color-border-glow);
+}
+
+.flow-input {
+  width: 120px;
+}
+
+.limit-input {
+  width: 70px;
+}
+
+.calibration-input:invalid, .limit-input:invalid, .flow-input:invalid, .curve-input:invalid {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 2px rgba(220, 20, 60, 0.2);
+}
+
+.calibration-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.cal-button {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: 2px solid;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 44px;
+  font-family: var(--font-family);
+}
+
+.cal-button.zero {
+  border-color: var(--color-value-high);
+  color: var(--color-value-high);
+}
+
+.cal-button.zero:hover {
+  background-color: var(--color-value-high);
+  color: white;
+}
+
+.cal-button.span {
+  border-color: var(--color-running);
+  color: var(--color-running);
+}
+
+.cal-button.span:hover {
+  background-color: var(--color-running);
+  color: white;
+}
+
+.cal-button:focus {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+/* System Flow Section */
+.system-flow-section h3 {
+  margin: 0 0 var(--spacing-lg) 0;
+  font-size: 20px;
+  color: var(--color-error);
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--color-error);
+  padding-bottom: var(--spacing-sm);
+}
+
+.system-flow-card {
+  background: var(--color-bg-panel);
+  backdrop-filter: blur(10px);
+  border: 3px solid var(--color-error);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+}
+
+.system-flow-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--color-error);
+}
+
+.system-flow-header h4 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-error);
+  letter-spacing: 1px;
+}
+
+.system-readings {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.system-current-flow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+}
+
+.system-setpoint, .system-totalizer {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background-color: var(--color-bg-control);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.system-control-row {
+  display: flex;
+  gap: var(--spacing-xl);
+  align-items: center;
+}
+
+.system-control-row label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-error);
+}
+
+/* Calibration Curve Section */
+.calibration-curve-section h3 {
+  margin: 0 0 var(--spacing-lg) 0;
+  font-size: 18px;
+  color: var(--color-maintenance);
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--color-maintenance);
+  padding-bottom: var(--spacing-sm);
+}
+
+.curve-points {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  backdrop-filter: blur(8px);
+}
+
+.curve-point {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm);
+  background-color: var(--color-bg-control);
+  border-radius: var(--radius-sm);
+}
+
+.curve-point label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* Footer */
+.flow-calibration-footer {
+  background: var(--color-bg-secondary);
+  border-top: 2px solid var(--color-border);
+  padding: var(--spacing-xl);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  position: sticky;
+  bottom: 0;
+}
+
+.action-button {
+  padding: var(--spacing-md) var(--spacing-xl);
+  border: 2px solid;
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 140px;
+  min-height: 48px;
+  font-family: var(--font-family);
+}
+
+.action-button.primary {
+  background-color: var(--color-running);
+  border-color: var(--color-running);
+  color: white;
+}
+
+.action-button.primary:hover {
+  background-color: var(--color-value-normal);
+  border-color: var(--color-value-normal);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+}
+
+.action-button.secondary {
+  background: none;
+  border-color: var(--color-disabled);
+  color: var(--color-disabled);
+}
+
+.action-button.secondary:hover {
+  background-color: var(--color-disabled);
+  color: white;
+}
+
+.action-button:focus {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .motor-flows-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+
+  .system-readings {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+}
+
+@media (max-width: 768px) {
+  .flow-calibration-modal {
+    margin: var(--spacing-sm);
+    max-height: 90vh;
+  }
+
+  .motor-flows-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .system-control-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .flow-calibration-footer {
+    flex-direction: column;
+  }
+
+  .reference-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .curve-points {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .flow-meter-card,
+  .status-indicator,
+  .action-button,
+  .cal-button,
+  .close-button {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* Loading and Animation States */
+.flow-meter-card {
+  animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Status-based Card Styling */
+.flow-meter-card[data-status="critical"] {
+  border-color: var(--color-error);
+  box-shadow: 0 0 16px rgba(220, 20, 60, 0.3);
+}
+
+.flow-meter-card[data-status="optimal"] {
+  border-color: var(--color-running);
+  box-shadow: 0 0 12px rgba(50, 205, 50, 0.2);
+}
+
+.flow-meter-card[data-status="low"] {
+  border-color: var(--color-warning);
+  box-shadow: 0 0 12px rgba(255, 165, 0, 0.2);
+}
+
+/* Accessibility Improvements */
+.action-button:focus,
+.cal-button:focus,
+.calibration-input:focus,
+.close-button:focus {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+  .flow-calibration-overlay {
+    position: static;
+    background: white;
+  }
+
+  .flow-calibration-modal {
+    background: white;
+    color: black;
+    border: 1px solid black;
+    box-shadow: none;
+  }
+
+  .close-button {
+    display: none;
+  }
+}

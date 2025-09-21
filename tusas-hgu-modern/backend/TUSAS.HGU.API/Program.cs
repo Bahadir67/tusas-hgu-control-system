@@ -132,7 +132,10 @@ app.UseAuthentication();
 app.UseMiddleware<AuthenticationMiddleware>(); // Custom JWT middleware for all OPC endpoints
 app.UseAuthorization();
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.MapControllers();
 
 // Health check endpoint

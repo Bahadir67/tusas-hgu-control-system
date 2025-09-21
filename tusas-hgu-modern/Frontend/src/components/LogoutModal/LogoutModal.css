@@ -1,1221 +1,478 @@
-/* TUSAŞ HGU Premium Industrial Logout Modal - Modern SCADA Design */
+/* TUSAŞ HGU Logout Modal - Industrial SCADA Interface */
 
 /* ========================================
-   CSS CUSTOM PROPERTIES - Industrial Theme
+   SCADA INDUSTRIAL DESIGN SYSTEM
    ======================================== */
 :root {
-  /* Modern SCADA Color Palette */
-  --modal-bg-primary: linear-gradient(145deg, #1e2329, #2a2f3a);
-  --modal-bg-secondary: linear-gradient(135deg, #2d323d, #373c4a);
-  --modal-bg-tertiary: linear-gradient(180deg, #343942, #2a2f3a);
-  --modal-border-primary: #4a5568;
-  --modal-border-accent: #5a6578;
-  --modal-border-glow: rgba(99, 179, 237, 0.3);
+  /* SCADA Colors - Industrial Standard */
+  --scada-bg-dark: #1a1a1a;
+  --scada-bg-medium: #2a2a2a;
+  --scada-bg-light: #3a3a3a;
+  --scada-bg-modal: #242424;
 
-  /* Typography */
-  --text-primary: #ffffff;
-  --text-secondary: #e2e8f0;
-  --text-muted: #a0aec0;
-  --text-accent: #63b3ed;
+  /* Status Colors - Industry Standard */
+  --scada-blue: #4a90e2;      /* Ready/Information */
+  --scada-green: #7ed321;     /* Running/OK */
+  --scada-yellow: #f5a623;    /* Warning */
+  --scada-red: #d0021b;       /* Error/Alarm */
+  --scada-gray: #9b9b9b;      /* Inactive/Disabled */
 
-  /* Status Colors */
-  --status-critical: #e53e3e;
-  --status-warning: #dd6b20;
-  --status-success: #38a169;
-  --status-info: #3182ce;
+  /* Text Colors - High Contrast */
+  --scada-text-primary: #ffffff;
+  --scada-text-secondary: #cccccc;
+  --scada-text-muted: #999999;
 
-  /* Shadow System */
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.4);
-  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 20px rgba(99, 179, 237, 0.15);
+  /* Borders and Outlines */
+  --scada-border: #555555;
+  --scada-border-light: #666666;
 
-  /* Border Radius */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-
-  /* Transitions */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* Functional Properties */
+  --scada-radius: 4px;
+  --scada-transition: 200ms ease;
+  --scada-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* ========================================
-   MODAL OVERLAY - Enhanced Backdrop
+   MODAL OVERLAY - INDUSTRIAL STANDARD
    ======================================== */
-
 .logout-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(
-    135deg,
-    rgba(0, 0, 0, 0.7) 0%,
-    rgba(17, 24, 39, 0.8) 50%,
-    rgba(0, 0, 0, 0.9) 100%
-  );
-  backdrop-filter: blur(8px) saturate(150%);
-  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  animation: overlayFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes overlayFadeIn {
-  from {
-    opacity: 0;
-    backdrop-filter: blur(0px);
-  }
-  to {
-    opacity: 1;
-    backdrop-filter: blur(8px) saturate(150%);
-  }
 }
 
 /* ========================================
-   MODAL CONTAINER - Premium Industrial Design
+   MODAL CONTAINER - COMPACT SCADA STYLE
    ======================================== */
-
 .logout-modal {
-  background: var(--modal-bg-primary);
-  border: 2px solid var(--modal-border-primary);
-  border-radius: var(--radius-lg);
-  width: 440px;
-  max-width: 95vw;
-  font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
-  font-size: 14px;
-  color: var(--text-secondary);
-  position: relative;
-  overflow: hidden;
-
-  /* Enhanced Shadow System */
-  box-shadow:
-    var(--shadow-xl),
-    var(--shadow-glow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-
-  /* Modern Animation */
-  animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transform-origin: center;
-}
-
-/* Subtle border glow effect */
-.logout-modal::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
-  background: linear-gradient(
-    135deg,
-    var(--modal-border-glow),
-    transparent 30%,
-    transparent 70%,
-    var(--modal-border-glow)
-  );
-  border-radius: var(--radius-lg);
-  z-index: -1;
-  opacity: 0.6;
-}
-
-@keyframes modalSlideIn {
-  from {
-    transform: scale(0.9) translateY(20px);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.02) translateY(-5px);
-    opacity: 0.8;
-  }
-  to {
-    transform: scale(1) translateY(0);
-    opacity: 1;
-  }
+  width: 480px;
+  max-width: 90vw;
+  background: var(--scada-bg-modal);
+  border: 2px solid var(--scada-border);
+  border-radius: var(--scada-radius);
+  box-shadow: var(--scada-shadow);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 /* ========================================
-   MODAL HEADER - Premium Industrial Status Bar
+   MODAL CONTENT - CLEAN INDUSTRIAL LAYOUT
    ======================================== */
-
-.modal-header {
-  background: var(--modal-bg-secondary);
-  border-bottom: 2px solid var(--modal-border-primary);
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 56px;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Header accent line */
-.modal-header::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    var(--status-critical) 0%,
-    var(--status-warning) 50%,
-    var(--status-critical) 100%
-  );
-  border-radius: 0 0 2px 2px;
-}
-
-.status-indicator {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--status-warning);
-  flex-shrink: 0;
-  position: relative;
-
-  /* Enhanced glow effect */
-  box-shadow:
-    0 0 8px rgba(221, 107, 32, 0.6),
-    0 0 16px rgba(221, 107, 32, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-
-  /* Pulsing animation */
-  animation: statusPulse 2s ease-in-out infinite;
-}
-
-@keyframes statusPulse {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scale(1.1);
-  }
-}
-
-/* Inner glow for status indicator */
-.status-indicator::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 30% 30%,
-    rgba(255, 255, 255, 0.8),
-    transparent 60%
-  );
-}
-
-.modal-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-  flex: 1;
-  letter-spacing: 0.4px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  background: linear-gradient(
-    135deg,
-    var(--text-primary) 0%,
-    var(--text-accent) 100%
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.severity-level {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(
-    135deg,
-    rgba(221, 107, 32, 0.2),
-    rgba(221, 107, 32, 0.1)
-  );
-  color: var(--status-warning);
-  border: 1px solid rgba(221, 107, 32, 0.4);
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  position: relative;
-  overflow: hidden;
-
-  /* Subtle inner shadow */
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-/* Animated background for severity badge */
-.severity-level::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.1),
-    transparent
-  );
-  animation: severityShimmer 3s ease-in-out infinite;
-}
-
-@keyframes severityShimmer {
-  0% { left: -100%; }
-  50% { left: 100%; }
-  100% { left: 100%; }
-}
-
-/* Critical state styling with enhanced visuals */
-.logout-modal:has(.btn-primary.critical) .status-indicator {
-  background: var(--status-critical);
-  box-shadow:
-    0 0 12px rgba(229, 62, 62, 0.8),
-    0 0 24px rgba(229, 62, 62, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  animation: criticalPulse 1.5s ease-in-out infinite;
-}
-
-@keyframes criticalPulse {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-    box-shadow:
-      0 0 12px rgba(229, 62, 62, 0.8),
-      0 0 24px rgba(229, 62, 62, 0.4);
-  }
-  50% {
-    opacity: 0.8;
-    transform: scale(1.15);
-    box-shadow:
-      0 0 16px rgba(229, 62, 62, 1),
-      0 0 32px rgba(229, 62, 62, 0.6);
-  }
-}
-
-.logout-modal:has(.btn-primary.critical) .severity-level {
-  background: linear-gradient(
-    135deg,
-    rgba(229, 62, 62, 0.25),
-    rgba(229, 62, 62, 0.15)
-  );
-  color: var(--status-critical);
-  border-color: rgba(229, 62, 62, 0.5);
-  animation: criticalGlow 2s ease-in-out infinite alternate;
-}
-
-@keyframes criticalGlow {
-  from {
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.1),
-      0 1px 3px rgba(0, 0, 0, 0.2);
-  }
-  to {
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.1),
-      0 1px 3px rgba(0, 0, 0, 0.2),
-      0 0 8px rgba(229, 62, 62, 0.3);
-  }
-}
-
-/* ========================================
-   MODAL CONTENT - Enhanced Information Display
-   ======================================== */
-
 .modal-content {
-  padding: 24px 20px;
-  background: var(--modal-bg-tertiary);
-  position: relative;
-}
-
-.message-text {
-  margin-bottom: 20px;
-  line-height: 1.6;
-  position: relative;
-}
-
-.message-text p {
-  margin: 0 0 12px 0;
-  color: var(--text-secondary);
-  font-size: 14px;
-  font-weight: 400;
-}
-
-.message-text strong {
-  color: var(--text-primary);
-  font-weight: 700;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.message-text.critical {
-  border-left: 4px solid var(--status-critical);
-  padding: 16px 0 16px 20px;
-  background: linear-gradient(
-    135deg,
-    rgba(229, 62, 62, 0.08),
-    rgba(229, 62, 62, 0.04)
-  );
-  margin: 0 -8px 20px -8px;
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  position: relative;
-  overflow: hidden;
-
-  /* Subtle inner glow */
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 4px 0 8px rgba(229, 62, 62, 0.1);
-}
-
-/* Critical message accent */
-.message-text.critical::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 4px;
-  background: linear-gradient(
-    180deg,
-    var(--status-critical) 0%,
-    rgba(229, 62, 62, 0.7) 50%,
-    var(--status-critical) 100%
-  );
-  border-radius: 0 2px 2px 0;
-}
-
-/* ========================================
-   SYSTEM STATUS - Premium Industrial Data Display
-   ======================================== */
-
-.system-status {
-  background: linear-gradient(
-    135deg,
-    rgba(0, 0, 0, 0.3),
-    rgba(0, 0, 0, 0.2)
-  );
-  border: 1px solid var(--modal-border-primary);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-  font-size: 13px;
-  margin-bottom: 16px;
-  position: relative;
-  overflow: hidden;
-
-  /* Enhanced styling */
-  box-shadow:
-    var(--shadow-md),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-}
-
-/* Status panel header effect */
-.system-status::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    var(--text-accent) 0%,
-    transparent 50%,
-    var(--text-accent) 100%
-  );
-  opacity: 0.6;
-}
-
-.status-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  transition: var(--transition-fast);
-  position: relative;
-}
-
-.status-row:last-child {
-  border-bottom: none;
-}
-
-.status-row:hover {
-  background: rgba(255, 255, 255, 0.02);
-  padding-left: 4px;
-  margin: 0 -4px;
-  border-radius: var(--radius-sm);
-}
-
-.status-label {
-  color: var(--text-muted);
-  font-weight: 500;
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  position: relative;
-}
-
-.status-value {
-  color: var(--text-secondary);
-  font-weight: 600;
-  font-size: 13px;
-  position: relative;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.05);
-
-  /* Subtle glow effect */
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.status-value.active {
-  color: var(--status-success);
-  background: linear-gradient(
-    135deg,
-    rgba(56, 161, 105, 0.15),
-    rgba(56, 161, 105, 0.08)
-  );
-  border: 1px solid rgba(56, 161, 105, 0.3);
-
-  /* Enhanced glow for active status */
-  text-shadow: 0 0 4px rgba(56, 161, 105, 0.4);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 1px 2px rgba(0, 0, 0, 0.2),
-    0 0 8px rgba(56, 161, 105, 0.2);
-
-  /* Subtle pulsing animation */
-  animation: activeGlow 3s ease-in-out infinite;
-}
-
-@keyframes activeGlow {
-  0%, 100% {
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.1),
-      0 1px 2px rgba(0, 0, 0, 0.2),
-      0 0 8px rgba(56, 161, 105, 0.2);
-  }
-  50% {
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.1),
-      0 1px 2px rgba(0, 0, 0, 0.2),
-      0 0 12px rgba(56, 161, 105, 0.4);
-  }
-}
-
-/* ========================================
-   SHUTDOWN INFO - Enhanced Process Flow Display
-   ======================================== */
-
-.shutdown-info {
-  background: linear-gradient(
-    135deg,
-    rgba(229, 62, 62, 0.12),
-    rgba(229, 62, 62, 0.06)
-  );
-  border: 1px solid rgba(229, 62, 62, 0.3);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  position: relative;
-  overflow: hidden;
-
-  /* Enhanced visual styling */
-  box-shadow:
-    var(--shadow-md),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-}
-
-/* Warning accent line */
-.shutdown-info::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    var(--status-critical) 0%,
-    rgba(229, 62, 62, 0.7) 50%,
-    var(--status-critical) 100%
-  );
-  border-radius: 0 0 2px 2px;
-}
-
-.info-title {
-  font-size: 12px;
-  color: var(--status-critical);
-  font-weight: 700;
-  margin-bottom: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  position: relative;
-  padding-left: 20px;
-
-  /* Icon-like accent */
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-.info-title::before {
-  content: '⚠';
-  position: absolute;
-  left: 0;
-  top: 0;
-  font-size: 14px;
-  color: var(--status-critical);
-  text-shadow: 0 0 4px rgba(229, 62, 62, 0.4);
-}
-
-.sequence-items {
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.sequence-items span {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.08),
-    rgba(255, 255, 255, 0.04)
-  );
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-  font-size: 11px;
-  transition: var(--transition-fast);
-  position: relative;
-  overflow: hidden;
-
-  /* Enhanced styling */
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.sequence-items span:hover {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.12),
-    rgba(255, 255, 255, 0.06)
-  );
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 2px 6px rgba(0, 0, 0, 0.3);
-}
-
-/* Arrow separators - more subtle and modern */
-.sequence-items span:not(:last-child)::after {
-  content: '→';
-  position: absolute;
-  right: -12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  font-weight: 300;
-  z-index: 1;
-}
-
-/* ========================================
-   ACTION BUTTONS - Premium Industrial Controls
-   ======================================== */
-
-.modal-actions {
   padding: 20px;
-  background: var(--modal-bg-secondary);
-  border-top: 2px solid var(--modal-border-primary);
   display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ========================================
+   MODAL HEADER - SCADA STANDARD
+   ======================================== */
+.modal-header {
+  display: flex;
+  align-items: center;
   gap: 12px;
-  justify-content: flex-end;
-  position: relative;
+  padding: 16px;
+  background: var(--scada-bg-light);
+  border: 1px solid var(--scada-border);
+  border-radius: var(--scada-radius);
+  margin-bottom: 4px;
 }
 
-/* Actions footer accent */
-.modal-actions::before {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--modal-border-glow) 50%,
-    transparent 100%
-  );
-  border-radius: 2px 2px 0 0;
-  opacity: 0.6;
+.header-icon {
+  flex-shrink: 0;
 }
 
-.btn-secondary,
-.btn-primary {
-  padding: 12px 24px;
-  border: 2px solid transparent;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  min-width: 120px;
-  height: 44px;
+.icon-container {
+  width: 32px;
+  height: 32px;
+  background: var(--scada-red);
+  border-radius: var(--scada-radius);
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+}
+
+.icon {
+  font-size: 18px;
+  color: white;
+}
+
+.header-text {
+  flex: 1;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--scada-text-primary);
+  margin: 0 0 2px 0;
+}
+
+.modal-subtitle {
+  font-size: 12px;
+  color: var(--scada-text-muted);
+  margin: 0;
+  font-weight: normal;
+}
+
+/* ========================================
+   WARNING SECTION - INDUSTRIAL STANDARD
+   ======================================== */
+.warning-section {
+  display: block;
+}
+
+.warning-card {
+  background: var(--scada-bg-dark);
+  border: 1px solid var(--scada-red);
+  border-radius: var(--scada-radius);
+  padding: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.warning-icon {
+  font-size: 16px;
+  color: var(--scada-red);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.warning-content {
+  flex: 1;
+}
+
+.warning-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--scada-text-primary);
+  margin: 0 0 4px 0;
+}
+
+.warning-text {
+  font-size: 12px;
+  color: var(--scada-text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* ========================================
+   STATUS SECTION - SCADA TABLE FORMAT
+   ======================================== */
+.status-section {
+  display: block;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--scada-text-primary);
+  margin: 0 0 8px 0;
+  padding: 8px 12px;
+  background: var(--scada-bg-light);
+  border: 1px solid var(--scada-border);
+  border-radius: var(--scada-radius);
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.status-item {
+  background: var(--scada-bg-dark);
+  border: 1px solid var(--scada-border);
+  border-radius: var(--scada-radius);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color var(--scada-transition);
+}
+
+.status-item:hover {
+  background: var(--scada-bg-medium);
+}
+
+.status-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  flex-shrink: 0;
+  background: var(--scada-gray);
+  color: white;
+}
+
+.status-icon.active {
+  background: var(--scada-green);
+}
+
+.status-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.status-label {
+  font-size: 11px;
+  color: var(--scada-text-muted);
+  font-weight: normal;
+  margin: 0;
+  white-space: nowrap;
   overflow: hidden;
-  transition: var(--transition-normal);
-
-  /* Enhanced baseline styling */
-  box-shadow:
-    var(--shadow-md),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-
-  /* Subtle text shadow for depth */
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  text-overflow: ellipsis;
 }
 
-/* Button hover glow effect */
-.btn-secondary::before,
-.btn-primary::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    45deg,
-    transparent,
-    rgba(255, 255, 255, 0.1),
-    transparent
-  );
-  transform: translateX(-100%);
-  transition: transform 0.6s ease;
+.status-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--scada-text-secondary);
+  margin: 2px 0 0 0;
 }
 
-.btn-secondary:hover::before,
-.btn-primary:hover::before {
-  transform: translateX(100%);
+.status-value.active {
+  color: var(--scada-green);
 }
 
 /* ========================================
-   SECONDARY BUTTON - Modern Cancel Design
+   SEQUENCE SECTION - SIMPLIFIED INDUSTRIAL
    ======================================== */
-
-.btn-secondary {
-  background: linear-gradient(
-    135deg,
-    var(--modal-border-accent) 0%,
-    var(--modal-border-primary) 100%
-  );
-  color: var(--text-secondary);
-  border-color: var(--modal-border-accent);
-  position: relative;
+.sequence-section {
+  display: block;
 }
 
-.btn-secondary:hover {
-  background: linear-gradient(
-    135deg,
-    #6a7085 0%,
-    var(--modal-border-accent) 100%
-  );
-  border-color: #6a7085;
-  color: var(--text-primary);
-  transform: translateY(-2px);
-
-  box-shadow:
-    var(--shadow-lg),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
-    0 0 12px rgba(90, 101, 120, 0.3);
+.sequence-timeline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.btn-secondary:active {
-  transform: translateY(0);
-  transition: var(--transition-fast);
-  box-shadow:
-    var(--shadow-sm),
-    inset 0 2px 4px rgba(0, 0, 0, 0.3);
+.sequence-step {
+  flex: 1;
+  background: var(--scada-bg-dark);
+  border: 1px solid var(--scada-border);
+  border-radius: var(--scada-radius);
+  padding: 8px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--scada-text-secondary);
+}
+
+.step-number {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background: var(--scada-blue);
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  line-height: 16px;
+  margin-bottom: 4px;
+}
+
+.step-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--scada-text-primary);
+  margin: 0;
+}
+
+.step-description {
+  font-size: 9px;
+  color: var(--scada-text-muted);
+  margin: 2px 0 0 0;
+}
+
+.sequence-arrow {
+  font-size: 12px;
+  color: var(--scada-border-light);
+  margin: 0 2px;
 }
 
 /* ========================================
-   PRIMARY BUTTON - Critical Action Design
+   PROGRESS SECTION - CLEAN INDUSTRIAL
    ======================================== */
-
-.btn-primary.critical {
-  background: linear-gradient(
-    135deg,
-    #e53e3e 0%,
-    #c53030 50%,
-    #9c1c1c 100%
-  );
-  color: var(--text-primary);
-  border-color: #e53e3e;
-  font-weight: 700;
-  position: relative;
-
-  /* Enhanced critical glow */
-  box-shadow:
-    var(--shadow-lg),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
-    0 0 16px rgba(229, 62, 62, 0.4);
+.progress-section {
+  display: block;
 }
 
-.btn-primary.critical:hover {
-  background: linear-gradient(
-    135deg,
-    #f56565 0%,
-    #e53e3e 50%,
-    #c53030 100%
-  );
-  border-color: #f56565;
-  transform: translateY(-2px);
-
-  box-shadow:
-    var(--shadow-xl),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
-    0 0 24px rgba(229, 62, 62, 0.6),
-    0 0 8px rgba(229, 62, 62, 0.4);
-
-  /* Subtle pulsing effect on hover */
-  animation: criticalButtonPulse 2s ease-in-out infinite;
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--scada-bg-dark);
+  border: 1px solid var(--scada-border);
+  border-radius: var(--scada-radius);
+  overflow: hidden;
 }
 
-@keyframes criticalButtonPulse {
-  0%, 100% {
-    box-shadow:
-      var(--shadow-xl),
-      inset 0 1px 0 rgba(255, 255, 255, 0.25),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.3),
-      0 0 24px rgba(229, 62, 62, 0.6),
-      0 0 8px rgba(229, 62, 62, 0.4);
-  }
-  50% {
-    box-shadow:
-      var(--shadow-xl),
-      inset 0 1px 0 rgba(255, 255, 255, 0.25),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.3),
-      0 0 32px rgba(229, 62, 62, 0.8),
-      0 0 12px rgba(229, 62, 62, 0.6);
-  }
+.progress-fill {
+  height: 100%;
+  background: var(--scada-blue);
+  transition: width 0.3s ease;
 }
 
-.btn-primary.critical:active {
-  transform: translateY(0);
-  transition: var(--transition-fast);
-  background: linear-gradient(
-    135deg,
-    #c53030 0%,
-    #9c1c1c 100%
-  );
-  box-shadow:
-    var(--shadow-sm),
-    inset 0 2px 6px rgba(0, 0, 0, 0.4),
-    0 0 8px rgba(229, 62, 62, 0.3);
+.progress-text {
+  font-size: 11px;
+  color: var(--scada-text-muted);
+  text-align: center;
+  margin-top: 6px;
 }
 
 /* ========================================
-   WARNING STATE BUTTON (if needed)
+   ACTION BUTTONS - INDUSTRIAL STANDARD
    ======================================== */
-
-.btn-primary.warning {
-  background: linear-gradient(
-    135deg,
-    var(--status-warning) 0%,
-    #b7791f 50%,
-    #975a16 100%
-  );
-  color: #1a1a1a;
-  border-color: var(--status-warning);
-  font-weight: 700;
-
-  box-shadow:
-    var(--shadow-lg),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
-    0 0 16px rgba(221, 107, 32, 0.4);
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
 }
 
-.btn-primary.warning:hover {
-  background: linear-gradient(
-    135deg,
-    #ed8936 0%,
-    var(--status-warning) 50%,
-    #b7791f 100%
-  );
-  border-color: #ed8936;
-  transform: translateY(-2px);
+.btn-cancel,
+.btn-confirm {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid var(--scada-border);
+  border-radius: var(--scada-radius);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--scada-transition);
+  font-family: inherit;
+}
 
-  box-shadow:
-    var(--shadow-xl),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
-    0 0 24px rgba(221, 107, 32, 0.6);
+.btn-cancel {
+  background: var(--scada-bg-medium);
+  color: var(--scada-text-primary);
+}
+
+.btn-cancel:hover {
+  background: var(--scada-bg-light);
+  border-color: var(--scada-border-light);
+}
+
+.btn-confirm {
+  background: var(--scada-red);
+  color: white;
+  border-color: var(--scada-red);
+}
+
+.btn-confirm:hover {
+  background: #b8001a;
+  border-color: #b8001a;
+}
+
+.btn-icon {
+  font-size: 14px;
 }
 
 /* ========================================
-   ACCESSIBILITY & RESPONSIVE DESIGN
+   RESPONSIVE DESIGN - MOBILE FIRST
    ======================================== */
-
-/* Enhanced focus indicators for keyboard navigation */
-.btn-secondary:focus-visible,
-.btn-primary:focus-visible {
-  outline: 3px solid var(--text-accent);
-  outline-offset: 3px;
-  box-shadow:
-    var(--shadow-lg),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
-    0 0 0 3px rgba(99, 179, 237, 0.3);
-}
-
-/* Status elements focus */
-.status-row:focus-within {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-sm);
-  outline: 1px solid var(--text-accent);
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  :root {
-    --modal-bg-primary: linear-gradient(145deg, #000000, #1a1a1a);
-    --modal-bg-secondary: linear-gradient(135deg, #1a1a1a, #2a2a2a);
-    --modal-border-primary: #ffffff;
-    --text-primary: #ffffff;
-    --text-secondary: #ffffff;
-  }
-
-  .logout-modal {
-    border-width: 3px;
-    border-color: var(--text-primary);
-  }
-
-  .modal-header,
-  .modal-actions {
-    border-width: 3px;
-  }
-
-  .btn-secondary,
-  .btn-primary {
-    border-width: 3px;
-  }
-
-  .status-indicator,
-  .severity-level,
-  .sequence-items span {
-    border-width: 2px;
-  }
-}
-
-/* Reduced motion accessibility */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-
-  .logout-modal-overlay {
-    animation: none;
-    backdrop-filter: blur(4px);
-  }
-
-  .logout-modal {
-    animation: none;
-    transform: none;
-  }
-
-  .status-indicator,
-  .severity-level,
-  .btn-primary.critical {
-    animation: none;
-  }
-
-  .status-value.active {
-    text-shadow: none;
-    animation: none;
-  }
-
-  .btn-secondary::before,
-  .btn-primary::before {
-    display: none;
-  }
-}
-
-/* ========================================
-   RESPONSIVE DESIGN - Mobile & Tablet
-   ======================================== */
-
-/* Tablet landscape */
 @media (max-width: 768px) {
   .logout-modal {
-    width: 85vw;
-    max-width: 500px;
-  }
-
-  .modal-header {
-    padding: 14px 16px;
-    min-height: 50px;
-  }
-
-  .modal-title {
-    font-size: 15px;
+    width: 95vw;
+    margin: 16px;
   }
 
   .modal-content {
-    padding: 20px 16px;
+    padding: 16px;
   }
 
-  .system-status {
-    padding: 14px;
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sequence-timeline {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .sequence-arrow {
+    display: none;
+  }
+
+  .modal-actions {
+    flex-direction: column;
   }
 }
 
-/* Mobile portrait */
 @media (max-width: 480px) {
   .logout-modal {
-    width: 95vw;
-    max-width: none;
-    margin: 5px;
-    border-radius: var(--radius-md);
-  }
-
-  .modal-header {
-    padding: 12px 16px;
-    min-height: 48px;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .modal-title {
-    font-size: 14px;
-    flex-basis: 100%;
-    order: 2;
-  }
-
-  .status-indicator {
-    order: 1;
-  }
-
-  .severity-level {
-    order: 3;
-    align-self: flex-start;
-  }
-
-  .modal-content {
-    padding: 16px 12px;
-  }
-
-  .message-text.critical {
-    margin: 0 -4px 16px -4px;
-    padding: 12px 0 12px 16px;
-  }
-
-  .system-status {
-    padding: 12px;
-    font-size: 12px;
-  }
-
-  .status-row {
-    padding: 6px 0;
-  }
-
-  .shutdown-info {
-    padding: 12px;
-  }
-
-  .sequence-items {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-  }
-
-  .sequence-items span {
-    text-align: center;
-  }
-
-  .sequence-items span:not(:last-child)::after {
-    content: '↓';
-    right: 50%;
-    top: auto;
-    bottom: -10px;
-    transform: translateX(50%);
-  }
-
-  .modal-actions {
-    padding: 16px 12px;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .btn-secondary,
-  .btn-primary {
-    width: 100%;
-    margin: 0;
-    min-width: auto;
-    height: 48px;
-    font-size: 14px;
-  }
-}
-
-/* Small mobile devices */
-@media (max-width: 360px) {
-  .logout-modal {
     width: 98vw;
-    margin: 2px;
-  }
-
-  .modal-header {
-    padding: 10px 12px;
+    margin: 8px;
   }
 
   .modal-content {
-    padding: 12px 8px;
-  }
-
-  .modal-actions {
-    padding: 12px 8px;
-  }
-}
-
-/* ========================================
-   PERFORMANCE OPTIMIZATIONS
-   ======================================== */
-
-/* GPU acceleration for smooth animations */
-.logout-modal,
-.btn-secondary,
-.btn-primary,
-.status-indicator {
-  will-change: transform, opacity;
-  transform: translateZ(0);
-}
-
-/* Optimize backdrop filter performance */
-.logout-modal-overlay {
-  will-change: backdrop-filter;
-}
-
-/* ========================================
-   BROWSER COMPATIBILITY & FALLBACKS
-   ======================================== */
-
-/* Fallback for older browsers without backdrop-filter */
-@supports not (backdrop-filter: blur(8px)) {
-  .logout-modal-overlay {
-    background: rgba(0, 0, 0, 0.85);
-  }
-}
-
-/* Fallback for browsers without CSS custom properties */
-@supports not (color: var(--text-primary)) {
-  .logout-modal {
-    background: #2a2f3a;
-    color: #e2e8f0;
+    padding: 12px;
+    gap: 12px;
   }
 
   .modal-title {
-    color: #ffffff;
-  }
-
-  .btn-primary.critical {
-    background: #e53e3e;
-    color: #ffffff;
-  }
-
-  .btn-secondary {
-    background: #4a5568;
-    color: #e2e8f0;
+    font-size: 16px;
   }
 }
 
 /* ========================================
-   PRINT STYLES (if modal needs to be printable)
+   ACCESSIBILITY & FOCUS MANAGEMENT
    ======================================== */
-
-@media print {
-  .logout-modal-overlay {
-    background: none !important;
-    backdrop-filter: none !important;
-    position: static !important;
-  }
-
-  .logout-modal {
-    box-shadow: none !important;
-    border: 2px solid #000000 !important;
-    background: #ffffff !important;
-    color: #000000 !important;
-    max-width: none !important;
-    width: 100% !important;
-  }
-
-  .modal-header {
-    background: none !important;
-    border-bottom: 2px solid #000000 !important;
-  }
-
-  .modal-title {
-    color: #000000 !important;
-  }
-
-  .status-indicator {
-    background: #000000 !important;
-    box-shadow: none !important;
-  }
-
-  .btn-secondary,
-  .btn-primary {
-    background: none !important;
-    color: #000000 !important;
-    border: 2px solid #000000 !important;
-    box-shadow: none !important;
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
-/* ========================================
-   DARK MODE SYSTEM PREFERENCE
-   ======================================== */
+.btn-cancel:focus-visible,
+.btn-confirm:focus-visible {
+  outline: 2px solid var(--scada-blue);
+  outline-offset: 2px;
+}
 
-@media (prefers-color-scheme: light) {
-  /* Override for users who prefer light mode */
+.btn-cancel:focus,
+.btn-confirm:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--scada-blue);
+}
+
+/* ========================================
+   HIGH CONTRAST MODE SUPPORT
+   ======================================== */
+@media (prefers-contrast: high) {
+  :root {
+    --scada-bg-dark: #000000;
+    --scada-bg-medium: #1a1a1a;
+    --scada-bg-light: #333333;
+    --scada-text-primary: #ffffff;
+    --scada-text-secondary: #ffffff;
+    --scada-border: #ffffff;
+  }
+
   .logout-modal {
-    /* Keep dark theme for industrial SCADA compliance */
-    /* Industrial interfaces should remain dark for optimal visibility */
+    border-width: 3px;
+  }
+
+  .warning-card {
+    border-width: 2px;
+  }
+
+  .status-item {
+    border-width: 2px;
   }
 }

@@ -282,6 +282,8 @@ namespace TUSAS.HGU.Core.Services
         {
             try
             {
+                _logger.LogInformation("🔍 DEBUG: AuthService.LogoutAsync called with tokenId: {TokenId}", tokenId);
+
                 using var connection = new SQLiteConnection(_connectionString);
                 await connection.OpenAsync();
 
@@ -289,10 +291,14 @@ namespace TUSAS.HGU.Core.Services
                 var sessionQuery = "SELECT UserId FROM Sessions WHERE TokenId = @TokenId AND IsActive = 1";
                 using var sessionCommand = new SQLiteCommand(sessionQuery, connection);
                 sessionCommand.Parameters.AddWithValue("@TokenId", tokenId);
-                
+
+                _logger.LogInformation("🔍 DEBUG: Executing session query for tokenId: {TokenId}", tokenId);
                 var userIdObj = await sessionCommand.ExecuteScalarAsync();
+                _logger.LogInformation("🔍 DEBUG: Session query result: {UserIdObj}", userIdObj ?? "NULL");
                 if (userIdObj != null && int.TryParse(userIdObj.ToString(), out var userId))
                 {
+                    _logger.LogInformation("🔍 DEBUG: Found userId: {UserId} for tokenId: {TokenId}", userId, tokenId);
+
                     // Get username for logging
                     var userQuery = "SELECT Username FROM Users WHERE Id = @UserId";
                     using var userCommand = new SQLiteCommand(userQuery, connection);
@@ -300,26 +306,40 @@ namespace TUSAS.HGU.Core.Services
                     var usernameObj = await userCommand.ExecuteScalarAsync();
                     var username = usernameObj?.ToString() ?? "unknown";
 
+                    _logger.LogInformation("🔍 DEBUG: Found username: {Username} for userId: {UserId}", username, userId);
+
                     // Revoke session
                     var revokeQuery = @"
-                        UPDATE Sessions 
-                        SET IsActive = 0, RevokedAt = @RevokedAt 
+                        UPDATE Sessions
+                        SET IsActive = 0, RevokedAt = @RevokedAt
                         WHERE TokenId = @TokenId";
-                    
+
                     using var revokeCommand = new SQLiteCommand(revokeQuery, connection);
                     revokeCommand.Parameters.AddWithValue("@RevokedAt", DateTime.UtcNow);
                     revokeCommand.Parameters.AddWithValue("@TokenId", tokenId);
-                    
+
+                    _logger.LogInformation("🔍 DEBUG: Executing revoke query for tokenId: {TokenId}", tokenId);
                     var affected = await revokeCommand.ExecuteNonQueryAsync();
+                    _logger.LogInformation("🔍 DEBUG: Revoke query affected {Affected} rows", affected);
 
                     if (affected > 0)
                     {
+                        _logger.LogInformation("🔍 DEBUG: Logging auth event for user: {Username}", username);
                         await LogAuthEventAsync(userId, username, "LOGOUT", ipAddress, userAgent, "Manual logout");
                         _logger.LogInformation("✅ User logged out successfully: {Username}", username);
                         return true;
                     }
+                    else
+                    {
+                        _logger.LogWarning("⚠️ No rows affected by revoke query for tokenId: {TokenId}", tokenId);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("⚠️ No active session found for tokenId: {TokenId}", tokenId);
                 }
 
+                _logger.LogWarning("❌ Logout failed for tokenId: {TokenId}", tokenId);
                 return false;
             }
             catch (Exception ex)

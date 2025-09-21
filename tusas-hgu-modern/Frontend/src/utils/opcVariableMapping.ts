@@ -482,7 +482,9 @@ export const PAGE_VARIABLE_SETS = {
 
 // Utility functions
 export const generateMotorVariableName = (variablePattern: string, motorId: number): string => {
-  return variablePattern.replace('MOTOR_X_', `MOTOR_${motorId}_`);
+  return variablePattern
+    .replace('MOTOR_X_', `MOTOR_${motorId}_`)
+    .replace('PUMP_X_', `PUMP_${motorId}_`);
 };
 
 export const getVariablesForPage = (pageKey: keyof typeof PAGE_VARIABLE_SETS): string[] => {

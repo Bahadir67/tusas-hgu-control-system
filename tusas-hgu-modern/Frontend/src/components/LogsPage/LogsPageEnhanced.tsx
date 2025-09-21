@@ -459,7 +459,7 @@ export const LogsPageEnhanced: React.FC = () => {
           <table className="logs-table-enhanced">
             <thead>
               <tr>
-                <th width="40"></th>
+                <th style={{ width: '40px' }}></th>
                 <th>Timestamp</th>
                 <th>Category</th>
                 <th>User</th>

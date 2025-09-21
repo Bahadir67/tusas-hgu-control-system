@@ -21,5 +21,11 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
+  "exclude": [
+    "src/App-backup.tsx",
+    "src/App-with-influxdb.tsx",
+    "src/INFLUXDB_IMPLEMENTATION_SUMMARY.md",
+    "src/influxdb-integration-patch.md"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
