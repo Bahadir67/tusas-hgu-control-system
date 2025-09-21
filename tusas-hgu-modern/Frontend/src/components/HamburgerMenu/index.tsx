@@ -5,6 +5,7 @@ import PressureCalibration from '../PressureCalibration';
 import FlowCalibration from '../FlowCalibration';
 import TemperatureCalibration from '../TemperatureCalibration';
 import OpcDataMonitor from '../OpcDataMonitor';
+import DigitalInputsModal from '../DigitalInputsModal';
 import './HamburgerMenu.css';
 
 interface HamburgerMenuProps {
@@ -29,6 +30,7 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose
   const [showFlowCalibration, setShowFlowCalibration] = useState(false);
   const [showTemperatureCalibration, setShowTemperatureCalibration] = useState(false);
   const [showOpcDataMonitor, setShowOpcDataMonitor] = useState(false);
+  const [showDigitalInputs, setShowDigitalInputs] = useState(false);
   const { logout, user } = useAuth();
 
   // Handle logout with safety warning modal
@@ -111,12 +113,20 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose
       ]
     },
     {
+      id: 'diagnostics',
+      label: 'Diagnostik',
+      icon: '🩺',
+      items: [
+        { id: 'system-diagnostics', label: 'Sistem Tanılama', icon: '🔍', action: () => console.log('Diagnostics') },
+        { id: 'digital-inputs', label: 'Dijital Girişler', icon: '🧠', action: () => setShowDigitalInputs(true) },
+        { id: 'opc-monitor', label: 'OPC Data Monitor', icon: '📊', action: () => setShowOpcDataMonitor(true) }
+      ]
+    },
+    {
       id: 'maintenance',
       label: 'Maintenance',
       icon: '🔧',
       items: [
-        { id: 'diagnostics', label: 'System Diagnostics', icon: '🔍', action: () => console.log('Diagnostics') },
-        { id: 'opc-monitor', label: 'OPC Data Monitor', icon: '📊', action: () => setShowOpcDataMonitor(true) },
         { id: 'filter-status', label: 'Filter Status', icon: '🔽', action: () => console.log('Filter status') },
         { id: 'scheduled-maint', label: 'Scheduled Tasks', icon: '📅', action: () => console.log('Scheduled') },
         { id: 'logs', label: 'System Logs', icon: '📋', action: () => console.log('Logs') }
@@ -326,6 +336,11 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose
           </div>
         </div>
       )}
+
+      <DigitalInputsModal
+        isOpen={showDigitalInputs}
+        onClose={() => setShowDigitalInputs(false)}
+      />
     </>
   );
 };

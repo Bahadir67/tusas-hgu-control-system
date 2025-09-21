@@ -1,0 +1,441 @@
+.digital-inputs-modal {
+  width: min(1100px, 92vw);
+  height: min(760px, 92vh);
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(160deg,
+      rgba(14, 20, 26, 0.95),
+      rgba(8, 12, 18, 0.92));
+  border: 1px solid rgba(0, 153, 255, 0.28);
+  box-shadow:
+    0 28px 60px rgba(0, 0, 0, 0.55),
+    0 0 45px rgba(0, 153, 255, 0.18);
+}
+
+.digital-inputs-header {
+  gap: 8px;
+  background: linear-gradient(135deg,
+      rgba(20, 28, 36, 0.9),
+      rgba(10, 18, 26, 0.75));
+}
+
+.digital-inputs-header h3 {
+  font-size: 20px;
+  letter-spacing: 0.4px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.digital-inputs-subtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: rgba(168, 178, 192, 0.85);
+}
+
+.digital-inputs-body {
+  flex: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at top left, rgba(0, 153, 255, 0.08), transparent 45%),
+    radial-gradient(circle at bottom right, rgba(0, 255, 136, 0.08), transparent 40%),
+    linear-gradient(160deg, rgba(10, 16, 22, 0.85), rgba(6, 10, 15, 0.95));
+}
+
+.digital-groups-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.digital-group-card {
+  background: rgba(18, 26, 34, 0.9);
+  border: 1px solid rgba(96, 160, 255, 0.18);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: relative;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 153, 255, 0.08),
+    0 18px 30px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.digital-group-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(0, 153, 255, 0.15), transparent 55%);
+  pointer-events: none;
+}
+
+.digital-group-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.digital-group-icon {
+  font-size: 26px;
+  filter: drop-shadow(0 0 8px rgba(0, 153, 255, 0.35));
+}
+
+.digital-group-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.digital-group-description {
+  font-size: 13px;
+  color: rgba(168, 178, 192, 0.82);
+  margin-top: 2px;
+}
+
+.digital-input-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.digital-input-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(96, 160, 255, 0.15);
+  background: linear-gradient(135deg, rgba(16, 22, 30, 0.9), rgba(10, 14, 20, 0.85));
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 153, 255, 0.05),
+    0 12px 22px rgba(0, 0, 0, 0.35);
+}
+
+.digital-input-item.is-active.severity-success {
+  border-color: rgba(0, 255, 136, 0.35);
+  background: linear-gradient(135deg, rgba(10, 32, 24, 0.92), rgba(6, 22, 18, 0.8));
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 255, 136, 0.12),
+    0 14px 26px rgba(0, 255, 136, 0.12);
+}
+
+.digital-input-item.is-active.severity-critical {
+  border-color: rgba(220, 20, 60, 0.42);
+  background: linear-gradient(135deg, rgba(32, 14, 18, 0.92), rgba(24, 8, 12, 0.82));
+  box-shadow:
+    inset 0 0 0 1px rgba(220, 20, 60, 0.18),
+    0 14px 28px rgba(220, 20, 60, 0.18);
+}
+
+.digital-input-item.is-active.severity-warning {
+  border-color: rgba(255, 165, 0, 0.32);
+  background: linear-gradient(135deg, rgba(32, 24, 10, 0.9), rgba(26, 18, 6, 0.82));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 165, 0, 0.14),
+    0 14px 26px rgba(255, 165, 0, 0.15);
+}
+
+.digital-input-item.is-active.severity-info {
+  border-color: rgba(0, 153, 255, 0.32);
+  background: linear-gradient(135deg, rgba(12, 26, 36, 0.92), rgba(8, 18, 28, 0.84));
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 153, 255, 0.12),
+    0 14px 24px rgba(0, 153, 255, 0.15);
+}
+
+.digital-input-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+}
+
+.digital-input-icon {
+  font-size: 22px;
+  filter: drop-shadow(0 0 6px rgba(0, 153, 255, 0.25));
+}
+
+.digital-input-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.digital-input-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(235, 240, 248, 0.92);
+}
+
+.digital-input-desc {
+  font-size: 12px;
+  color: rgba(168, 178, 192, 0.78);
+  letter-spacing: 0.2px;
+}
+
+.digital-input-state {
+  min-width: 124px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 160, 255, 0.2);
+  background: rgba(14, 20, 28, 0.9);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: rgba(176, 188, 204, 0.9);
+  text-transform: uppercase;
+}
+
+.digital-input-state.is-active.severity-success {
+  border-color: rgba(0, 255, 136, 0.5);
+  background: rgba(0, 255, 136, 0.12);
+  color: rgba(160, 255, 216, 0.95);
+}
+
+.digital-input-state.is-active.severity-critical {
+  border-color: rgba(220, 20, 60, 0.5);
+  background: rgba(220, 20, 60, 0.12);
+  color: rgba(255, 186, 194, 0.95);
+}
+
+.digital-input-state.is-active.severity-warning {
+  border-color: rgba(255, 165, 0, 0.45);
+  background: rgba(255, 165, 0, 0.12);
+  color: rgba(255, 220, 170, 0.95);
+}
+
+.digital-input-state.is-active.severity-info {
+  border-color: rgba(0, 153, 255, 0.45);
+  background: rgba(0, 153, 255, 0.12);
+  color: rgba(180, 220, 255, 0.95);
+}
+
+.digital-input-state.is-inactive {
+  border-style: dashed;
+  color: rgba(150, 160, 176, 0.76);
+}
+
+.digital-input-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(150, 160, 176, 0.45);
+  box-shadow: 0 0 6px rgba(150, 160, 176, 0.35);
+}
+
+.digital-input-state.is-active.severity-success .digital-input-dot {
+  background: var(--color-running, #32cd32);
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.55);
+}
+
+.digital-input-state.is-active.severity-critical .digital-input-dot {
+  background: var(--color-error, #dc143c);
+  box-shadow: 0 0 10px rgba(220, 20, 60, 0.55);
+}
+
+.digital-input-state.is-active.severity-warning .digital-input-dot {
+  background: var(--color-warning, #ffa500);
+  box-shadow: 0 0 10px rgba(255, 165, 0, 0.55);
+}
+
+.digital-input-state.is-active.severity-info .digital-input-dot {
+  background: var(--color-ready, #1e90ff);
+  box-shadow: 0 0 10px rgba(30, 144, 255, 0.55);
+}
+
+.digital-motor-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.digital-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.digital-section-icon {
+  font-size: 28px;
+  filter: drop-shadow(0 0 8px rgba(0, 153, 255, 0.3));
+}
+
+.digital-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(235, 240, 248, 0.9);
+}
+
+.digital-section-description {
+  font-size: 13px;
+  color: rgba(168, 178, 192, 0.78);
+  margin-top: 2px;
+}
+
+.digital-motor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.digital-motor-card {
+  background: rgba(16, 24, 32, 0.92);
+  border: 1px solid rgba(96, 160, 255, 0.18);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 153, 255, 0.08),
+    0 16px 26px rgba(0, 0, 0, 0.28);
+}
+
+.digital-motor-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.digital-motor-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.digital-motor-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(235, 240, 248, 0.92);
+}
+
+.digital-motor-status {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  border: 1px solid rgba(96, 160, 255, 0.22);
+  background: rgba(8, 18, 26, 0.85);
+  color: rgba(176, 188, 204, 0.9);
+}
+
+.digital-motor-status.is-enabled {
+  border-color: rgba(0, 255, 136, 0.42);
+  background: rgba(0, 255, 136, 0.12);
+  color: rgba(170, 255, 214, 0.95);
+}
+
+.digital-motor-status.is-disabled {
+  border-style: dashed;
+  color: rgba(148, 160, 176, 0.78);
+}
+
+.digital-motor-subtitle {
+  font-size: 12px;
+  color: rgba(168, 178, 192, 0.72);
+  letter-spacing: 0.2px;
+}
+
+.digital-motor-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.digital-motor-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(96, 160, 255, 0.18);
+  background: linear-gradient(135deg, rgba(18, 26, 34, 0.92), rgba(10, 16, 24, 0.88));
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 153, 255, 0.08),
+    0 12px 18px rgba(0, 0, 0, 0.28);
+}
+
+.digital-motor-chip.is-active.severity-success {
+  border-color: rgba(0, 255, 136, 0.35);
+  background: linear-gradient(135deg, rgba(10, 30, 22, 0.9), rgba(8, 22, 18, 0.82));
+}
+
+.digital-motor-chip.is-active.severity-critical {
+  border-color: rgba(220, 20, 60, 0.38);
+  background: linear-gradient(135deg, rgba(32, 14, 18, 0.9), rgba(22, 10, 14, 0.82));
+}
+
+.digital-motor-chip.is-active.severity-warning {
+  border-color: rgba(255, 165, 0, 0.34);
+  background: linear-gradient(135deg, rgba(32, 24, 10, 0.9), rgba(24, 16, 8, 0.82));
+}
+
+.digital-motor-chip.is-active.severity-info {
+  border-color: rgba(0, 153, 255, 0.34);
+  background: linear-gradient(135deg, rgba(12, 24, 34, 0.9), rgba(8, 18, 28, 0.82));
+}
+
+.digital-motor-chip.is-inactive {
+  border-style: dashed;
+  color: rgba(150, 160, 176, 0.76);
+}
+
+.digital-motor-chip-icon {
+  font-size: 18px;
+}
+
+.digital-motor-chip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.digital-motor-chip-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(228, 234, 244, 0.9);
+}
+
+.digital-motor-chip-state {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: rgba(176, 188, 204, 0.85);
+  text-transform: uppercase;
+}
+
+@media (max-width: 1024px) {
+  .digital-inputs-modal {
+    width: 95vw;
+    height: 92vh;
+  }
+
+  .digital-inputs-body {
+    padding: 18px;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .digital-inputs-body {
+    padding: 16px;
+  }
+
+  .digital-motor-status-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}
