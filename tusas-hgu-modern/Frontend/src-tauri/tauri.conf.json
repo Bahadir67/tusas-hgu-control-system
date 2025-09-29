@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-app",
-  "version": "0.1.0",
-  "identifier": "com.bahadira-nb3.tauri-app",
+  "productName": "TUSAS HGU Control",
+  "version": "1.0.0",
+  "identifier": "com.tusas.hgu.control",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:3000",
@@ -13,11 +13,18 @@
     "windows": [
       {
         "title": "TUSAS HGU Control System",
-        "fullscreen": true,
-        "decorations": false,
+        "width": 1366,
+        "height": 768,
+        "minWidth": 1366,
+        "minHeight": 768,
+        "maxWidth": 1366,
+        "maxHeight": 768,
+        "fullscreen": false,
+        "decorations": true,
         "alwaysOnTop": false,
         "skipTaskbar": false,
-        "resizable": false
+        "resizable": false,
+        "center": true
       }
     ],
     "security": {
