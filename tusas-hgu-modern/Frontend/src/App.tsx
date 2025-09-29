@@ -47,9 +47,25 @@ function App() {
   useEffect(() => {
     if (token) {
       opcApiService.setAuthToken(token);
-      console.log('✅ Auth token set for OPC API service');
+    } else {
+      // Try to get token from localStorage as fallback
+      const storedToken = localStorage.getItem('auth_token');
+      if (storedToken) {
+        opcApiService.setAuthToken(storedToken);
+      } else {
+        opcApiService.setAuthToken(null);
+      }
     }
   }, [token]);
+
+  // Force token refresh from localStorage on app start
+  useEffect(() => {
+    const storedToken = localStorage.getItem('auth_token');
+
+    if (storedToken) {
+      opcApiService.setAuthToken(storedToken);
+    }
+  }, []);
 
   // Keyboard navigation
   useEffect(() => {
@@ -240,66 +256,13 @@ function App() {
           <div className="dashboard-content-modern">
             {/* Top Row - System Panels */}
             <div className="system-panels-row">
-              <SystemOverviewPanel 
+              <SystemOverviewPanel
                 alarms={alarms}
+                onSystemEnableToggle={handleSystemEnableToggle}
               />
-              <TankCoolingPanel 
-                onClick={() => handleSystemPanelClick('tank-cooling')} 
+              <TankCoolingPanel
+                onClick={() => handleSystemPanelClick('tank-cooling')}
               />
-            </div>
-
-            {/* Main Control Section */}
-            <div className="main-control-section">
-              <div className="pump-control-panel">
-                <div className="pump-control-header">
-                  <span className="pump-control-icon">⚡</span>
-                  <span className="pump-control-title">MAIN SYSTEM CONTROL</span>
-                </div>
-                <div className="pump-control-content">
-                  <div className="pump-enable-switch-container">
-                    <label className="pump-enable-label">System Pump Enable</label>
-                    <div 
-                      className={`pump-enable-switch ${system?.systemEnable ? 'enabled' : 'disabled'}`}
-                      onClick={handleSystemEnableToggle}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          handleSystemEnableToggle();
-                        }
-                      }}
-                    >
-                      <div className="pump-enable-slider" />
-                    </div>
-                    <div 
-                      className="pump-status-text"
-                      style={{ 
-                        color: system?.systemEnable ? '#22c55e' : '#ef4444' 
-                      }}
-                    >
-                      {system?.systemEnable ? 'ENABLED' : 'DISABLED'}
-                    </div>
-                  </div>
-                  <div className="pump-control-warning">
-                    <span className="warning-icon">⚠️</span>
-                    <span className="warning-text">Changing pump state requires confirmation</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Navigation to Motors and Process Flow */}
-            <div className="page-navigation-section">
-              <button 
-                className="nav-to-motors-btn"
-                onClick={() => navigateToPage('motors')}
-              >
-                <span className="nav-icon">⚙️</span>
-                <span className="nav-text">View All Motors</span>
-                <span className="nav-arrow">→</span>
-              </button>
-              
             </div>
           </div>
         );

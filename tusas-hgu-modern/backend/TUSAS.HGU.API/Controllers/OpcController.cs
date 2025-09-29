@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using TUSAS.HGU.Core.Services;
 using TUSAS.HGU.Core.Services.OPC;
+using TUSAS.HGU.API.Middleware;
 
 namespace TUSAS.HGU.API.Controllers
 {
@@ -28,23 +29,15 @@ namespace TUSAS.HGU.API.Controllers
         [HttpGet("status")]
         public IActionResult GetStatus()
         {
-            try
+            var status = new
             {
-                var status = new
-                {
-                    IsConnected = _opcClient.IsConnected,
-                    Timestamp = DateTime.Now,
-                    Message = _opcClient.IsConnected ? "OPC UA connected successfully" : "OPC UA disconnected"
-                };
+                IsConnected = _opcClient.IsConnected,
+                Timestamp = DateTime.Now,
+                Message = _opcClient.IsConnected ? "OPC UA connected successfully" : "OPC UA disconnected"
+            };
 
-                _logger.LogInformation("OPC status requested - Connected: {Connected}", status.IsConnected);
-                return Ok(status);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting OPC status");
-                return StatusCode(500, new { Error = ex.Message });
-            }
+            _logger.LogInformation("OPC status requested - Connected: {Connected}", status.IsConnected);
+            return this.SuccessResponse(status, status.Message);
         }
 
         /// <summary>
@@ -53,28 +46,20 @@ namespace TUSAS.HGU.API.Controllers
         [HttpGet("influx/status")]
         public async Task<IActionResult> GetInfluxStatus()
         {
-            try
-            {
-                var isConnected = await _influxDbService.CheckConnectionAsync();
-                var hasRecentData = await _influxDbService.HasRecentDataAsync(TimeSpan.FromMinutes(5));
-                
-                var status = new
-                {
-                    IsConnected = isConnected,
-                    HasRecentData = hasRecentData,
-                    Timestamp = DateTime.Now,
-                    Message = isConnected ? "InfluxDB connected successfully" : "InfluxDB connection failed"
-                };
+            var isConnected = await _influxDbService.CheckConnectionAsync();
+            var hasRecentData = await _influxDbService.HasRecentDataAsync(TimeSpan.FromMinutes(5));
 
-                _logger.LogInformation("InfluxDB status requested - Connected: {Connected}, HasData: {HasData}", 
-                    isConnected, hasRecentData);
-                return Ok(status);
-            }
-            catch (Exception ex)
+            var status = new
             {
-                _logger.LogError(ex, "Error getting InfluxDB status");
-                return StatusCode(500, new { Error = ex.Message });
-            }
+                IsConnected = isConnected,
+                HasRecentData = hasRecentData,
+                Timestamp = DateTime.Now,
+                Message = isConnected ? "InfluxDB connected successfully" : "InfluxDB connection failed"
+            };
+
+            _logger.LogInformation("InfluxDB status requested - Connected: {Connected}, HasData: {HasData}",
+                isConnected, hasRecentData);
+            return this.SuccessResponse(status, status.Message);
         }
 
         /// <summary>

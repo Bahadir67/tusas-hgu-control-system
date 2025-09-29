@@ -1,5 +1,6 @@
 // OPC API Service - Batch request handling
 import { getVariablesForPage, PAGE_VARIABLE_SETS, generateMotorVariableName, MOTOR_VARIABLES, SYSTEM_VARIABLES } from '../utils/opcVariableMapping';
+import { TrackPerformance, LogApiCall } from '../utils/decorators';
 
 export interface OpcBatchResponse {
   success: boolean;
@@ -40,8 +41,32 @@ class OpcApiService {
 
   // Set authentication token
   setAuthToken(token: string | null): void {
-    this.authToken = token;
+    // Always try to get token from localStorage as fallback
+    if (!token) {
+      const storedToken = localStorage.getItem('auth_token');
+      if (storedToken) {
+        this.authToken = storedToken;
+      } else {
+        this.authToken = null;
+      }
+    } else {
+      this.authToken = token;
+    }
+
     // Clear cache when auth token changes
+    this.cache.clear();
+  }
+
+  // Force refresh token from localStorage
+  refreshTokenFromStorage(): void {
+    const storedToken = localStorage.getItem('auth_token');
+
+    if (storedToken) {
+      this.authToken = storedToken;
+    } else {
+      this.authToken = null;
+    }
+
     this.cache.clear();
   }
 
@@ -50,6 +75,14 @@ class OpcApiService {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
+
+    // Always check localStorage as fallback
+    if (!this.authToken) {
+      const storedToken = localStorage.getItem('auth_token');
+      if (storedToken) {
+        this.authToken = storedToken;
+      }
+    }
 
     if (this.authToken) {
       headers['Authorization'] = `Bearer ${this.authToken}`;
@@ -99,49 +132,125 @@ class OpcApiService {
     }
   }
 
-  // Batch read variables for a specific page
+  // Batch read variables for a specific page with cross-cutting concerns
   async getBatchVariablesForPage(pageKey: keyof typeof PAGE_VARIABLE_SETS): Promise<OpcBatchResponse> {
-    const cacheKey = `page_${pageKey}`;
-    const cachedData = this.getCachedData(cacheKey);
-    
-    if (cachedData) {
-      return cachedData;
-    }
+    return await this.executeWithCrossCuttingConcerns(
+      `getBatchVariablesForPage_${pageKey}`,
+      async () => {
+        const cacheKey = `page_${pageKey}`;
+        const cachedData = this.getCachedData(cacheKey);
+
+        if (cachedData) {
+          return cachedData;
+        }
+
+        const variables = getVariablesForPage(pageKey);
+
+        const response = await fetch(`${this.baseUrl}/batch`, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({
+            variables: variables,
+            pageContext: pageKey
+          })
+        });
+
+        if (!response.ok) {
+          this.handleAuthError(response);
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data: OpcBatchResponse = await response.json();
+        this.setCacheData(cacheKey, data);
+
+        return data;
+      },
+      { includeArgs: false, includeResult: false }
+    );
+  }
+
+  // Cross-cutting concerns wrapper - Eliminates logging and error handling duplication
+  private async executeWithCrossCuttingConcerns<T>(
+    operationName: string,
+    operation: () => Promise<T>,
+    config: { includeArgs?: boolean; includeResult?: boolean } = {}
+  ): Promise<T> {
+    const startTime = performance.now();
 
     try {
-      const variables = getVariablesForPage(pageKey);
-      console.log('📋 OpcApiService: Variables for', pageKey, ':', variables);
-      
-      const response = await fetch(`${this.baseUrl}/batch`, {
-        method: 'POST',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify({
-          variables: variables,
-          pageContext: pageKey
-        })
+      // Execute operation
+      const result = await operation();
+      const executionTime = performance.now() - startTime;
+
+      // Track performance metrics
+      this.trackPerformance({
+        methodName: operationName,
+        executionTime,
+        timestamp: new Date(),
+        success: true
       });
 
-      if (!response.ok) {
-        this.handleAuthError(response);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: OpcBatchResponse = await response.json();
-      this.setCacheData(cacheKey, data);
-      
-      return data;
-      
+      return result;
     } catch (error) {
-      console.error(`Error fetching batch variables for page ${pageKey}:`, error);
-      
-      // NO MOCK DATA - Return error structure
-      return {
+      const executionTime = performance.now() - startTime;
+
+      // Track error performance
+      this.trackPerformance({
+        methodName: operationName,
+        executionTime,
+        timestamp: new Date(),
         success: false,
-        timestamp: new Date().toISOString(),
-        variables: {},
-        errors: [`Failed to fetch OPC data for page ${pageKey}: ${this.getErrorMessage(error)}`]
-      };
+        error: error instanceof Error ? error.message : String(error)
+      });
+
+      throw error;
     }
+  }
+
+  // Performance tracking store
+  private performanceMetrics: Array<{
+    methodName: string;
+    executionTime: number;
+    timestamp: Date;
+    success: boolean;
+    error?: string;
+  }> = [];
+
+  private trackPerformance(data: {
+    methodName: string;
+    executionTime: number;
+    timestamp: Date;
+    success: boolean;
+    error?: string;
+  }) {
+    this.performanceMetrics.push(data);
+
+    // Keep only recent metrics to prevent memory leaks
+    if (this.performanceMetrics.length > 1000) {
+      this.performanceMetrics.splice(0, this.performanceMetrics.length - 1000);
+    }
+  }
+
+  // Get performance metrics (for debugging)
+  getPerformanceMetrics() {
+    return [...this.performanceMetrics];
+  }
+
+  // Get performance summary
+  getPerformanceSummary() {
+    if (this.performanceMetrics.length === 0) {
+      return { totalCalls: 0, averageExecutionTime: 0, successRate: 0 };
+    }
+
+    const totalCalls = this.performanceMetrics.length;
+    const successfulCalls = this.performanceMetrics.filter(m => m.success).length;
+    const averageExecutionTime = this.performanceMetrics.reduce((sum, m) => sum + m.executionTime, 0) / totalCalls;
+
+    return {
+      totalCalls,
+      averageExecutionTime: Math.round(averageExecutionTime * 100) / 100,
+      successRate: Math.round((successfulCalls / totalCalls) * 100 * 100) / 100
+    };
   }
 
   // Get all variables (for full system sync)
@@ -322,9 +431,70 @@ class OpcApiService {
 
   // Trigger immediate OPC refresh - fresh data collection without waiting for timer
   async triggerOpcRefresh(): Promise<{ success: boolean; data?: any; error?: string }> {
+    return await this.executeWithCrossCuttingConcerns(
+      'triggerOpcRefresh',
+      async () => {
+        const response = await fetch(`${this.baseUrl}/refresh`, {
+          method: 'POST',
+          headers: this.getAuthHeaders()
+        });
+
+        if (!response.ok) {
+          this.handleAuthError(response);
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Clear cache to force fresh data on next requests
+        this.cache.clear();
+
+        return {
+          success: data.Success || data.success,
+          data: data
+        };
+      }
+    );
+  }
+
+  // 🔄 Manual OPC reconnect - Force reconnection to OPC UA server
+  async reconnectOpc(): Promise<{ success: boolean; message: string; error?: string }> {
+    return await this.executeWithCrossCuttingConcerns(
+      'reconnectOpc',
+      async () => {
+        const response = await fetch(`${this.baseUrl}/connect`, {
+          method: 'POST',
+          headers: this.getAuthHeaders()
+        });
+
+        if (!response.ok) {
+          this.handleAuthError(response);
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Clear cache after reconnect
+        this.cache.clear();
+
+        return {
+          success: data.Success || data.success,
+          message: data.Message || 'Reconnection completed'
+        };
+      }
+    );
+  }
+
+  // Get detailed connection status with reconnect info
+  async getConnectionStatus(): Promise<{
+    isConnected: boolean;
+    lastConnected?: string;
+    reconnectAttempts?: number;
+    isReconnecting?: boolean;
+    message: string;
+  }> {
     try {
-      const response = await fetch(`${this.baseUrl}/refresh`, {
-        method: 'POST',
+      const response = await fetch(`${this.baseUrl}/status`, {
         headers: this.getAuthHeaders()
       });
 
@@ -334,20 +504,19 @@ class OpcApiService {
       }
 
       const data = await response.json();
-      
-      // Clear cache to force fresh data on next requests
-      this.cache.clear();
-      
-      return { 
-        success: data.Success || data.success,
-        data: data
+
+      return {
+        isConnected: data.IsConnected,
+        lastConnected: data.LastConnected,
+        reconnectAttempts: data.ReconnectAttempts,
+        isReconnecting: data.IsReconnecting,
+        message: data.Message
       };
-      
     } catch (error) {
-      console.error('Error triggering OPC refresh:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      console.error('Error getting connection status:', error);
+      return {
+        isConnected: false,
+        message: error instanceof Error ? error.message : 'Connection check failed'
       };
     }
   }

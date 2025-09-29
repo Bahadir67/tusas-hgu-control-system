@@ -55,6 +55,7 @@ const CATEGORY_STYLES = {
   CONFIG: { color: '#06b6d4', icon: '⚙️' },
   AUDIT: { color: '#fbbf24', icon: '📋' },
   OPC: { color: '#10b981', icon: '🔌' },
+  CONNECTION: { color: '#8b5cf6', icon: '🔗' }, // 📡 OPC UA Connection events
   BACKUP: { color: '#6b7280', icon: '💾' },
   SECURITY: { color: '#ef4444', icon: '🛡️' }
 };
@@ -72,7 +73,17 @@ const ACTION_ICONS: Record<string, string> = {
   ALARM_ACKNOWLEDGED: '✅',
   SETTING_CHANGED: '⚙️',
   EXPORT: '📥',
-  VIEW_LOGS: '👁️'
+  VIEW_LOGS: '👁️',
+  // 🔗 Connection-specific actions
+  CONNECTION_LOST: '🔌',
+  CONNECTION_RESTORED: '🔗',
+  RECONNECT_ATTEMPT: '🔄',
+  RECONNECT_SUCCESS: '✅',
+  RECONNECT_FAILED: '❌',
+  RECONNECT_ERROR: '💥',
+  RECONNECT_EXHAUSTED: '💀',
+  HEARTBEAT_CHECK: '❤️',
+  HEARTBEAT_FAILED: '💔'
 };
 
 export const LogsPageEnhanced: React.FC = () => {
@@ -98,7 +109,13 @@ export const LogsPageEnhanced: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedResult, setSelectedResult] = useState('ALL');
   const [selectedUser, setSelectedUser] = useState('ALL');
+
+  // Connection-specific state
+  const [showConnectionLogs, setShowConnectionLogs] = useState(false);
+  const [connectionLogsOnly, setConnectionLogsOnly] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState('ALL');
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState<number | null>(null);
 
   // Fetch categories from API
   const fetchCategories = useCallback(async () => {
@@ -268,6 +285,26 @@ export const LogsPageEnhanced: React.FC = () => {
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
+
+  // Auto-refresh logic for connection logs
+  useEffect(() => {
+    if (autoRefresh && connectionLogsOnly) {
+      const interval = window.setInterval(() => {
+        fetchLogs();
+      }, 5000); // 5 seconds
+
+      setRefreshInterval(interval);
+
+      return () => {
+        if (interval) {
+          window.clearInterval(interval);
+        }
+      };
+    } else if (refreshInterval) {
+      window.clearInterval(refreshInterval);
+      setRefreshInterval(null);
+    }
+  }, [autoRefresh, connectionLogsOnly, fetchLogs]);
 
   // Clear all filters
   const clearFilters = () => {
@@ -449,6 +486,33 @@ export const LogsPageEnhanced: React.FC = () => {
             <button onClick={fetchLogs} disabled={loading} className="action-btn">
               {loading ? '⏳' : '🔄'} Refresh
             </button>
+
+            {/* 🔗 Connection Logs Toggle */}
+            <button
+              onClick={() => {
+                setConnectionLogsOnly(!connectionLogsOnly);
+                if (!connectionLogsOnly) {
+                  setSelectedCategory('CONNECTION');
+                } else {
+                  setSelectedCategory('ALL');
+                }
+              }}
+              className={`action-btn ${connectionLogsOnly ? 'active' : ''}`}
+              title="Show only OPC UA connection logs"
+            >
+              🔗 {connectionLogsOnly ? 'All Logs' : 'Connection Logs'}
+            </button>
+
+            {/* 🔄 Auto-refresh Toggle (only for connection logs) */}
+            {connectionLogsOnly && (
+              <button
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={`action-btn ${autoRefresh ? 'active' : ''}`}
+                title="Auto-refresh connection logs every 5 seconds"
+              >
+                🔄 {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+              </button>
+            )}
           </div>
         </div>
       </div>

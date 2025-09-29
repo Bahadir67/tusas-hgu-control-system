@@ -116,13 +116,20 @@ namespace TUSAS.HGU.API.Middleware
             {
                 // Extract Authorization header
                 var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-                
+
+                _logger.LogDebug("🔍 DETAILED Authorization check:");
+                _logger.LogDebug("  - Header value: '{Header}'", authHeader ?? "NULL");
+                _logger.LogDebug("  - Header starts with Bearer: {StartsWithBearer}", authHeader?.StartsWith("Bearer ") ?? false);
+                _logger.LogDebug("  - All request headers: {@Headers}", context.Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
+                _logger.LogDebug("  - Client IP: {IP}", GetClientIpAddress(context));
+
                 if (string.IsNullOrEmpty(authHeader))
                 {
-                    return new AuthenticationResult 
-                    { 
-                        IsAuthenticated = false, 
-                        ErrorMessage = "Missing Authorization header" 
+                    _logger.LogWarning("❌ Missing Authorization header for protected path");
+                    return new AuthenticationResult
+                    {
+                        IsAuthenticated = false,
+                        ErrorMessage = "Missing Authorization header"
                     };
                 }
 
@@ -150,7 +157,13 @@ namespace TUSAS.HGU.API.Middleware
 
                 // Validate token with AuthService
                 var validationResult = await _authService.ValidateTokenAsync(token);
-                
+
+                _logger.LogDebug("🔍 Token validation result:");
+                _logger.LogDebug("  - IsValid: {IsValid}", validationResult.IsValid);
+                _logger.LogDebug("  - UserId: {UserId}", validationResult.UserId);
+                _logger.LogDebug("  - Username: {Username}", validationResult.Username);
+                _logger.LogDebug("  - ErrorMessage: {ErrorMessage}", validationResult.ErrorMessage);
+
                 if (validationResult.IsValid)
                 {
                     return new AuthenticationResult
@@ -164,6 +177,7 @@ namespace TUSAS.HGU.API.Middleware
                 }
                 else
                 {
+                    _logger.LogWarning("❌ Token validation failed: {Error}", validationResult.ErrorMessage);
                     return new AuthenticationResult
                     {
                         IsAuthenticated = false,

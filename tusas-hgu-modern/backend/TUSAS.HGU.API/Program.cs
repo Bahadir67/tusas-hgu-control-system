@@ -127,6 +127,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowTauriApp");
 
+// Global Exception Handler - MUST be first
+app.UseMiddleware<GlobalExceptionHandler>();
+
 // Authentication middleware - MUST be before UseAuthorization
 app.UseAuthentication();
 app.UseMiddleware<AuthenticationMiddleware>(); // Custom JWT middleware for all OPC endpoints

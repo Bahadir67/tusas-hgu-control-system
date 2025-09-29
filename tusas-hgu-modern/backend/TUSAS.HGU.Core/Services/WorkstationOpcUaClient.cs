@@ -42,6 +42,7 @@ namespace TUSAS.HGU.Core.Services
     {
         private readonly ILogger<WorkstationOpcUaClient> _logger;
         private readonly OpcUaConfig _config;
+        private readonly ILogService _logService;
         private bool _isConnected = false;
         private bool _disposed = false;
         private ClientSessionChannel? _session;
@@ -53,7 +54,20 @@ namespace TUSAS.HGU.Core.Services
         private readonly object _sensorDataLock = new();
         private SensorData? _latestSensorData;
         private int _sensorDataIntervalMs = 1000; // 1 saniye
-        
+
+        // 🔄 RECONNECT MECHANISM - Critical for industrial systems
+        private Timer? _reconnectTimer;
+        private readonly object _reconnectLock = new();
+        private int _reconnectAttempts = 0;
+        private readonly int _maxReconnectAttempts = 10;
+        private int _currentReconnectDelay = 1000; // Start with 1 second
+        private readonly int _maxReconnectDelay = 30000; // Max 30 seconds
+        private readonly int _reconnectBackoffMultiplier = 2;
+        private bool _isReconnecting = false;
+        private DateTime _lastSuccessfulConnection = DateTime.MinValue;
+        private Timer? _heartbeatTimer;
+        private readonly int _heartbeatIntervalMs = 5000; // 5 seconds
+
         // Performance measurement fields
         private readonly List<OpcReadPerformance> _performanceHistory = new();
         private readonly object _performanceLock = new();
@@ -152,24 +166,62 @@ namespace TUSAS.HGU.Core.Services
             }
         }
 
-        public WorkstationOpcUaClient(ILogger<WorkstationOpcUaClient> logger, OpcUaConfig config)
+        public WorkstationOpcUaClient(ILogger<WorkstationOpcUaClient> logger, OpcUaConfig config, ILogService logService)
         {
             _logger = logger;
             _config = config;
+            _logService = logService;
         }
 
         public async Task<bool> ConnectAsync()
         {
             try
             {
-                _logger.LogInformation("Connecting to OPC UA server: {EndpointUrl}", _config.EndpointUrl);
-                
+                _logger.LogInformation("🔌 OPC UA connection requested - Endpoint: {EndpointUrl}", _config.EndpointUrl);
+
+                // Stop any existing reconnect attempts
+                StopReconnectTimer();
+
                 if (_session != null && _isConnected)
                 {
-                    _logger.LogInformation("Already connected to OPC UA server");
+                    _logger.LogInformation("✅ Already connected to OPC UA server");
                     return true;
                 }
 
+                var connected = await ConnectInternalAsync();
+
+                if (connected)
+                {
+                    _logger.LogInformation("✅ OPC UA connection successful");
+                    UpdateConnectionStatus(true);
+                    StartHeartbeat();
+                    ResetReconnectState();
+                }
+                else
+                {
+                    _logger.LogError("❌ OPC UA connection failed - Starting reconnect mechanism");
+                    UpdateConnectionStatus(false);
+                    StartReconnectTimer();
+                }
+
+                return connected;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "💥 Error during OPC UA connection");
+                UpdateConnectionStatus(false);
+                StartReconnectTimer();
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Internal connection logic - extracted for reconnect mechanism
+        /// </summary>
+        private async Task<bool> ConnectInternalAsync()
+        {
+            try
+            {
                 var certificateStore = new DirectoryStore(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TUSAS", "pki"));
 
                 var appDescription = new ApplicationDescription
@@ -198,12 +250,12 @@ namespace TUSAS.HGU.Core.Services
                     SecurityPolicyUris.None); // No security
 
                 await _session.OpenAsync();
-                
+
                 _isConnected = true;
-                ConnectionStatusChanged?.Invoke(this, true);
-                
-                _logger.LogInformation("OPC UA connection successful");
-                
+                _lastSuccessfulConnection = DateTime.Now;
+
+                _logger.LogInformation("🔗 OPC UA session established successfully");
+
                 // Start periodic data collection
                 StartPeriodicDataCollection();
                 
@@ -623,6 +675,318 @@ namespace TUSAS.HGU.Core.Services
 
 
             return await WriteNodeAsync(variable.NodeId, value);
+        }
+
+        /// <summary>
+        /// 🔄 RECONNECT MECHANISM - Critical for industrial OPC UA systems
+        /// Exponential backoff strategy ile otomatik reconnect
+        /// </summary>
+        private void StartReconnectTimer()
+        {
+            lock (_reconnectLock)
+            {
+                if (_reconnectTimer != null) return;
+
+                _logger.LogWarning("🔄 Starting OPC UA reconnect timer - Attempt {Attempt}/{Max}",
+                    _reconnectAttempts + 1, _maxReconnectAttempts);
+
+                _reconnectTimer = new Timer(async _ =>
+                {
+                    await AttemptReconnect();
+                }, null, _currentReconnectDelay, Timeout.Infinite);
+            }
+        }
+
+        /// <summary>
+        /// Reconnect timer'ı durdur
+        /// </summary>
+        private void StopReconnectTimer()
+        {
+            lock (_reconnectLock)
+            {
+                if (_reconnectTimer != null)
+                {
+                    _reconnectTimer.Dispose();
+                    _reconnectTimer = null;
+                }
+                _isReconnecting = false;
+            }
+        }
+
+        /// <summary>
+        /// Exponential backoff ile reconnect dene
+        /// </summary>
+        private async Task AttemptReconnect()
+        {
+            if (_isReconnecting || _disposed) return;
+
+            _isReconnecting = true;
+            _reconnectAttempts++;
+
+            var startTime = DateTime.Now;
+
+            try
+            {
+                _logger.LogInformation("🔄 Attempting OPC UA reconnect - Attempt {Attempt}/{Max}, Delay: {Delay}ms",
+                    _reconnectAttempts, _maxReconnectAttempts, _currentReconnectDelay);
+
+                // Log reconnect attempt
+                await LogConnectionEvent(
+                    action: "RECONNECT_ATTEMPT",
+                    result: LogResult.INFO,
+                    details: new Dictionary<string, object>
+                    {
+                        ["AttemptNumber"] = _reconnectAttempts,
+                        ["MaxAttempts"] = _maxReconnectAttempts,
+                        ["DelayMs"] = _currentReconnectDelay
+                    }
+                );
+
+                var connected = await ConnectAsync();
+
+                if (connected)
+                {
+                    var duration = (int)(DateTime.Now - startTime).TotalMilliseconds;
+                    _logger.LogInformation("✅ OPC UA reconnect successful after {Attempts} attempts", _reconnectAttempts);
+
+                    // Log successful reconnect
+                    await LogConnectionEvent(
+                        action: "RECONNECT_SUCCESS",
+                        result: LogResult.SUCCESS,
+                        details: new Dictionary<string, object>
+                        {
+                            ["Attempts"] = _reconnectAttempts,
+                            ["DurationMs"] = duration
+                        },
+                        duration: duration
+                    );
+
+                    UpdateConnectionStatus(true);
+                    ResetReconnectState();
+                    StartHeartbeat();
+                }
+                else
+                {
+                    _logger.LogWarning("❌ OPC UA reconnect failed - Attempt {Attempt}/{Max}",
+                        _reconnectAttempts, _maxReconnectAttempts);
+
+                    // Log failed reconnect attempt
+                    await LogConnectionEvent(
+                        action: "RECONNECT_FAILED",
+                        result: LogResult.ERROR,
+                        details: new Dictionary<string, object>
+                        {
+                            ["AttemptNumber"] = _reconnectAttempts,
+                            ["MaxAttempts"] = _maxReconnectAttempts
+                        }
+                    );
+
+                    if (_reconnectAttempts < _maxReconnectAttempts)
+                    {
+                        // Exponential backoff
+                        _currentReconnectDelay = Math.Min(_currentReconnectDelay * _reconnectBackoffMultiplier, _maxReconnectDelay);
+                        StartReconnectTimer();
+                    }
+                    else
+                    {
+                        _logger.LogError("💀 OPC UA reconnect failed after {MaxAttempts} attempts - Giving up", _maxReconnectAttempts);
+
+                        // Log final failure
+                        await LogConnectionEvent(
+                            action: "RECONNECT_EXHAUSTED",
+                            result: LogResult.ERROR,
+                            details: new Dictionary<string, object>
+                            {
+                                ["MaxAttempts"] = _maxReconnectAttempts,
+                                ["FinalAttempt"] = _reconnectAttempts
+                            }
+                        );
+
+                        UpdateConnectionStatus(false);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                var duration = (int)(DateTime.Now - startTime).TotalMilliseconds;
+                _logger.LogError(ex, "💥 Error during OPC UA reconnect attempt");
+
+                // Log reconnect error
+                await LogConnectionEvent(
+                    action: "RECONNECT_ERROR",
+                    result: LogResult.ERROR,
+                    details: new Dictionary<string, object>
+                    {
+                        ["AttemptNumber"] = _reconnectAttempts,
+                        ["ErrorMessage"] = ex.Message,
+                        ["DurationMs"] = duration
+                    },
+                    duration: duration
+                );
+
+                if (_reconnectAttempts < _maxReconnectAttempts)
+                {
+                    StartReconnectTimer();
+                }
+            }
+            finally
+            {
+                _isReconnecting = false;
+            }
+        }
+
+        /// <summary>
+        /// Reconnect state'ini resetle
+        /// </summary>
+        private void ResetReconnectState()
+        {
+            _reconnectAttempts = 0;
+            _currentReconnectDelay = 1000; // Reset to 1 second
+            StopReconnectTimer();
+        }
+
+        /// <summary>
+        /// 📝 Connection event'leri log service'e kaydet
+        /// </summary>
+        private async Task LogConnectionEvent(string action, LogResult result, Dictionary<string, object>? details = null, int? duration = null)
+        {
+            try
+            {
+                await _logService.LogAsync(
+                    username: "SYSTEM",
+                    category: LogCategory.CONNECTION,
+                    action: action,
+                    target: _config.EndpointUrl,
+                    result: result,
+                    details: details
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to log connection event: {Action}", action);
+            }
+        }
+
+        /// <summary>
+        /// ❤️ Heartbeat monitoring - Bağlantı durumunu sürekli kontrol et
+        /// </summary>
+        private void StartHeartbeat()
+        {
+            StopHeartbeat(); // Önce mevcut timer'ı durdur
+
+            _heartbeatTimer = new Timer(async _ =>
+            {
+                await CheckConnectionHealth();
+            }, null, _heartbeatIntervalMs, _heartbeatIntervalMs);
+        }
+
+        /// <summary>
+        /// Heartbeat timer'ı durdur
+        /// </summary>
+        private void StopHeartbeat()
+        {
+            if (_heartbeatTimer != null)
+            {
+                _heartbeatTimer.Dispose();
+                _heartbeatTimer = null;
+            }
+        }
+
+        /// <summary>
+        /// Bağlantı sağlığını kontrol et
+        /// </summary>
+        private async Task CheckConnectionHealth()
+        {
+            if (!_isConnected || _session == null) return;
+
+            try
+            {
+                // Simple read operation to test connection health
+                var testResult = await _session.ReadAsync(
+                    new ReadRequest
+                    {
+                        NodesToRead = new[] { new ReadValueId { NodeId = NodeId.Parse("i=2258"), AttributeId = AttributeIds.Value } } // ServerStatus
+                    }
+                );
+
+                if (testResult.Results?.Length > 0 && testResult.Results[0].StatusCode == StatusCodes.Good)
+                {
+                    // Connection is healthy
+                    _lastSuccessfulConnection = DateTime.Now;
+                }
+                else
+                {
+                    // Connection test failed
+                    _logger.LogWarning("💔 OPC UA connection health check failed - Triggering reconnect");
+                    HandleConnectionLost();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "💔 OPC UA connection health check error - Triggering reconnect");
+                HandleConnectionLost();
+            }
+        }
+
+        /// <summary>
+        /// Bağlantı kaybını handle et
+        /// </summary>
+        private void HandleConnectionLost()
+        {
+            UpdateConnectionStatus(false);
+            StopHeartbeat();
+            StartReconnectTimer();
+        }
+
+        /// <summary>
+        /// Bağlantı durumunu güncelle ve event fırlat
+        /// </summary>
+        private void UpdateConnectionStatus(bool isConnected)
+        {
+            if (_isConnected != isConnected)
+            {
+                _isConnected = isConnected;
+                _logger.LogInformation("🔌 OPC UA connection status changed: {Status}", isConnected ? "Connected" : "Disconnected");
+
+                // Event notification
+                ConnectionStatusChanged?.Invoke(this, isConnected);
+
+                // Graceful degradation - stop data collection if disconnected
+                if (!isConnected)
+                {
+                    StopDataCollection();
+                }
+                else
+                {
+                    StartDataCollection();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Data collection'ı başlat
+        /// </summary>
+        private void StartDataCollection()
+        {
+            if (_sensorDataTimer == null && _opcVariableCollection != null)
+            {
+                _sensorDataTimer = new Timer(async _ =>
+                {
+                    await TriggerImmediateDataCollection();
+                }, null, 0, _sensorDataIntervalMs);
+            }
+        }
+
+        /// <summary>
+        /// Data collection'ı durdur (graceful degradation)
+        /// </summary>
+        private void StopDataCollection()
+        {
+            if (_sensorDataTimer != null)
+            {
+                _sensorDataTimer.Dispose();
+                _sensorDataTimer = null;
+            }
         }
 
         /// <summary>

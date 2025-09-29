@@ -130,12 +130,111 @@ interface OpcStore {
   fetchLeakageOnly: () => Promise<void>;
   writeVariable: (varName: string, value: any) => Promise<boolean>;
   triggerOpcRefresh: () => Promise<{ success: boolean; error?: string }>;
+
+  // 🔄 Connection Management
+  setConnectionStatus: (status: { isConnected: boolean; isReconnecting?: boolean; message: string }) => void;
+  handleConnectionLost: () => void;
+  handleConnectionRestored: () => void;
+}
+
+// Motor Data Mapping Factory - Eliminates code duplication
+class MotorDataMapper {
+  private static readonly MOTOR_VARIABLES = {
+    // Motor-specific variables
+    rpm: (id: number) => `MOTOR_${id}_RPM_ACTUAL`,
+    current: (id: number) => `MOTOR_${id}_CURRENT_A`,
+    temperature: (id: number) => `MOTOR_${id}_TEMPERATURE_C`,
+    status: (id: number) => `MOTOR_${id}_STATUS`,
+    enabled: (id: number) => `MOTOR_${id}_ENABLE`,
+    targetRpm: (id: number) => `MOTOR_${id}_RPM_SETPOINT`,
+    errorCode: (id: number) => `MOTOR_${id}_ERROR_CODE`,
+
+    // Pump-specific variables
+    flow: (id: number) => `PUMP_${id}_FLOW_ACTUAL`,
+    pressure: (id: number) => `PUMP_${id}_PRESSURE_ACTUAL`,
+    leak: (id: number) => `PUMP_${id}_LEAK_RATE`,
+    flowSetpoint: (id: number) => `PUMP_${id}_FLOW_SETPOINT`,
+    pressureSetpoint: (id: number) => `PUMP_${id}_PRESSURE_SETPOINT`,
+    lineFilter: (id: number) => `PUMP_${id}_LINE_FILTER_STATUS`,
+    suctionFilter: (id: number) => `PUMP_${id}_SUCTION_FILTER_STATUS`,
+    manualValve: (id: number) => `PUMP_${id}_MANUAL_VALVE_STATUS`,
+
+    // Command/Acknowledgment variables
+    startCmd: (id: number) => `MOTOR_${id}_START_CMD`,
+    stopCmd: (id: number) => `MOTOR_${id}_STOP_CMD`,
+    resetCmd: (id: number) => `MOTOR_${id}_RESET_CMD`,
+    startAck: (id: number) => `MOTOR_${id}_START_ACK`,
+    stopAck: (id: number) => `MOTOR_${id}_STOP_ACK`,
+    resetAck: (id: number) => `MOTOR_${id}_RESET_ACK`,
+
+    // Maintenance variables
+    operatingHours: (id: number) => `MOTOR_${id}_OPERATING_HOURS`,
+    maintenanceDue: (id: number) => `MOTOR_${id}_MAINTENANCE_DUE`,
+    maintenanceHours: (id: number) => `MOTOR_${id}_MAINTENANCE_HOURS`,
+  };
+
+  static mapMotorData(data: any, currentMotor: MotorData, motorId: number): MotorData {
+    const variables = this.MOTOR_VARIABLES;
+
+    return {
+      ...currentMotor,
+      // Motor variables
+      rpm: data[variables.rpm(motorId)]?.value ?? currentMotor.rpm,
+      current: data[variables.current(motorId)]?.value ?? currentMotor.current,
+      temperature: data[variables.temperature(motorId)]?.value ?? currentMotor.temperature,
+      status: data[variables.status(motorId)]?.value ?? currentMotor.status,
+      enabled: data[variables.enabled(motorId)]?.value === true || false,
+      targetRpm: data[variables.targetRpm(motorId)]?.value ?? currentMotor.targetRpm,
+      errorCode: data[variables.errorCode(motorId)]?.value ?? currentMotor.errorCode,
+
+      // Pump variables
+      flow: data[variables.flow(motorId)]?.value ?? currentMotor.flow,
+      pressure: data[variables.pressure(motorId)]?.value ?? currentMotor.pressure,
+      leak: data[variables.leak(motorId)]?.value ?? currentMotor.leak,
+      flowSetpoint: data[variables.flowSetpoint(motorId)]?.value ?? currentMotor.flowSetpoint,
+      pressureSetpoint: data[variables.pressureSetpoint(motorId)]?.value ?? currentMotor.pressureSetpoint,
+      lineFilter: data[variables.lineFilter(motorId)]?.value ?? currentMotor.lineFilter,
+      suctionFilter: data[variables.suctionFilter(motorId)]?.value ?? currentMotor.suctionFilter,
+      manualValve: data[variables.manualValve(motorId)]?.value === true || false,
+
+      // Command/Acknowledgment variables
+      startCmd: data[variables.startCmd(motorId)]?.value ?? currentMotor.startCmd,
+      stopCmd: data[variables.stopCmd(motorId)]?.value ?? currentMotor.stopCmd,
+      resetCmd: data[variables.resetCmd(motorId)]?.value ?? currentMotor.resetCmd,
+      startAck: data[variables.startAck(motorId)]?.value ?? currentMotor.startAck,
+      stopAck: data[variables.stopAck(motorId)]?.value ?? currentMotor.stopAck,
+      resetAck: data[variables.resetAck(motorId)]?.value ?? currentMotor.resetAck,
+
+      // Maintenance variables
+      operatingHours: data[variables.operatingHours(motorId)]?.value ?? currentMotor.operatingHours,
+      maintenanceDue: data[variables.maintenanceDue(motorId)]?.value ?? currentMotor.maintenanceDue,
+      maintenanceHours: data[variables.maintenanceHours(motorId)]?.value ?? currentMotor.maintenanceHours,
+    };
+  }
+
+  static mapMotor7Special(data: any, currentMotor: MotorData): MotorData {
+    // Motor 7 special handling for softstarter
+    const baseMotor = this.mapMotorData(data, currentMotor, 7);
+    return {
+      ...baseMotor,
+      // Override with correct values for softstarter
+      rpm: 1500, // Always 1500 RPM (fixed speed softstarter)
+      current: 0, // Not measurable in softstarter
+      temperature: 0, // Not measurable in softstarter
+      status: 0, // No status feedback from softstarter
+      errorCode: 0, // No error codes from softstarter
+      targetRpm: 1500, // Fixed RPM, not adjustable
+      startAck: false, // No ACK feedback from softstarter
+      stopAck: false,
+      resetAck: false,
+    };
+  }
 }
 
 // Helper function to get default flow setpoint by motor ID
 const getDefaultFlowSetpoint = (motorId?: number): number => {
   if (!motorId) return 16; // Default fallback
-  
+
   switch (motorId) {
     case 1: return 16; // Actual PLC value for PUMP_1_FLOW_SETPOINT
     case 2: return 30; // DB default for PUMP_2_FLOW_SETPOINT (adjust if different)
@@ -148,10 +247,122 @@ const getDefaultFlowSetpoint = (motorId?: number): number => {
   }
 };
 
-// Helper function to get default pressure setpoint by motor ID  
+// System Data Mapping Factory - Eliminates system data mapping duplication
+class SystemDataMapper {
+  private static readonly SYSTEM_VARIABLES = {
+    // System Status
+    systemStatus: 'SYSTEM_STATUS',
+    systemSafetyStatus: 'SYSTEM_SAFETY_STATUS',
+    emergencyStop: 'EMERGENCY_STOP',
+
+    // Flow & Pressure
+    totalFlow: 'TOTAL_SYSTEM_FLOW',
+    totalPressure: 'TOTAL_SYSTEM_PRESSURE',
+    pressureAverage: 'SYSTEM_PRESSURE_AVERAGE',
+    activePumps: 'SYSTEM_ACTIVE_PUMPS',
+    systemEfficiency: 'SYSTEM_EFFICIENCY',
+
+    // Setpoints
+    pressureSetpoint: 'SYSTEM_PRESSURE_SETPOINT',
+    flowSetpoint: 'SYSTEM_FLOW_SETPOINT',
+
+    // Temperature & Tank
+    oilTemperature: 'TANK_OIL_TEMPERATURE',
+    tankLevel: 'TANK_LEVEL_PERCENT',
+    aquaSensor: 'AQUA_SENSOR_LEVEL',
+    chillerInletTemp: 'CHILLER_INLET_TEMPERATURE',
+    chillerOutletTemp: 'CHILLER_OUTLET_TEMPERATURE',
+
+    // Tank Status
+    tankMinLevel: 'TANK_MIN_LEVEL',
+    tankMaxLevel: 'TANK_MAX_LEVEL',
+    chillerWaterFlowStatus: 'CHILLER_WATER_FLOW_STATUS',
+
+    // Communication
+    canCommunicationActive: 'CAN_COMMUNICATION_ACTIVE',
+    canTcpConnected: 'CAN_TCP_CONNECTED',
+    canActiveDeviceCount: 'CAN_ACTIVE_DEVICE_COUNT',
+    canSystemError: 'CAN_SYSTEM_ERROR',
+
+    // Safety Valves
+    pressureSafetyValvesEnable: 'PRESSURE_SAFETY_VALVES_ENABLE',
+    pressureSafetyValvesCommOk: 'PRESSURE_SAFETY_VALVES_COMM_OK',
+
+    // Error Management
+    systemErrorActive: 'SYSTEM_ERROR_ACTIVE',
+    criticalSafetyError: 'CRITICAL_SAFETY_ERROR',
+    anyMotorError: 'ANY_MOTOR_ERROR',
+
+    // System Control
+    systemEnable: 'SYSTEM_ENABLE',
+
+    // Oil Temperature Control Setpoints
+    minOilTempSetpoint: 'COOLING_MIN_OIL_TEMP_SETPOINT',
+    maxOilTempSetpoint: 'COOLING_MAX_OIL_TEMP_SETPOINT',
+  };
+
+  static mapSystemData(data: any, currentSystem: SystemData): SystemData {
+    const variables = this.SYSTEM_VARIABLES;
+
+    return {
+      ...currentSystem,
+      // System Status
+      systemStatus: data[variables.systemStatus]?.value ?? currentSystem.systemStatus,
+      systemSafetyStatus: data[variables.systemSafetyStatus]?.value ?? currentSystem.systemSafetyStatus,
+      emergencyStop: data[variables.emergencyStop]?.value ?? currentSystem.emergencyStop,
+
+      // Flow & Pressure
+      totalFlow: data[variables.totalFlow]?.value ?? currentSystem.totalFlow,
+      totalPressure: data[variables.totalPressure]?.value ?? currentSystem.totalPressure,
+      pressureAverage: data[variables.pressureAverage]?.value ?? currentSystem.pressureAverage,
+      activePumps: data[variables.activePumps]?.value ?? currentSystem.activePumps,
+      systemEfficiency: data[variables.systemEfficiency]?.value ?? currentSystem.systemEfficiency,
+
+      // Setpoints
+      pressureSetpoint: data[variables.pressureSetpoint]?.value ?? currentSystem.pressureSetpoint,
+      flowSetpoint: data[variables.flowSetpoint]?.value ?? currentSystem.flowSetpoint,
+
+      // Temperature & Tank
+      oilTemperature: data[variables.oilTemperature]?.value ?? currentSystem.oilTemperature,
+      tankLevel: data[variables.tankLevel]?.value ?? currentSystem.tankLevel,
+      aquaSensor: data[variables.aquaSensor]?.value ?? currentSystem.aquaSensor,
+      chillerInletTemp: data[variables.chillerInletTemp]?.value ?? currentSystem.chillerInletTemp,
+      chillerOutletTemp: data[variables.chillerOutletTemp]?.value ?? currentSystem.chillerOutletTemp,
+
+      // Tank Status
+      tankMinLevel: data[variables.tankMinLevel]?.value ?? currentSystem.tankMinLevel,
+      tankMaxLevel: data[variables.tankMaxLevel]?.value ?? currentSystem.tankMaxLevel,
+      chillerWaterFlowStatus: data[variables.chillerWaterFlowStatus]?.value ?? currentSystem.chillerWaterFlowStatus,
+
+      // Communication
+      canCommunicationActive: data[variables.canCommunicationActive]?.value ?? currentSystem.canCommunicationActive,
+      canTcpConnected: data[variables.canTcpConnected]?.value ?? currentSystem.canTcpConnected,
+      canActiveDeviceCount: data[variables.canActiveDeviceCount]?.value ?? currentSystem.canActiveDeviceCount,
+      canSystemError: data[variables.canSystemError]?.value ?? currentSystem.canSystemError,
+
+      // Safety Valves
+      pressureSafetyValvesEnable: data[variables.pressureSafetyValvesEnable]?.value ?? currentSystem.pressureSafetyValvesEnable,
+      pressureSafetyValvesCommOk: data[variables.pressureSafetyValvesCommOk]?.value ?? currentSystem.pressureSafetyValvesCommOk,
+
+      // Error Management
+      systemErrorActive: data[variables.systemErrorActive]?.value ?? currentSystem.systemErrorActive,
+      criticalSafetyError: data[variables.criticalSafetyError]?.value ?? currentSystem.criticalSafetyError,
+      anyMotorError: data[variables.anyMotorError]?.value ?? currentSystem.anyMotorError,
+
+      // System Control
+      systemEnable: data[variables.systemEnable]?.value ?? currentSystem.systemEnable,
+
+      // Oil Temperature Control Setpoints
+      minOilTempSetpoint: data[variables.minOilTempSetpoint]?.value ?? currentSystem.minOilTempSetpoint,
+      maxOilTempSetpoint: data[variables.maxOilTempSetpoint]?.value ?? currentSystem.maxOilTempSetpoint,
+    };
+  }
+}
+
+// Helper function to get default pressure setpoint by motor ID
 const getDefaultPressureSetpoint = (motorId?: number): number => {
   if (!motorId) return 280; // Default fallback
-  
+
   switch (motorId) {
     case 1: return 0; // TEMP: Use 0 to clearly show when OPC data is missing
     case 2: return 280; // DB default - adjust if actual PLC value is different
@@ -283,116 +494,19 @@ export const useOpcStore = create<OpcStore>((set, get) => ({
   updateAll: (data) => set((state) => {
     const motors: Record<number, MotorData> = { ...state.motors };
     
-    // Parse motor data from API response using real CSV variable names
+    // Parse motor data from API response using MotorDataMapper factory
     for (let i = 1; i <= 7; i++) {
       if (i === 7) {
-        // MOTOR_7 special handling - Override OPC values for Softstarter
-        motors[i] = {
-          ...motors[i],
-          // Override with correct values for softstarter
-          rpm: 1500, // Always 1500 RPM (fixed speed softstarter)
-          current: motors[i].current ?? 0, // Not measurable in softstarter
-          temperature: motors[i].temperature ?? 0, // Not measurable in softstarter
-          status: motors[i].status ?? 0, // No status feedback from softstarter
-          errorCode: motors[i].errorCode ?? 0, // No error codes from softstarter
-          targetRpm: 1500, // Fixed RPM, not adjustable
-          
-          // Valid OPC variables for MOTOR_7
-          enabled: data[`MOTOR_${i}_ENABLE`]?.value === true || false,
-          startCmd: data[`MOTOR_${i}_START_CMD`]?.value ?? motors[i].startCmd,
-          stopCmd: data[`MOTOR_${i}_STOP_CMD`]?.value ?? motors[i].stopCmd,
-          resetCmd: data[`MOTOR_${i}_RESET_CMD`]?.value ?? motors[i].resetCmd,
-          
-          // No ACK feedback from softstarter
-          startAck: motors[i].startAck ?? false,
-          stopAck: motors[i].stopAck ?? false, 
-          resetAck: motors[i].resetAck ?? false,
-          
-          // Pump-related variables (still valid)
-          leak: data[`PUMP_${i}_LEAK_RATE`]?.value ?? motors[i].leak,
-          manualValve: data[`PUMP_${i}_MANUAL_VALVE_STATUS`]?.value === true || false,
-          lineFilter: data[`PUMP_${i}_LINE_FILTER_STATUS`]?.value ?? motors[i].lineFilter,
-          suctionFilter: data[`PUMP_${i}_SUCTION_FILTER_STATUS`]?.value ?? motors[i].suctionFilter,
-          flow: data[`PUMP_${i}_FLOW_ACTUAL`]?.value ?? motors[i].flow,
-          pressure: data[`PUMP_${i}_PRESSURE_ACTUAL`]?.value ?? motors[i].pressure,
-          flowSetpoint: data[`PUMP_${i}_FLOW_SETPOINT`]?.value ?? motors[i].flowSetpoint,
-          pressureSetpoint: data[`PUMP_${i}_PRESSURE_SETPOINT`]?.value ?? motors[i].pressureSetpoint,
-          
-          // Maintenance (still tracked)
-          operatingHours: data[`MOTOR_${i}_OPERATING_HOURS`]?.value ?? motors[i].operatingHours,
-          maintenanceDue: data[`MOTOR_${i}_MAINTENANCE_DUE`]?.value ?? motors[i].maintenanceDue,
-          maintenanceHours: data[`MOTOR_${i}_MAINTENANCE_HOURS`]?.value ?? motors[i].maintenanceHours,
-        };
+        // MOTOR_7 special handling using factory
+        motors[i] = MotorDataMapper.mapMotor7Special(data, motors[i]);
       } else {
-        // MOTOR_1-6: Normal G120C motors
-        motors[i] = {
-          ...motors[i],
-          rpm: data[`MOTOR_${i}_RPM_ACTUAL`]?.value ?? motors[i].rpm,
-          current: data[`MOTOR_${i}_CURRENT_A`]?.value ?? motors[i].current,
-          targetRpm: data[`MOTOR_${i}_RPM_SETPOINT`]?.value ?? motors[i].targetRpm,
-          leak: data[`PUMP_${i}_LEAK_RATE`]?.value ?? motors[i].leak,
-          temperature: data[`MOTOR_${i}_TEMPERATURE_C`]?.value ?? motors[i].temperature,
-          status: data[`MOTOR_${i}_STATUS`]?.value ?? motors[i].status,
-          manualValve: data[`PUMP_${i}_MANUAL_VALVE_STATUS`]?.value === true || false,
-          lineFilter: data[`PUMP_${i}_LINE_FILTER_STATUS`]?.value ?? motors[i].lineFilter,
-          suctionFilter: data[`PUMP_${i}_SUCTION_FILTER_STATUS`]?.value ?? motors[i].suctionFilter,
-          flow: data[`PUMP_${i}_FLOW_ACTUAL`]?.value ?? motors[i].flow,
-          pressure: data[`PUMP_${i}_PRESSURE_ACTUAL`]?.value ?? motors[i].pressure,
-          flowSetpoint: data[`PUMP_${i}_FLOW_SETPOINT`]?.value ?? motors[i].flowSetpoint,
-          pressureSetpoint: data[`PUMP_${i}_PRESSURE_SETPOINT`]?.value ?? motors[i].pressureSetpoint,
-          enabled: data[`MOTOR_${i}_ENABLE`]?.value === true || false,
-          errorCode: data[`MOTOR_${i}_ERROR_CODE`]?.value ?? motors[i].errorCode,
-          startCmd: data[`MOTOR_${i}_START_CMD`]?.value ?? motors[i].startCmd,
-          stopCmd: data[`MOTOR_${i}_STOP_CMD`]?.value ?? motors[i].stopCmd,
-          resetCmd: data[`MOTOR_${i}_RESET_CMD`]?.value ?? motors[i].resetCmd,
-          startAck: data[`MOTOR_${i}_START_ACK`]?.value ?? motors[i].startAck,
-          stopAck: data[`MOTOR_${i}_STOP_ACK`]?.value ?? motors[i].stopAck,
-          resetAck: data[`MOTOR_${i}_RESET_ACK`]?.value ?? motors[i].resetAck,
-          operatingHours: data[`MOTOR_${i}_OPERATING_HOURS`]?.value ?? motors[i].operatingHours,
-          maintenanceDue: data[`MOTOR_${i}_MAINTENANCE_DUE`]?.value ?? motors[i].maintenanceDue,
-          maintenanceHours: data[`MOTOR_${i}_MAINTENANCE_HOURS`]?.value ?? motors[i].maintenanceHours,
-        };
+        // MOTOR_1-6: Normal G120C motors using factory
+        motors[i] = MotorDataMapper.mapMotorData(data, motors[i], i);
       }
     }
     
-    // Parse system data using real CSV variable names
-    const system = {
-      ...state.system,
-      systemStatus: data['SYSTEM_STATUS']?.value ?? state.system.systemStatus,
-      systemSafetyStatus: data['SYSTEM_SAFETY_STATUS']?.value ?? state.system.systemSafetyStatus,
-      emergencyStop: data['EMERGENCY_STOP']?.value ?? state.system.emergencyStop,
-      totalFlow: data['TOTAL_SYSTEM_FLOW']?.value ?? state.system.totalFlow,
-      totalPressure: data['TOTAL_SYSTEM_PRESSURE']?.value ?? state.system.totalPressure,
-      pressureAverage: data['SYSTEM_PRESSURE_AVERAGE']?.value ?? state.system.pressureAverage,
-      activePumps: data['SYSTEM_ACTIVE_PUMPS']?.value ?? state.system.activePumps,
-      systemEfficiency: data['SYSTEM_EFFICIENCY']?.value ?? state.system.systemEfficiency,
-      pressureSetpoint: data['SYSTEM_PRESSURE_SETPOINT']?.value ?? state.system.pressureSetpoint,
-      flowSetpoint: data['SYSTEM_FLOW_SETPOINT']?.value ?? state.system.flowSetpoint,
-      oilTemperature: data['TANK_OIL_TEMPERATURE']?.value ?? state.system.oilTemperature,
-      tankLevel: data['TANK_LEVEL_PERCENT']?.value ?? state.system.tankLevel,
-      aquaSensor: data['AQUA_SENSOR_LEVEL']?.value ?? state.system.aquaSensor,
-      chillerInletTemp: data['CHILLER_INLET_TEMPERATURE']?.value ?? state.system.chillerInletTemp,
-      chillerOutletTemp: data['CHILLER_OUTLET_TEMPERATURE']?.value ?? state.system.chillerOutletTemp,
-      tankMinLevel: data['TANK_MIN_LEVEL']?.value ?? state.system.tankMinLevel,
-      tankMaxLevel: data['TANK_MAX_LEVEL']?.value ?? state.system.tankMaxLevel,
-      chillerWaterFlowStatus: data['CHILLER_WATER_FLOW_STATUS']?.value ?? state.system.chillerWaterFlowStatus,
-      canCommunicationActive: data['CAN_COMMUNICATION_ACTIVE']?.value ?? state.system.canCommunicationActive,
-      canTcpConnected: data['CAN_TCP_CONNECTED']?.value ?? state.system.canTcpConnected,
-      canActiveDeviceCount: data['CAN_ACTIVE_DEVICE_COUNT']?.value ?? state.system.canActiveDeviceCount,
-      canSystemError: data['CAN_SYSTEM_ERROR']?.value ?? state.system.canSystemError,
-      pressureSafetyValvesEnable: data['PRESSURE_SAFETY_VALVES_ENABLE']?.value ?? state.system.pressureSafetyValvesEnable,
-      pressureSafetyValvesCommOk: data['PRESSURE_SAFETY_VALVES_COMM_OK']?.value ?? state.system.pressureSafetyValvesCommOk,
-      systemErrorActive: data['SYSTEM_ERROR_ACTIVE']?.value ?? state.system.systemErrorActive,
-      criticalSafetyError: data['CRITICAL_SAFETY_ERROR']?.value ?? state.system.criticalSafetyError,
-      anyMotorError: data['ANY_MOTOR_ERROR']?.value ?? state.system.anyMotorError,
-      
-      // System Control
-      systemEnable: data['SYSTEM_ENABLE']?.value ?? state.system.systemEnable,
-      
-      // Oil Temperature Control Setpoints
-      minOilTempSetpoint: data['COOLING_MIN_OIL_TEMP_SETPOINT']?.value ?? state.system.minOilTempSetpoint,
-      maxOilTempSetpoint: data['COOLING_MAX_OIL_TEMP_SETPOINT']?.value ?? state.system.maxOilTempSetpoint,
-    };
+    // Parse system data using SystemDataMapper factory
+    const system = SystemDataMapper.mapSystemData(data, state.system);
     
     return {
       motors,
@@ -416,116 +530,19 @@ export const useOpcStore = create<OpcStore>((set, get) => ({
     const motors: Record<number, MotorData> = { ...state.motors };
     const data = response.variables;
     
-    // Update motors with new data
+    // Update motors with new data using MotorDataMapper factory
     for (let i = 1; i <= 7; i++) {
       if (i === 7) {
-        // MOTOR_7 special handling - Override OPC values for Softstarter (same as updateAll)
-        motors[i] = {
-          ...motors[i],
-          // Override with correct values for softstarter
-          rpm: 1500, // Always 1500 RPM (fixed speed softstarter)
-          current: motors[i].current ?? 0, // Not measurable in softstarter
-          temperature: motors[i].temperature ?? 0, // Not measurable in softstarter
-          status: motors[i].status ?? 0, // No status feedback from softstarter
-          errorCode: motors[i].errorCode ?? 0, // No error codes from softstarter
-          targetRpm: 1500, // Fixed RPM, not adjustable
-          
-          // Valid OPC variables for MOTOR_7
-          enabled: data[`MOTOR_${i}_ENABLE`]?.value === true || false,
-          startCmd: data[`MOTOR_${i}_START_CMD`]?.value ?? motors[i].startCmd,
-          stopCmd: data[`MOTOR_${i}_STOP_CMD`]?.value ?? motors[i].stopCmd,
-          resetCmd: data[`MOTOR_${i}_RESET_CMD`]?.value ?? motors[i].resetCmd,
-          
-          // No ACK feedback from softstarter
-          startAck: motors[i].startAck ?? false,
-          stopAck: motors[i].stopAck ?? false, 
-          resetAck: motors[i].resetAck ?? false,
-          
-          // Pump-related variables (still valid)
-          leak: data[`PUMP_${i}_LEAK_RATE`]?.value ?? motors[i].leak,
-          manualValve: data[`PUMP_${i}_MANUAL_VALVE_STATUS`]?.value === true || false,
-          lineFilter: data[`PUMP_${i}_LINE_FILTER_STATUS`]?.value ?? motors[i].lineFilter,
-          suctionFilter: data[`PUMP_${i}_SUCTION_FILTER_STATUS`]?.value ?? motors[i].suctionFilter,
-          flow: data[`PUMP_${i}_FLOW_ACTUAL`]?.value ?? motors[i].flow,
-          pressure: data[`PUMP_${i}_PRESSURE_ACTUAL`]?.value ?? motors[i].pressure,
-          flowSetpoint: data[`PUMP_${i}_FLOW_SETPOINT`]?.value ?? motors[i].flowSetpoint,
-          pressureSetpoint: data[`PUMP_${i}_PRESSURE_SETPOINT`]?.value ?? motors[i].pressureSetpoint,
-          
-          // Maintenance (still tracked)
-          operatingHours: data[`MOTOR_${i}_OPERATING_HOURS`]?.value ?? motors[i].operatingHours,
-          maintenanceDue: data[`MOTOR_${i}_MAINTENANCE_DUE`]?.value ?? motors[i].maintenanceDue,
-          maintenanceHours: data[`MOTOR_${i}_MAINTENANCE_HOURS`]?.value ?? motors[i].maintenanceHours,
-        };
+        // MOTOR_7 special handling using factory
+        motors[i] = MotorDataMapper.mapMotor7Special(data, motors[i]);
       } else {
-        // MOTOR_1-6: Normal G120C motors
-        motors[i] = {
-          ...motors[i],
-          rpm: data[`MOTOR_${i}_RPM_ACTUAL`]?.value ?? motors[i].rpm,
-          current: data[`MOTOR_${i}_CURRENT_A`]?.value ?? motors[i].current,
-          targetRpm: data[`MOTOR_${i}_RPM_SETPOINT`]?.value ?? motors[i].targetRpm,
-          leak: data[`PUMP_${i}_LEAK_RATE`]?.value ?? motors[i].leak,
-          temperature: data[`MOTOR_${i}_TEMPERATURE_C`]?.value ?? motors[i].temperature,
-          status: data[`MOTOR_${i}_STATUS`]?.value ?? motors[i].status,
-          manualValve: data[`PUMP_${i}_MANUAL_VALVE_STATUS`]?.value === true || false,
-          lineFilter: data[`PUMP_${i}_LINE_FILTER_STATUS`]?.value ?? motors[i].lineFilter,
-          suctionFilter: data[`PUMP_${i}_SUCTION_FILTER_STATUS`]?.value ?? motors[i].suctionFilter,
-          flow: data[`PUMP_${i}_FLOW_ACTUAL`]?.value ?? motors[i].flow,
-          pressure: data[`PUMP_${i}_PRESSURE_ACTUAL`]?.value ?? motors[i].pressure,
-          flowSetpoint: data[`PUMP_${i}_FLOW_SETPOINT`]?.value ?? motors[i].flowSetpoint,
-          pressureSetpoint: data[`PUMP_${i}_PRESSURE_SETPOINT`]?.value ?? motors[i].pressureSetpoint,
-          enabled: data[`MOTOR_${i}_ENABLE`]?.value === true || false,
-          errorCode: data[`MOTOR_${i}_ERROR_CODE`]?.value ?? motors[i].errorCode,
-          startCmd: data[`MOTOR_${i}_START_CMD`]?.value ?? motors[i].startCmd,
-          stopCmd: data[`MOTOR_${i}_STOP_CMD`]?.value ?? motors[i].stopCmd,
-          resetCmd: data[`MOTOR_${i}_RESET_CMD`]?.value ?? motors[i].resetCmd,
-          startAck: data[`MOTOR_${i}_START_ACK`]?.value ?? motors[i].startAck,
-          stopAck: data[`MOTOR_${i}_STOP_ACK`]?.value ?? motors[i].stopAck,
-          resetAck: data[`MOTOR_${i}_RESET_ACK`]?.value ?? motors[i].resetAck,
-          operatingHours: data[`MOTOR_${i}_OPERATING_HOURS`]?.value ?? motors[i].operatingHours,
-          maintenanceDue: data[`MOTOR_${i}_MAINTENANCE_DUE`]?.value ?? motors[i].maintenanceDue,
-          maintenanceHours: data[`MOTOR_${i}_MAINTENANCE_HOURS`]?.value ?? motors[i].maintenanceHours,
-        };
+        // MOTOR_1-6: Normal G120C motors using factory
+        motors[i] = MotorDataMapper.mapMotorData(data, motors[i], i);
       }
     }
     
-    // Update system data
-    const system = {
-      ...state.system,
-      systemStatus: data['SYSTEM_STATUS']?.value ?? state.system.systemStatus,
-      systemSafetyStatus: data['SYSTEM_SAFETY_STATUS']?.value ?? state.system.systemSafetyStatus,
-      emergencyStop: data['EMERGENCY_STOP']?.value ?? state.system.emergencyStop,
-      totalFlow: data['TOTAL_SYSTEM_FLOW']?.value ?? state.system.totalFlow,
-      totalPressure: data['TOTAL_SYSTEM_PRESSURE']?.value ?? state.system.totalPressure,
-      pressureAverage: data['SYSTEM_PRESSURE_AVERAGE']?.value ?? state.system.pressureAverage,
-      activePumps: data['SYSTEM_ACTIVE_PUMPS']?.value ?? state.system.activePumps,
-      systemEfficiency: data['SYSTEM_EFFICIENCY']?.value ?? state.system.systemEfficiency,
-      pressureSetpoint: data['SYSTEM_PRESSURE_SETPOINT']?.value ?? state.system.pressureSetpoint,
-      flowSetpoint: data['SYSTEM_FLOW_SETPOINT']?.value ?? state.system.flowSetpoint,
-      oilTemperature: data['TANK_OIL_TEMPERATURE']?.value ?? state.system.oilTemperature,
-      tankLevel: data['TANK_LEVEL_PERCENT']?.value ?? state.system.tankLevel,
-      aquaSensor: data['AQUA_SENSOR_LEVEL']?.value ?? state.system.aquaSensor,
-      chillerInletTemp: data['CHILLER_INLET_TEMPERATURE']?.value ?? state.system.chillerInletTemp,
-      chillerOutletTemp: data['CHILLER_OUTLET_TEMPERATURE']?.value ?? state.system.chillerOutletTemp,
-      tankMinLevel: data['TANK_MIN_LEVEL']?.value ?? state.system.tankMinLevel,
-      tankMaxLevel: data['TANK_MAX_LEVEL']?.value ?? state.system.tankMaxLevel,
-      chillerWaterFlowStatus: data['CHILLER_WATER_FLOW_STATUS']?.value ?? state.system.chillerWaterFlowStatus,
-      canCommunicationActive: data['CAN_COMMUNICATION_ACTIVE']?.value ?? state.system.canCommunicationActive,
-      canTcpConnected: data['CAN_TCP_CONNECTED']?.value ?? state.system.canTcpConnected,
-      canActiveDeviceCount: data['CAN_ACTIVE_DEVICE_COUNT']?.value ?? state.system.canActiveDeviceCount,
-      canSystemError: data['CAN_SYSTEM_ERROR']?.value ?? state.system.canSystemError,
-      pressureSafetyValvesEnable: data['PRESSURE_SAFETY_VALVES_ENABLE']?.value ?? state.system.pressureSafetyValvesEnable,
-      pressureSafetyValvesCommOk: data['PRESSURE_SAFETY_VALVES_COMM_OK']?.value ?? state.system.pressureSafetyValvesCommOk,
-      systemErrorActive: data['SYSTEM_ERROR_ACTIVE']?.value ?? state.system.systemErrorActive,
-      criticalSafetyError: data['CRITICAL_SAFETY_ERROR']?.value ?? state.system.criticalSafetyError,
-      anyMotorError: data['ANY_MOTOR_ERROR']?.value ?? state.system.anyMotorError,
-      
-      // System Control
-      systemEnable: data['SYSTEM_ENABLE']?.value ?? state.system.systemEnable,
-      
-      // Oil Temperature Control Setpoints
-      minOilTempSetpoint: data['COOLING_MIN_OIL_TEMP_SETPOINT']?.value ?? state.system.minOilTempSetpoint,
-      maxOilTempSetpoint: data['COOLING_MAX_OIL_TEMP_SETPOINT']?.value ?? state.system.maxOilTempSetpoint,
-    };
+    // Update system data using SystemDataMapper factory
+    const system = SystemDataMapper.mapSystemData(data, state.system);
     
     console.log('✅ Motors Updated:', {
       motor1: {
@@ -698,4 +715,45 @@ export const useOpcStore = create<OpcStore>((set, get) => ({
       return { success: false, error: String(error) };
     }
   },
+
+  // 🔄 Connection Management - Graceful Degradation
+  setConnectionStatus: (status) => set((state) => ({
+    ...state,
+    isConnected: status.isConnected,
+    isLoading: status.isReconnecting ? true : state.isLoading,
+    errors: status.isConnected
+      ? state.errors.filter(e => !e.includes('connection'))
+      : [...state.errors.filter(e => !e.includes('connection')), status.message]
+  })),
+
+  handleConnectionLost: () => set((state) => {
+    console.warn('🔌 OPC Connection lost - Switching to graceful degradation mode');
+
+    // Add connection error to errors list
+    const connectionError = `OPC UA Connection Lost - ${new Date().toLocaleTimeString()}`;
+
+    return {
+      ...state,
+      isConnected: false,
+      isLoading: false,
+      errors: [...state.errors.filter(e => !e.includes('connection')), connectionError],
+      // Keep last known good values for graceful degradation
+      lastUpdate: state.lastUpdate
+    };
+  }),
+
+  handleConnectionRestored: () => set((state) => {
+    console.log('✅ OPC Connection restored - Resuming normal operations');
+
+    // Clear connection-related errors
+    const filteredErrors = state.errors.filter(e => !e.includes('connection'));
+
+    return {
+      ...state,
+      isConnected: true,
+      isLoading: false,
+      errors: filteredErrors,
+      lastUpdate: new Date()
+    };
+  }),
 }));

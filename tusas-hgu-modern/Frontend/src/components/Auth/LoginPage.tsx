@@ -39,15 +39,21 @@ const LoginPage: React.FC = () => {
     setError('');
 
     try {
+      console.log('🔐 Attempting login for user:', formData.username.trim());
       const result = await login(formData.username.trim(), formData.password);
-      
+
+      console.log('🔐 Login result:', result);
+
       if (!result.success) {
+        console.error('❌ Login failed:', result.message);
         setError(result.message);
         setIsSubmitting(false);
+      } else {
+        console.log('✅ Login successful - waiting for redirect...');
       }
       // Success case is handled by AuthContext - user will be redirected automatically
     } catch (error) {
-      console.error('Login submission error:', error);
+      console.error('💥 Login submission error:', error);
       setError('An unexpected error occurred');
       setIsSubmitting(false);
     }

@@ -12,7 +12,7 @@ interface TankCoolingPanelProps {
 const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
   const system = useOpcStore((state) => state.system);
   const [showCoolingModal, setShowCoolingModal] = useState(false);
-  
+
   // OPC hints for tank and cooling data
   const tankLevelHint = useSystemOpcHint('tankLevel');
   const oilTemperatureHint = useSystemOpcHint('oilTemperature');
@@ -20,7 +20,7 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
   const chillerInletTempHint = useSystemOpcHint('chillerInletTemp');
   const chillerWaterFlowHint = useSystemOpcHint('chillerWaterFlowStatus');
   const systemStatusHint = useSystemOpcHint('systemStatus');
-  
+
   // Use actual OPC data from store
   const tankCoolingData = {
     tankLevel: system.tankLevel || 0, // From COOLING_OIL_LEVEL_PERCENT_EXECUTION
@@ -81,7 +81,7 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
   };
 
   return (
-    <div 
+    <div
       className={`tank-cooling-panel ${statusInfo.class}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
@@ -91,8 +91,8 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
       aria-pressed="false"
     >
       {/* Status LED Strip */}
-      <div 
-        className="status-strip" 
+      <div
+        className="status-strip"
         style={{ backgroundColor: statusInfo.color }}
       />
 
@@ -102,9 +102,9 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
           <span className="panel-icon">{statusInfo.icon}</span>
           <span className="panel-text">TANK & COOLING</span>
         </div>
-        <div 
+        <div
           className={`status-badge ${statusInfo.class}`}
-          style={{ 
+          style={{
             backgroundColor: `${statusInfo.color}20`,
             borderColor: `${statusInfo.color}60`
           }}
@@ -121,20 +121,20 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
           <span className="section-icon">🛢️</span>
           <span className="section-title">HYDRAULIC TANK</span>
         </div>
-        
+
         <div className="tank-display">
           <div className="tank-visual">
             <div className="tank-container">
-              <div 
+              <div
                 className={`tank-level ${tankLevelStatus.class}`}
-                style={{ 
+                style={{
                   height: `${tankCoolingData.tankLevel}%`,
-                  backgroundColor: tankLevelStatus.color 
+                  backgroundColor: tankLevelStatus.color
                 }}
                 title={tankLevelHint}
               />
-              <div 
-                className="tank-level-text" 
+              <div
+                className="tank-level-text"
                 title={tankLevelHint}
               >
                 {tankCoolingData.tankLevel.toFixed(1)}%
@@ -148,25 +148,25 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
               <div className="scale-mark">0%</div>
             </div>
           </div>
-          
+
           <div className="tank-metrics">
             <div className="tank-metric with-progress">
               <div className="metric-label">Tank Temperature</div>
               <div className="metric-with-progress">
                 <div className="progress-background">
-                  <div 
+                  <div
                     className="progress-fill temperature"
-                    style={{ 
+                    style={{
                       width: `${Math.min((tankCoolingData.tankTemperature / tankCoolingData.maxOilTempSetpoint) * 100, 100)}%`,
                       backgroundColor: getTemperatureColor(
-                        tankCoolingData.tankTemperature, 
-                        tankCoolingData.minOilTempSetpoint, 
+                        tankCoolingData.tankTemperature,
+                        tankCoolingData.minOilTempSetpoint,
                         tankCoolingData.maxOilTempSetpoint
                       )
                     }}
                   />
                 </div>
-                <div 
+                <div
                   className="metric-value overlay-text"
                   title={oilTemperatureHint}
                 >
@@ -174,20 +174,20 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
                 </div>
               </div>
             </div>
-            
+
             <div className="tank-metric with-progress">
               <div className="metric-label">Water in Oil</div>
               <div className="metric-with-progress">
                 <div className="progress-background">
-                  <div 
+                  <div
                     className="progress-fill water-contamination"
-                    style={{ 
+                    style={{
                       width: `${Math.min((tankCoolingData.aquaSensor * 100) / 1.0 * 100, 100)}%`,
                       backgroundColor: getAquaSensorColor(tankCoolingData.aquaSensor)
                     }}
                   />
                 </div>
-                <div 
+                <div
                   className="metric-value overlay-text"
                   title={aquaSensorHint}
                 >
@@ -205,7 +205,7 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
           <span className="section-icon">❄️</span>
           <span className="section-title">COOLING SYSTEM</span>
         </div>
-        
+
         <div className="cooling-metrics">
           <div className="cooling-metric-grid">
             <div className="cooling-metric with-progress">
@@ -215,15 +215,15 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
               </div>
               <div className="metric-with-progress">
                 <div className="progress-background">
-                  <div 
+                  <div
                     className="progress-fill water-temperature"
-                    style={{ 
+                    style={{
                       width: `${Math.min((tankCoolingData.waterTemperature / 50) * 100, 100)}%`,
                       backgroundColor: '#06b6d4'
                     }}
                   />
                 </div>
-                <div 
+                <div
                   className="metric-display overlay-text"
                   title={chillerInletTempHint}
                 >
@@ -240,15 +240,15 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
               </div>
               <div className="metric-with-progress">
                 <div className="progress-background">
-                  <div 
+                  <div
                     className="progress-fill flow-rate"
-                    style={{ 
+                    style={{
                       width: `${Math.min((tankCoolingData.coolingFlowRate / 200) * 100, 100)}%`,
                       backgroundColor: '#8b5cf6'
                     }}
                   />
                 </div>
-                <div 
+                <div
                   className="metric-display overlay-text"
                   title={chillerWaterFlowHint}
                 >
@@ -260,7 +260,7 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
           </div>
 
           <div className="cooling-status-row">
-            <div 
+            <div
               className="pump-status"
               title={chillerWaterFlowHint}
             >
@@ -281,9 +281,9 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
         <div className="range-display">
           <div className="range-bar">
             <div className="range-min">{tankCoolingData.minOilTempSetpoint}°C</div>
-            <div className="range-current-marker" 
-                 style={{ 
-                   left: `${((tankCoolingData.tankTemperature - tankCoolingData.minOilTempSetpoint) / 
+            <div className="range-current-marker"
+                 style={{
+                   left: `${((tankCoolingData.tankTemperature - tankCoolingData.minOilTempSetpoint) /
                            (tankCoolingData.maxOilTempSetpoint - tankCoolingData.minOilTempSetpoint)) * 100}%`,
                    backgroundColor: getTemperatureColor(
                      tankCoolingData.tankTemperature,
@@ -305,7 +305,7 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
 
       {/* Cooling Setpoints Modal - Portal to document.body */}
       {showCoolingModal && ReactDOM.createPortal(
-        <CoolingSetpointsModal 
+        <CoolingSetpointsModal
           onClose={() => setShowCoolingModal(false)}
         />,
         document.body

@@ -64,8 +64,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         const storedToken = localStorage.getItem('auth_token');
         const storedUser = localStorage.getItem('auth_user');
-        
-        console.log('Initializing auth... Token:', storedToken?.slice(0, 20) + '...', 'User:', storedUser?.slice(0, 30) + '...');
 
         if (storedToken && storedUser) {
           // Validate token with backend
@@ -78,7 +76,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           });
 
           if (response.ok) {
-            console.log('Token validation successful');
             const userData = JSON.parse(storedUser);
             setAuthState({
               user: userData,
@@ -88,14 +85,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             });
           } else {
             // Token is invalid, clear storage
-            console.log('Token validation failed, status:', response.status);
             localStorage.removeItem('auth_token');
             localStorage.removeItem('auth_user');
             localStorage.removeItem('auth_expires');
             setAuthState(prev => ({ ...prev, isLoading: false }));
           }
         } else {
-          console.log('No stored token/user found, showing login');
           setAuthState(prev => ({ ...prev, isLoading: false }));
         }
       } catch (error) {
@@ -127,10 +122,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const data = await response.json();
 
       if (data.success && data.token && data.user) {
+        console.log('🔐 Login successful, storing token to localStorage');
         // Store auth data
         localStorage.setItem('auth_token', data.token);
         localStorage.setItem('auth_user', JSON.stringify(data.user));
         localStorage.setItem('auth_expires', data.expiresAt);
+
+        console.log('💾 Token stored in localStorage:', data.token.substring(0, 20) + '...');
 
         // Update state
         setAuthState({
@@ -140,8 +138,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           isLoading: false
         });
 
+        console.log('✅ Auth state updated with token');
         return { success: true, message: 'Login successful' };
       } else {
+        console.log('❌ Login failed:', data.message);
         setAuthState(prev => ({ ...prev, isLoading: false }));
         return { success: false, message: data.message || 'Login failed' };
       }

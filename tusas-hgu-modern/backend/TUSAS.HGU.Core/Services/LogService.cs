@@ -17,6 +17,7 @@ namespace TUSAS.HGU.Core.Services
         CONFIG,         // Configuration changes
         AUDIT,          // Audit trail events
         OPC,            // OPC variable changes
+        CONNECTION,     // Connection events (OPC UA, network, etc.)
         BACKUP,         // Backup/restore operations
         SECURITY        // Security events
     }

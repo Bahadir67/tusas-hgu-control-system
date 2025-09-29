@@ -6,14 +6,15 @@ import './SystemOverviewPanel.css';
 
 interface SystemOverviewPanelProps {
   alarms?: Array<{ id: number; message: string; type: string }>;
+  onSystemEnableToggle?: () => void;
 }
 
-const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }) => {
+const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [], onSystemEnableToggle }) => {
   const system = useOpcStore((state) => state.system);
   const [showSetpointsModal, setShowSetpointsModal] = useState(false);
-  
+
   // Use actual OPC data from store - NO DUMMY VALUES
-  
+
   const systemData = {
     totalFlowExecution: system?.totalFlow,
     pressureExecution: system?.totalPressure,
@@ -70,7 +71,7 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
   };
 
   return (
-    <div 
+    <div
       className={`system-overview-panel ${statusInfo.class}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
@@ -80,8 +81,8 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
       aria-pressed="false"
     >
       {/* Status LED Strip */}
-      <div 
-        className="system-status-strip" 
+      <div
+        className="system-status-strip"
         style={{ backgroundColor: statusInfo.color }}
       />
 
@@ -91,9 +92,9 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
           <span className="system-icon">{statusInfo.icon}</span>
           <span className="system-text">SYSTEM OVERVIEW</span>
           {/* System Mode Indicator */}
-          <span 
-            className="system-mode-indicator" 
-            style={{ 
+          <span
+            className="system-mode-indicator"
+            style={{
               marginLeft: '10px',
               padding: '2px 8px',
               borderRadius: '4px',
@@ -106,9 +107,9 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
             {systemData.systemEnable ? 'AUTO' : 'MANUAL'}
           </span>
         </div>
-        <div 
+        <div
           className={`system-status-badge ${statusInfo.class}`}
-          style={{ 
+          style={{
             backgroundColor: `${statusInfo.color}20`,
             borderColor: `${statusInfo.color}60`
           }}
@@ -126,8 +127,8 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
             <span className="metric-label">TOTAL FLOW</span>
           </div>
           <div className="metric-display">
-            <div 
-              className="metric-value" 
+            <div
+              className="metric-value"
               style={{ color: systemData.totalFlowExecution !== undefined ? getValueColor(systemData.totalFlowExecution, systemData.totalFlowSetpoint) : '#ef4444' }}
             >
               {systemData.totalFlowExecution !== undefined ? systemData.totalFlowExecution.toFixed(1) : 'ERR'}
@@ -147,8 +148,8 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
             <span className="metric-label">PRESSURE</span>
           </div>
           <div className="metric-display">
-            <div 
-              className="metric-value" 
+            <div
+              className="metric-value"
               style={{ color: systemData.pressureExecution !== undefined ? getValueColor(systemData.pressureExecution, systemData.pressureSetpoint) : '#ef4444' }}
             >
               {systemData.pressureExecution !== undefined ? systemData.pressureExecution.toFixed(1) : 'ERR'}
@@ -165,7 +166,7 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
       <div className="secondary-metrics">
         <div className="secondary-metric">
           <div className="secondary-label">Efficiency</div>
-          <div 
+          <div
             className="secondary-value"
             style={{ color: systemData.efficiency !== undefined ? getEfficiencyColor(systemData.efficiency) : '#ef4444' }}
           >
@@ -193,13 +194,13 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
         <div className="performance-bar">
           <div className="performance-label">Flow Performance</div>
           <div className="progress-container">
-            <div 
+            <div
               className="progress-bar flow-progress"
-              style={{ 
-                width: systemData.totalFlowExecution && systemData.totalFlowSetpoint 
+              style={{
+                width: systemData.totalFlowExecution && systemData.totalFlowSetpoint
                   ? `${Math.min((systemData.totalFlowExecution / systemData.totalFlowSetpoint) * 100, 100)}%`
                   : '0%',
-                backgroundColor: systemData.totalFlowExecution && systemData.totalFlowSetpoint 
+                backgroundColor: systemData.totalFlowExecution && systemData.totalFlowSetpoint
                   ? getValueColor(systemData.totalFlowExecution, systemData.totalFlowSetpoint)
                   : '#ef4444'
               }}
@@ -215,13 +216,13 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
         <div className="performance-bar">
           <div className="performance-label">Pressure Performance</div>
           <div className="progress-container">
-            <div 
+            <div
               className="progress-bar pressure-progress"
-              style={{ 
-                width: systemData.pressureExecution && systemData.pressureSetpoint 
+              style={{
+                width: systemData.pressureExecution && systemData.pressureSetpoint
                   ? `${Math.min((systemData.pressureExecution / systemData.pressureSetpoint) * 100, 100)}%`
                   : '0%',
-                backgroundColor: systemData.pressureExecution && systemData.pressureSetpoint 
+                backgroundColor: systemData.pressureExecution && systemData.pressureSetpoint
                   ? getValueColor(systemData.pressureExecution, systemData.pressureSetpoint)
                   : '#ef4444'
               }}
@@ -241,7 +242,7 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
           <span className="setpoints-icon">🎯</span>
           <span className="setpoints-title">TARGET VALUES</span>
         </div>
-        
+
         <div className="setpoints-display">
           <div className="setpoint-item">
             <div className="setpoint-header">
@@ -252,7 +253,7 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
               {systemData.totalFlowSetpoint !== undefined ? systemData.totalFlowSetpoint.toFixed(1) : 'ERR'} L/min
             </div>
           </div>
-          
+
           <div className="setpoint-item">
             <div className="setpoint-header">
               <span className="setpoint-icon">⚡</span>
@@ -263,12 +264,47 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
             </div>
           </div>
         </div>
-        
+
         {/* Emergency Status */}
         <div className="emergency-status-compact">
           <span className="emergency-icon">🛡️</span>
           <span className="emergency-text">Emergency: </span>
           <span className="emergency-state normal">NORMAL</span>
+        </div>
+      </div>
+
+      {/* System Pump Enable Switch */}
+      <div className="system-pump-enable-section">
+        <div className="pump-enable-header">
+          <span className="pump-enable-icon">⚡</span>
+          <span className="pump-enable-title">SYSTEM PUMP CONTROL</span>
+        </div>
+        <div className="pump-enable-controls">
+          <div className="pump-enable-switch-container">
+            <label className="pump-enable-label">System Pump Enable</label>
+            <div
+              className={`pump-enable-switch ${systemData.systemEnable ? 'enabled' : 'disabled'}`}
+              onClick={onSystemEnableToggle}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSystemEnableToggle?.();
+                }
+              }}
+            >
+              <div className="pump-enable-slider" />
+            </div>
+            <div
+              className="pump-status-text"
+              style={{
+                color: systemData.systemEnable ? '#22c55e' : '#ef4444'
+              }}
+            >
+              {systemData.systemEnable ? 'ENABLED' : 'DISABLED'}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -280,7 +316,7 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({ alarms = [] }
 
       {/* System Setpoints Modal - Portal to document.body */}
       {showSetpointsModal && ReactDOM.createPortal(
-        <SystemSetpointsModal 
+        <SystemSetpointsModal
           onClose={() => setShowSetpointsModal(false)}
         />,
         document.body

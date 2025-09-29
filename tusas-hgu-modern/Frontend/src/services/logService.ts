@@ -125,6 +125,7 @@ export const logService = {
       'CONFIG',
       'AUDIT',
       'OPC',
+      'CONNECTION', // 🔗 OPC UA Connection events
       'BACKUP',
       'SECURITY'
     ];
