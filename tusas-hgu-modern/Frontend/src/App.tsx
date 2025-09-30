@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useOpcStore } from './store/opcStore';
 import { useAuth } from './contexts/AuthContext';
 import { opcApiService } from './services/opcApiService';
 import { useSystemModeTransition } from './hooks/useSystemModeTransition';
 import HamburgerMenu from './components/HamburgerMenu';
-import CompactMotorPanel from './components/CompactMotorPanel';
+import MotorGroupView from './components/CompactMotorPanel/MotorGroupView';
 import MotorDetailModal from './components/MotorDetailModal';
 import SystemOverviewPanel from './components/SystemOverviewPanel';
 import TankCoolingPanel from './components/TankCoolingPanel';
@@ -14,12 +14,36 @@ import InfluxDBMonitor, { InfluxMonitorTab } from './components/InfluxDBMonitor'
 import './styles/industrial-theme.css';
 import './styles/modern-layout.css';
 
+const MOTOR_GROUPS = [
+  {
+    id: 'main',
+    label: 'Ana Pompalar',
+    description: 'Ana hat debi kontrolü',
+    motorIds: [1, 2, 3, 4]
+  },
+  {
+    id: 'support',
+    label: 'Destek Pompaları',
+    description: 'Hazırlık ve bakım desteği',
+    motorIds: [5, 6]
+  },
+  {
+    id: 'pressure',
+    label: 'Yüksek Basınç',
+    description: 'Sızdırmazlık devresi',
+    motorIds: [7]
+  }
+] as const;
+
+type MotorGroupId = typeof MOTOR_GROUPS[number]['id'];
+
 function App() {
   const { token } = useAuth();
-  const { 
-    system, 
-    isConnected, 
-    isLoading, 
+  const {
+    system,
+    motors,
+    isConnected,
+    isLoading,
     errors,
     currentPage: storeCurrentPage,
     fetchPageData, 
@@ -34,6 +58,7 @@ function App() {
   const [selectedSystemPanel, setSelectedSystemPanel] = useState<string | null>(null);
   const [alarms, setAlarms] = useState<Array<{ id: number; message: string; type: string }>>([]);
   const [influxSubPage, setInfluxSubPage] = useState<InfluxMonitorTab>('summary');
+  const [motorSubPage, setMotorSubPage] = useState<MotorGroupId>(MOTOR_GROUPS[0].id);
   
   // Use system mode transition hook
   const transitionState = useSystemModeTransition();
@@ -43,6 +68,48 @@ function App() {
   
   // Use store's currentPage directly
   const currentPage = storeCurrentPage as 'main' | 'motors' | 'logs' | 'alarms' | 'stats' | 'influxdb';
+
+  const activeMotorGroup = useMemo(() => {
+    return MOTOR_GROUPS.find(group => group.id === motorSubPage) ?? MOTOR_GROUPS[0];
+  }, [motorSubPage]);
+
+  const selectedGroupMotors = useMemo(() => {
+    return activeMotorGroup.motorIds.map(id => motors[id]);
+  }, [activeMotorGroup, motors]);
+
+  const groupActiveCount = useMemo(() => {
+    return selectedGroupMotors.reduce((count, motor) => count + (motor.status === 1 ? 1 : 0), 0);
+  }, [selectedGroupMotors]);
+
+  const groupAveragePressure = useMemo(() => {
+    if (!selectedGroupMotors.length) return null;
+    const total = selectedGroupMotors.reduce((sum, motor) => sum + (Number.isFinite(motor.pressure) ? motor.pressure : 0), 0);
+    return selectedGroupMotors.length ? total / selectedGroupMotors.length : null;
+  }, [selectedGroupMotors]);
+
+  const groupAverageFlow = useMemo(() => {
+    if (!selectedGroupMotors.length) return null;
+    const total = selectedGroupMotors.reduce((sum, motor) => sum + (Number.isFinite(motor.flow) ? motor.flow : 0), 0);
+    return selectedGroupMotors.length ? total / selectedGroupMotors.length : null;
+  }, [selectedGroupMotors]);
+
+  const systemFlowMetrics = useMemo(() => ([
+    {
+      key: 'totalFlow',
+      label: 'Toplam Debi',
+      value: system?.totalFlow ? `${system.totalFlow.toFixed(1)} L/dk` : 'ERR'
+    },
+    {
+      key: 'totalPressure',
+      label: 'Toplam Basınç',
+      value: system?.totalPressure ? `${system.totalPressure.toFixed(1)} bar` : 'ERR'
+    },
+    {
+      key: 'activePumps',
+      label: 'Aktif Motor',
+      value: system?.activePumps !== undefined ? system.activePumps : 'ERR'
+    }
+  ]), [system.totalFlow, system.totalPressure, system.activePumps]);
 
   // Set auth token when it changes
   useEffect(() => {
@@ -277,49 +344,62 @@ function App() {
       case 'motors':
         return (
           <div className="motors-page-content">
-            {/* Motor Grid - 4 üstte, 3 altta */}
-            <div className="ultra-compact-motor-grid">
-              {/* Top row - Motors 1,2,3,4 */}
-              <div className="motor-row-top">
-                {[1, 2, 3, 4].map(id => (
-                  <div key={id} className="ultra-compact-motor-wrapper">
-                    <CompactMotorPanel 
-                      motorId={id} 
-                      onClick={() => handleMotorClick(id)}
-                    />
+            <div className="motor-page-shell">
+              <section className="motor-groups-section">
+                <div className="motor-group-tabs" role="tablist" aria-label="Motor Grupları">
+                  {MOTOR_GROUPS.map(group => {
+                    const isActive = group.id === motorSubPage;
+                    return (
+                      <button
+                        key={group.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        className={`motor-group-tab ${isActive ? 'active' : ''}`}
+                        onClick={() => setMotorSubPage(group.id)}
+                      >
+                        <span className="motor-group-label">{group.label}</span>
+                        <span className="motor-count-badge">{group.motorIds.length}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="motor-group-description">{activeMotorGroup.description}</p>
+                <MotorGroupView
+                  key={activeMotorGroup.id}
+                  motorIds={activeMotorGroup.motorIds}
+                  onMotorSelect={handleMotorClick}
+                />
+              </section>
+              <aside className="motor-summary-card">
+                <div className="motor-summary-header">
+                  <span className="motor-summary-title">Grup Özeti</span>
+                  <h2 className="motor-summary-group">{activeMotorGroup.label}</h2>
+                  <span className="motor-summary-subtitle">{activeMotorGroup.description}</span>
+                </div>
+                <div className="motor-summary-metrics">
+                  <div className="motor-summary-metric">
+                    <span className="motor-summary-label">Aktif Motor</span>
+                    <span className="motor-summary-value">{groupActiveCount} / {activeMotorGroup.motorIds.length}</span>
                   </div>
-                ))}
-              </div>
-              
-              {/* Bottom row - Motors 5,6,7 */}
-              <div className="motor-row-bottom">
-                {[5, 6, 7].map(id => (
-                  <div key={id} className="ultra-compact-motor-wrapper">
-                    <CompactMotorPanel 
-                      motorId={id} 
-                      onClick={() => handleMotorClick(id)}
-                    />
+                  <div className="motor-summary-metric">
+                    <span className="motor-summary-label">Ortalama Basınç</span>
+                    <span className="motor-summary-value">{groupAveragePressure !== null ? `${groupAveragePressure.toFixed(1)} bar` : '---'}</span>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* System Flow Summary */}
-            <div className="system-flow-summary">
-              <div className="flow-metric">
-                <span className="flow-label">Total Flow:</span>
-                <span className="flow-value">{system?.totalFlow ? `${system.totalFlow.toFixed(1)} L/min` : 'ERR'}</span>
-              </div>
-              <div className="flow-separator">|</div>
-              <div className="flow-metric">
-                <span className="flow-label">Total Pressure:</span>
-                <span className="flow-value">{system?.totalPressure ? `${system.totalPressure.toFixed(1)} bar` : 'ERR'}</span>
-              </div>
-              <div className="flow-separator">|</div>
-              <div className="flow-metric">
-                <span className="flow-label">Active Motors:</span>
-                <span className="flow-value">{system?.activePumps !== undefined ? system.activePumps : 'ERR'}</span>
-              </div>
+                  <div className="motor-summary-metric">
+                    <span className="motor-summary-label">Ortalama Debi</span>
+                    <span className="motor-summary-value">{groupAverageFlow !== null ? `${groupAverageFlow.toFixed(1)} L/dk` : '---'}</span>
+                  </div>
+                </div>
+                <div className="system-flow-summary">
+                  {systemFlowMetrics.map(metric => (
+                    <div key={metric.key} className="flow-metric">
+                      <span className="flow-label">{metric.label}</span>
+                      <span className="flow-value">{metric.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </aside>
             </div>
           </div>
         );
