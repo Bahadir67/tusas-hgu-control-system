@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-interface QueryHistoryItem {
+export interface QueryHistoryItem {
   id: number;
   query: string;
   timestamp: Date;

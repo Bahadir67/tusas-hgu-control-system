@@ -10,7 +10,7 @@ import SystemOverviewPanel from './components/SystemOverviewPanel';
 import TankCoolingPanel from './components/TankCoolingPanel';
 import { LogsPage } from './components/LogsPage';
 import AlarmsPage from './components/AlarmsPage';
-import InfluxDBMonitor from './components/InfluxDBMonitor';
+import InfluxDBMonitor, { InfluxMonitorTab } from './components/InfluxDBMonitor';
 import './styles/industrial-theme.css';
 import './styles/modern-layout.css';
 
@@ -33,6 +33,7 @@ function App() {
   const [selectedMotorId, setSelectedMotorId] = useState<number | null>(null);
   const [selectedSystemPanel, setSelectedSystemPanel] = useState<string | null>(null);
   const [alarms, setAlarms] = useState<Array<{ id: number; message: string; type: string }>>([]);
+  const [influxSubPage, setInfluxSubPage] = useState<InfluxMonitorTab>('summary');
   
   // Use system mode transition hook
   const transitionState = useSystemModeTransition();
@@ -87,6 +88,12 @@ function App() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (currentPage !== 'influxdb') {
+      setInfluxSubPage('summary');
+    }
   }, [currentPage]);
 
   // Real OPC data fetching with page-based optimization
@@ -354,7 +361,12 @@ function App() {
         );
 
       case 'influxdb':
-        return <InfluxDBMonitor />;
+        return (
+          <InfluxDBMonitor
+            activeTab={influxSubPage}
+            onTabChange={setInfluxSubPage}
+          />
+        );
 
 
       default:

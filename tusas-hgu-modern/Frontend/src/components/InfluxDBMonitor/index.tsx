@@ -5,17 +5,28 @@ import type { InfluxMotorSeriesPoint, InfluxSystemTrendPoint } from '../../servi
 import InfluxDBConnectionPanel, { ConnectionStatus } from './InfluxDBConnectionPanel';
 import MotorTimeSeriesChart from './MotorTimeSeriesChart';
 import SystemMetricsChart from './SystemMetricsChart';
-import DataExportPanel from './DataExportPanel';
-import QueryManagementPanel from './QueryManagementPanel';
+import SummaryTab from './SummaryTab';
+import ChartsTab from './ChartsTab';
+import QueriesTab from './QueriesTab';
+import type { QueryHistoryItem } from './QueryManagementPanel';
 import './InfluxDBMonitor.css';
+
 type InfluxDBData = InfluxMotorSeriesPoint;
 type SystemTrend = InfluxSystemTrendPoint;
+export type InfluxMonitorTab = 'summary' | 'charts' | 'queries';
+
 interface InfluxConnectionInfo {
   bucket?: string;
   organization?: string;
   url?: string;
 }
-const InfluxDBMonitor: React.FC = () => {
+
+interface InfluxDBMonitorProps {
+  activeTab?: InfluxMonitorTab;
+  onTabChange?: (tab: InfluxMonitorTab) => void;
+}
+
+const InfluxDBMonitor: React.FC<InfluxDBMonitorProps> = ({ activeTab, onTabChange }) => {
   const { motors, lastUpdate } = useOpcStore();
   const [influxConnection, setInfluxConnection] = useState<ConnectionStatus>({
     status: 'connecting',
@@ -30,16 +41,21 @@ const InfluxDBMonitor: React.FC = () => {
   const [selectedMetrics, setSelectedMetrics] = useState(['pressure', 'flow', 'temperature']);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState(5); // seconds
-  // InfluxDB data retrieved from API
   const [motorTimeSeriesData, setMotorTimeSeriesData] = useState<InfluxDBData[]>([]);
   const [systemTrendsData, setSystemTrendsData] = useState<SystemTrend[]>([]);
-  const [queryHistory, setQueryHistory] = useState([
+  const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([
     { id: 1, query: 'SELECT pressure, flow FROM motor_data WHERE time > now() - 1h', timestamp: new Date(), duration: '0.34s', results: 1205 },
     { id: 2, query: 'SELECT mean(temperature) FROM motor_data WHERE time > now() - 24h GROUP BY time(1h)', timestamp: new Date(Date.now() - 300000), duration: '0.89s', results: 24 },
     { id: 3, query: 'SELECT * FROM system_metrics WHERE time > now() - 6h', timestamp: new Date(Date.now() - 600000), duration: '1.23s', results: 2160 }
-  ]);  // Load real InfluxDB connection status and data
+  ]);
+  const [fullscreenChart, setFullscreenChart] = useState<null | 'motor' | 'system'>(null);
+  const [internalTab, setInternalTab] = useState<InfluxMonitorTab>('summary');
+  const isControlled = activeTab !== undefined;
+  const currentTab = isControlled ? activeTab! : internalTab;
+
   useEffect(() => {
     let isMounted = true;
+
     const loadInfluxDBData = async () => {
       if (!selectedMotors.length || !selectedMetrics.length) {
         if (!isMounted) {
@@ -49,11 +65,13 @@ const InfluxDBMonitor: React.FC = () => {
         setSystemTrendsData([]);
         return;
       }
+
       try {
         setInfluxConnection(prev => ({
           ...prev,
           status: prev.status === 'connected' ? 'connected' : 'connecting'
         }));
+
         const health = await influxApi.getHealth();
         if (!isMounted) return;
         const isConnected = Boolean(health?.isConnected ?? health?.IsConnected);
@@ -62,15 +80,18 @@ const InfluxDBMonitor: React.FC = () => {
           status: isConnected ? 'connected' : 'disconnected',
           lastQuery: new Date()
         }));
+
         if (!isConnected) {
           setMotorTimeSeriesData([]);
           setSystemTrendsData([]);
           return;
         }
+
         const statsPromise = influxApi.getStats().catch(error => {
           console.error('Error loading InfluxDB stats:', error);
           return null;
         });
+
         const seriesPromise = influxApi
           .getMotorSeries({
             motors: selectedMotors,
@@ -82,18 +103,22 @@ const InfluxDBMonitor: React.FC = () => {
             console.error('Error loading motor series from InfluxDB:', error);
             return null;
           });
+
         const configPromise = configLoadedRef.current
           ? Promise.resolve(null)
           : influxApi.getConfig().catch(error => {
               console.error('Error loading InfluxDB configuration:', error);
               return null;
             });
+
         const [stats, series, config] = await Promise.all([
           statsPromise,
           seriesPromise,
           configPromise
         ]);
+
         if (!isMounted) return;
+
         if (config) {
           configLoadedRef.current = true;
           setConnectionInfo(prev => ({
@@ -103,6 +128,7 @@ const InfluxDBMonitor: React.FC = () => {
             url: config.url ?? config.Url ?? prev.url
           }));
         }
+
         if (stats) {
           setInfluxConnection(prev => {
             const last24Hours =
@@ -117,6 +143,7 @@ const InfluxDBMonitor: React.FC = () => {
             };
           });
         }
+
         const seriesSuccess = Boolean(series?.success ?? series?.Success);
         if (series && seriesSuccess) {
           const motorSeries = [...(series.motorSeries ?? series.MotorSeries ?? [])].sort((a, b) =>
@@ -125,6 +152,7 @@ const InfluxDBMonitor: React.FC = () => {
           const systemSeries = [...(series.systemSeries ?? series.SystemSeries ?? [])].sort((a, b) =>
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
+
           setMotorTimeSeriesData(motorSeries);
           setSystemTrendsData(systemSeries);
           setInfluxConnection(prev => ({
@@ -146,7 +174,9 @@ const InfluxDBMonitor: React.FC = () => {
         }));
       }
     };
+
     loadInfluxDBData();
+
     if (autoRefresh) {
       const interval = setInterval(loadInfluxDBData, refreshInterval * 1000);
       return () => {
@@ -154,14 +184,23 @@ const InfluxDBMonitor: React.FC = () => {
         clearInterval(interval);
       };
     }
+
     return () => {
       isMounted = false;
     };
   }, [selectedMotors, selectedMetrics, timeRange, autoRefresh, refreshInterval]);
+
+  const changeTab = (tab: InfluxMonitorTab) => {
+    if (!isControlled) {
+      setInternalTab(tab);
+    }
+    onTabChange?.(tab);
+  };
+
   const handleTimeRangeChange = (range: string) => {
     setTimeRange(range);
-    // In real implementation, this would trigger new InfluxDB query
   };
+
   const handleMotorSelection = (motorId: number, selected: boolean) => {
     if (selected) {
       setSelectedMotors(prev => [...prev, motorId]);
@@ -169,6 +208,7 @@ const InfluxDBMonitor: React.FC = () => {
       setSelectedMotors(prev => prev.filter(id => id !== motorId));
     }
   };
+
   const handleMetricSelection = (metric: string, selected: boolean) => {
     if (selected) {
       setSelectedMetrics(prev => [...prev, metric]);
@@ -176,15 +216,15 @@ const InfluxDBMonitor: React.FC = () => {
       setSelectedMetrics(prev => prev.filter(m => m !== metric));
     }
   };
+
   const handleExecuteQuery = async (query: string) => {
     const startTime = Date.now();
     try {
-      // Execute real InfluxDB query
       const result = await influxApi.executeQuery(query);
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
       const success = Boolean(result?.success ?? result?.Success);
       const payload = result?.result ?? result?.Result;
-      const newQuery = {
+      const newQuery: QueryHistoryItem = {
         id: queryHistory.length + 1,
         query,
         timestamp: new Date(),
@@ -195,7 +235,7 @@ const InfluxDBMonitor: React.FC = () => {
     } catch (error) {
       console.error('Query execution error:', error);
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-      const newQuery = {
+      const newQuery: QueryHistoryItem = {
         id: queryHistory.length + 1,
         query,
         timestamp: new Date(),
@@ -205,16 +245,24 @@ const InfluxDBMonitor: React.FC = () => {
       setQueryHistory(prev => [newQuery, ...prev.slice(0, 9)]);
     }
   };
+
+  const tabDefinitions: Array<{ id: InfluxMonitorTab; label: string; description: string }> = [
+    { id: 'summary', label: 'Özet', description: 'Bağlantı özeti ve kompakt grafikler' },
+    { id: 'charts', label: 'Grafikler', description: 'Detaylı zaman serisi görselleştirmeleri' },
+    { id: 'queries', label: 'Sorgular', description: 'Sorgu yönetimi ve veri dışa aktarma' }
+  ];
+
   return (
     <div className="influxdb-monitor">
-      {/* Header Section */}
       <div className="influxdb-header">
         <div className="header-title-section">
           <div className="monitor-title">
             <span className="monitor-icon">📊</span>
             <span className="monitor-text">InfluxDB Time-Series Monitor</span>
           </div>
-          <div className="monitor-subtitle">Real-time Database Analytics • Bucket: hgu_data • Org: tusas</div>
+          <div className="monitor-subtitle">
+            Real-time Database Analytics • Bucket: {connectionInfo.bucket ?? '---'} • Org: {connectionInfo.organization ?? '---'}
+          </div>
         </div>
         <div className="header-controls">
           <div className="time-range-selector">
@@ -256,7 +304,7 @@ const InfluxDBMonitor: React.FC = () => {
           </div>
         </div>
       </div>
-      {/* Status Bar */}
+
       <div className="influxdb-status-bar">
         <InfluxDBConnectionPanel
           connectionStatus={influxConnection}
@@ -289,137 +337,95 @@ const InfluxDBMonitor: React.FC = () => {
           </div>
           <div className="stat-separator">|</div>
           <div className="stat-item">
-            <span className="stat-label">Last Update:</span>
+            <span className="stat-label">Last OPC Update:</span>
             <span className="stat-value">{lastUpdate?.toLocaleTimeString() || 'Never'}</span>
           </div>
         </div>
       </div>
-      {/* Main Content Grid */}
-      <div className="influxdb-content-grid">
-        {/* Left Panel - Charts */}
-        <div className="charts-panel">
-          {/* Motor Selection */}
-          <div className="motor-selector">
-            <h3 className="panel-title">Motor Selection</h3>
-            <div className="motor-checkboxes">
-              {[1, 2, 3, 4, 5, 6, 7].map(motorId => (
-                <label key={motorId} className="motor-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={selectedMotors.includes(motorId)}
-                    onChange={(e) => handleMotorSelection(motorId, e.target.checked)}
-                    className="industrial-checkbox"
-                  />
-                  <span className="checkbox-label">Motor {motorId}</span>
-                  <span className={`status-dot status-${motors[motorId]?.status === 1 ? 'running' : 'ready'}`} />
-                </label>
-              ))}
-            </div>
-          </div>
-          {/* Metric Selection */}
-          <div className="metric-selector">
-            <h3 className="panel-title">Metrics</h3>
-            <div className="metric-checkboxes">
-              {[
-                { key: 'pressure', label: 'Pressure (bar)', color: '#00ff88' },
-                { key: 'flow', label: 'Flow (L/min)', color: '#0099ff' },
-                { key: 'temperature', label: 'Temperature (°C)', color: '#ff6b35' },
-                { key: 'rpm', label: 'RPM', color: '#ffa500' },
-                { key: 'current', label: 'Current (A)', color: '#dda0dd' }
-              ].map(metric => (
-                <label key={metric.key} className="metric-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={selectedMetrics.includes(metric.key)}
-                    onChange={(e) => handleMetricSelection(metric.key, e.target.checked)}
-                    className="industrial-checkbox"
-                  />
-                  <span className="checkbox-label">{metric.label}</span>
-                  <span
-                    className="metric-color-indicator"
-                    style={{ backgroundColor: metric.color }}
-                  />
-                </label>
-              ))}
-            </div>
-          </div>
-          {/* Motor Time Series Charts */}
-          <div className="motor-charts-container">
-            <MotorTimeSeriesChart
-              data={motorTimeSeriesData}
+
+      <div className="influxdb-tab-container">
+        <div className="influxdb-tab-controls">
+          {tabDefinitions.map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              className={`influxdb-tab-button ${currentTab === tab.id ? 'active' : ''}`}
+              onClick={() => changeTab(tab.id)}
+            >
+              <span className="tab-label">{tab.label}</span>
+              <span className="tab-description">{tab.description}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="influxdb-tab-content">
+          {currentTab === 'summary' && (
+            <SummaryTab
+              connectionStatus={influxConnection}
+              lastUpdate={lastUpdate ?? null}
+              motorTimeSeriesData={motorTimeSeriesData}
+              systemTrendsData={systemTrendsData}
               selectedMotors={selectedMotors}
               selectedMetrics={selectedMetrics}
               timeRange={timeRange}
             />
-          </div>
-          {/* System Metrics Chart */}
-          <div className="system-charts-container">
-            <SystemMetricsChart
-              data={systemTrendsData}
+          )}
+
+          {currentTab === 'charts' && (
+            <ChartsTab
+              motors={motors}
+              selectedMotors={selectedMotors}
+              onMotorSelection={handleMotorSelection}
+              selectedMetrics={selectedMetrics}
+              onMetricSelection={handleMetricSelection}
+              motorTimeSeriesData={motorTimeSeriesData}
+              systemTrendsData={systemTrendsData}
               timeRange={timeRange}
+              onOpenMotorFullscreen={() => setFullscreenChart('motor')}
+              onOpenSystemFullscreen={() => setFullscreenChart('system')}
             />
-          </div>
-        </div>
-        {/* Right Panel - Query Management & Export */}
-        <div className="controls-panel">
-          {/* Query Management */}
-          <QueryManagementPanel
-            queryHistory={queryHistory}
-            onExecuteQuery={handleExecuteQuery}
-          />
-          {/* Data Export */}
-          <DataExportPanel
-            selectedMotors={selectedMotors}
-            selectedMetrics={selectedMetrics}
-            timeRange={timeRange}
-            dataCount={motorTimeSeriesData.length}
-          />
-          {/* System Performance Metrics */}
-          <div className="performance-metrics">
-            <h3 className="panel-title">Database Performance</h3>
-            <div className="performance-grid">
-              <div className="perf-metric">
-                <span className="perf-label">Query Rate</span>
-                <span className="perf-value">15.2/min</span>
-              </div>
-              <div className="perf-metric">
-                <span className="perf-label">Avg Response</span>
-                <span className="perf-value">0.45s</span>
-              </div>
-              <div className="perf-metric">
-                <span className="perf-label">Storage Used</span>
-                <span className="perf-value">2.4 GB</span>
-              </div>
-              <div className="perf-metric">
-                <span className="perf-label">Data Points/hr</span>
-                <span className="perf-value">48.6k</span>
-              </div>
-            </div>
-          </div>
-          {/* Alert Configuration */}
-          <div className="alert-config">
-            <h3 className="panel-title">Alert Configuration</h3>
-            <div className="alert-items">
-              <div className="alert-item">
-                <span className="alert-name">High Pressure</span>
-                <span className="alert-threshold">&gt; 300 bar</span>
-                <span className={`alert-status alert-active`}>Active</span>
-              </div>
-              <div className="alert-item">
-                <span className="alert-name">Low Flow Rate</span>
-                <span className="alert-threshold">&lt; 10 L/min</span>
-                <span className={`alert-status alert-active`}>Active</span>
-              </div>
-              <div className="alert-item">
-                <span className="alert-name">High Temperature</span>
-                <span className="alert-threshold">&gt; 80°C</span>
-                <span className={`alert-status alert-inactive`}>Inactive</span>
-              </div>
-            </div>
-          </div>
+          )}
+
+          {currentTab === 'queries' && (
+            <QueriesTab
+              queryHistory={queryHistory}
+              onExecuteQuery={handleExecuteQuery}
+              selectedMotors={selectedMotors}
+              selectedMetrics={selectedMetrics}
+              timeRange={timeRange}
+              dataCount={motorTimeSeriesData.length}
+            />
+          )}
         </div>
       </div>
+
+      {fullscreenChart && (
+        <div className="chart-fullscreen-modal">
+          <div className="chart-fullscreen-backdrop" onClick={() => setFullscreenChart(null)} />
+          <div className="chart-fullscreen-content">
+            <button className="chart-fullscreen-close" type="button" onClick={() => setFullscreenChart(null)}>
+              ✕
+            </button>
+            {fullscreenChart === 'motor' ? (
+              <MotorTimeSeriesChart
+                data={motorTimeSeriesData}
+                selectedMotors={selectedMotors}
+                selectedMetrics={selectedMetrics}
+                timeRange={timeRange}
+                isFullscreen
+              />
+            ) : (
+              <SystemMetricsChart
+                data={systemTrendsData}
+                timeRange={timeRange}
+                isFullscreen
+              />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
 export default InfluxDBMonitor;
