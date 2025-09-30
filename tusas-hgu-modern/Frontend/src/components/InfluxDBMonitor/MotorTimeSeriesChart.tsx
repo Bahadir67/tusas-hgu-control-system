@@ -11,18 +11,26 @@ interface InfluxDBData {
   current?: number | null;
 }
 
+type ChartVariant = 'standard' | 'compact';
+
 interface MotorTimeSeriesChartProps {
   data: InfluxDBData[];
   selectedMotors: number[];
   selectedMetrics: string[];
   timeRange: string;
+  variant?: ChartVariant;
+  isFullscreen?: boolean;
+  onOpenFullscreen?: () => void;
 }
 
 const MotorTimeSeriesChart: React.FC<MotorTimeSeriesChartProps> = ({
   data,
   selectedMotors,
   selectedMetrics,
-  timeRange
+  timeRange,
+  variant = 'standard',
+  isFullscreen = false,
+  onOpenFullscreen
 }) => {
   const metricConfigs = {
     pressure: { color: '#00ff88', unit: 'bar', label: 'Pressure' },
@@ -90,7 +98,7 @@ const MotorTimeSeriesChart: React.FC<MotorTimeSeriesChartProps> = ({
             dot={false}
             name={`Motor ${motorId} ${config.label}`}
             connectNulls={false}
-            strokeDasharray={motorId === 7 ? "5,5" : undefined} // Dashed line for Motor 7 (softstarter)
+            strokeDasharray={motorId === 7 ? '5,5' : undefined} // Dashed line for Motor 7 (softstarter)
           />
         );
       });
@@ -150,27 +158,40 @@ const MotorTimeSeriesChart: React.FC<MotorTimeSeriesChartProps> = ({
     return value.toFixed(0);
   };
 
+  const chartHeight = isFullscreen ? 520 : variant === 'compact' ? 220 : 400;
+  const showLegend = variant !== 'compact' || isFullscreen;
+  const showInfo = variant !== 'compact' || isFullscreen;
+
   return (
-    <div className="motor-timeseries-chart">
+    <div
+      className={`motor-timeseries-chart ${variant === 'compact' ? 'chart-compact' : ''} ${isFullscreen ? 'chart-fullscreen' : ''}`}
+    >
       <div className="chart-header">
         <h3 className="chart-title">
           <span className="chart-icon">📈</span>
           Motor Time Series Data
         </h3>
-        <div className="chart-info">
-          <span className="chart-range">Range: {timeRange}</span>
-          <span className="chart-separator">•</span>
-          <span className="chart-points">{chartData.length} points</span>
-          <span className="chart-separator">•</span>
-          <span className="chart-motors">
-            {selectedMotors.length} motor{selectedMotors.length !== 1 ? 's' : ''}
-          </span>
-        </div>
+        {showInfo && (
+          <div className="chart-info">
+            <span className="chart-range">Range: {timeRange}</span>
+            <span className="chart-separator">•</span>
+            <span className="chart-points">{chartData.length} points</span>
+            <span className="chart-separator">•</span>
+            <span className="chart-motors">
+              {selectedMotors.length} motor{selectedMotors.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+        {onOpenFullscreen && (
+          <button className="chart-action-button" type="button" onClick={onOpenFullscreen}>
+            ⤢ Full Screen
+          </button>
+        )}
       </div>
 
       {chartData.length > 0 ? (
         <div className="chart-container">
-          <ResponsiveContainer width="100%" height={400}>
+          <ResponsiveContainer width="100%" height={chartHeight}>
             <LineChart
               data={chartData}
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
@@ -193,13 +214,16 @@ const MotorTimeSeriesChart: React.FC<MotorTimeSeriesChartProps> = ({
                 tickFormatter={formatYAxisLabel}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Legend
-                wrapperStyle={{
-                  color: 'var(--color-text-secondary)',
-                  fontSize: '12px',
-                  fontFamily: 'var(--font-mono)'
-                }}
-              />
+              {showLegend && (
+                <Legend
+                  wrapperStyle={{
+                    color: 'var(--color-text-secondary)',
+                    fontSize: '12px',
+                    fontFamily: 'var(--font-mono)'
+                  }}
+                />
+              )}
+
               {renderLines()}
             </LineChart>
           </ResponsiveContainer>
@@ -214,24 +238,26 @@ const MotorTimeSeriesChart: React.FC<MotorTimeSeriesChartProps> = ({
         </div>
       )}
 
-      <div className="chart-legend-custom">
-        <div className="legend-title">Active Metrics:</div>
-        <div className="legend-items">
-          {selectedMetrics.map(metric => {
-            const config = metricConfigs[metric as keyof typeof metricConfigs];
-            return (
-              <div key={metric} className="legend-item">
-                <span
-                  className="legend-color"
-                  style={{ backgroundColor: config.color }}
-                />
-                <span className="legend-label">{config.label}</span>
-                <span className="legend-unit">({config.unit})</span>
-              </div>
-            );
-          })}
+      {showLegend && (
+        <div className="chart-legend-custom">
+          <div className="legend-title">Active Metrics:</div>
+          <div className="legend-items">
+            {selectedMetrics.map(metric => {
+              const config = metricConfigs[metric as keyof typeof metricConfigs];
+              return (
+                <div key={metric} className="legend-item">
+                  <span
+                    className="legend-color"
+                    style={{ backgroundColor: config.color }}
+                  />
+                  <span className="legend-label">{config.label}</span>
+                  <span className="legend-unit">({config.unit})</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       <style>{`
         .motor-timeseries-chart {
@@ -240,11 +266,20 @@ const MotorTimeSeriesChart: React.FC<MotorTimeSeriesChartProps> = ({
           gap: var(--spacing-md);
         }
 
+        .motor-timeseries-chart.chart-compact .chart-container {
+          padding: var(--spacing-sm);
+        }
+
+        .motor-timeseries-chart.chart-compact .chart-title {
+          font-size: 14px;
+        }
+
         .chart-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
           margin-bottom: var(--spacing-md);
+          gap: var(--spacing-md);
         }
 
         .chart-title {
@@ -275,6 +310,23 @@ const MotorTimeSeriesChart: React.FC<MotorTimeSeriesChartProps> = ({
           color: var(--color-border);
         }
 
+        .chart-action-button {
+          background: rgba(0, 153, 255, 0.15);
+          border: 1px solid rgba(0, 153, 255, 0.45);
+          color: var(--color-text-primary);
+          font-size: 12px;
+          font-family: var(--font-mono);
+          padding: 6px 12px;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .chart-action-button:hover {
+          background: rgba(0, 153, 255, 0.25);
+          border-color: rgba(0, 153, 255, 0.65);
+        }
+
         .chart-container {
           background: rgba(15, 20, 25, 0.6);
           border: 1px solid rgba(96, 160, 255, 0.2);
@@ -292,6 +344,14 @@ const MotorTimeSeriesChart: React.FC<MotorTimeSeriesChartProps> = ({
           border: 1px solid rgba(96, 160, 255, 0.2);
           border-radius: var(--radius-md);
           color: var(--color-text-secondary);
+        }
+
+        .motor-timeseries-chart.chart-compact .chart-no-data {
+          height: 220px;
+        }
+
+        .motor-timeseries-chart.chart-fullscreen .chart-no-data {
+          height: 520px;
         }
 
         .no-data-icon {
@@ -419,6 +479,10 @@ const MotorTimeSeriesChart: React.FC<MotorTimeSeriesChartProps> = ({
             flex-wrap: wrap;
           }
 
+          .chart-action-button {
+            align-self: flex-start;
+          }
+
           .chart-legend-custom {
             flex-direction: column;
             align-items: flex-start;
@@ -435,5 +499,3 @@ const MotorTimeSeriesChart: React.FC<MotorTimeSeriesChartProps> = ({
 };
 
 export default MotorTimeSeriesChart;
-
-

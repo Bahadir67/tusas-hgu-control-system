@@ -11,26 +11,36 @@ interface SystemTrend {
   oilTemperature?: number | null;
 }
 
+type ChartVariant = 'standard' | 'compact';
+
 interface SystemMetricsChartProps {
   data: SystemTrend[];
   timeRange: string;
+  variant?: ChartVariant;
+  isFullscreen?: boolean;
+  onOpenFullscreen?: () => void;
 }
 
 const SystemMetricsChart: React.FC<SystemMetricsChartProps> = ({
   data,
-  timeRange
+  timeRange,
+  variant = 'standard',
+  isFullscreen = false,
+  onOpenFullscreen
 }) => {
   // Process data for chart display
   const chartData = useMemo(() => {
     if (!data.length) return [];
 
-    return data.map(item => ({
-      ...item,
-      time: new Date(item.timestamp).toLocaleTimeString('tr-TR', {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    })).slice(-60); // Show last 60 data points for performance
+    return data
+      .map(item => ({
+        ...item,
+        time: new Date(item.timestamp).toLocaleTimeString('tr-TR', {
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      }))
+      .slice(-60); // Show last 60 data points for performance
   }, [data]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -120,25 +130,38 @@ const SystemMetricsChart: React.FC<SystemMetricsChartProps> = ({
     return value.toFixed(0);
   };
 
+  const chartHeight = isFullscreen ? 520 : variant === 'compact' ? 240 : 350;
+  const showLegend = variant !== 'compact' || isFullscreen;
+  const showInfo = variant !== 'compact' || isFullscreen;
+
   return (
-    <div className="system-metrics-chart">
+    <div
+      className={`system-metrics-chart ${variant === 'compact' ? 'chart-compact' : ''} ${isFullscreen ? 'chart-fullscreen' : ''}`}
+    >
       <div className="chart-header">
         <h3 className="chart-title">
           <span className="chart-icon">🏭</span>
           System Performance Metrics
         </h3>
-        <div className="chart-info">
-          <span className="chart-range">Range: {timeRange}</span>
-          <span className="chart-separator">•</span>
-          <span className="chart-points">{chartData.length} points</span>
-          <span className="chart-separator">•</span>
-          <span className="chart-update">Real-time</span>
-        </div>
+        {showInfo && (
+          <div className="chart-info">
+            <span className="chart-range">Range: {timeRange}</span>
+            <span className="chart-separator">•</span>
+            <span className="chart-points">{chartData.length} points</span>
+            <span className="chart-separator">•</span>
+            <span className="chart-update">Real-time</span>
+          </div>
+        )}
+        {onOpenFullscreen && (
+          <button className="chart-action-button" type="button" onClick={onOpenFullscreen}>
+            ⤢ Full Screen
+          </button>
+        )}
       </div>
 
       {chartData.length > 0 ? (
         <div className="chart-container">
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={chartHeight}>
             <ComposedChart
               data={chartData}
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
@@ -170,13 +193,15 @@ const SystemMetricsChart: React.FC<SystemMetricsChartProps> = ({
                 tickFormatter={formatYAxisLabel}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Legend
-                wrapperStyle={{
-                  color: 'var(--color-text-secondary)',
-                  fontSize: '12px',
-                  fontFamily: 'var(--font-mono)'
-                }}
-              />
+              {showLegend && (
+                <Legend
+                  wrapperStyle={{
+                    color: 'var(--color-text-secondary)',
+                    fontSize: '12px',
+                    fontFamily: 'var(--font-mono)'
+                  }}
+                />
+              )}
 
               {/* Primary metrics as areas */}
               <Area
@@ -198,24 +223,15 @@ const SystemMetricsChart: React.FC<SystemMetricsChartProps> = ({
                 name="Total Pressure (bar)"
               />
 
-              {/* Secondary metrics as lines */}
+              {/* Secondary metrics */}
               <Line
                 yAxisId="right"
                 type="monotone"
                 dataKey="efficiency"
                 stroke="#ffa500"
                 strokeWidth={2}
-                dot={false}
                 name="System Efficiency (%)"
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="tankLevel"
-                stroke="#dda0dd"
-                strokeWidth={2}
                 dot={false}
-                name="Tank Level (%)"
               />
               <Line
                 yAxisId="right"
@@ -223,17 +239,24 @@ const SystemMetricsChart: React.FC<SystemMetricsChartProps> = ({
                 dataKey="oilTemperature"
                 stroke="#ff6b35"
                 strokeWidth={2}
-                dot={false}
                 name="Oil Temperature (°C)"
+                dot={false}
               />
-
-              {/* Active pumps as bars */}
               <Bar
-                yAxisId="right"
+                yAxisId="left"
                 dataKey="activePumps"
-                fill="rgba(30, 144, 255, 0.6)"
+                barSize={12}
+                fill="rgba(96, 160, 255, 0.35)"
                 name="Active Pumps"
-                maxBarSize={20}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="tankLevel"
+                stroke="#dda0dd"
+                strokeWidth={2}
+                name="Tank Level (%)"
+                dot={false}
               />
             </ComposedChart>
           </ResponsiveContainer>
@@ -241,59 +264,12 @@ const SystemMetricsChart: React.FC<SystemMetricsChartProps> = ({
       ) : (
         <div className="chart-no-data">
           <div className="no-data-icon">🏭</div>
-          <div className="no-data-text">No system data available</div>
+          <div className="no-data-text">No system metrics available</div>
           <div className="no-data-subtitle">
-            Waiting for system metrics from InfluxDB
+            Check the time range or connection settings
           </div>
         </div>
       )}
-
-      {/* Current Values Summary */}
-      <div className="current-values-summary">
-        <div className="summary-title">Current System Status:</div>
-        <div className="summary-grid">
-          {chartData.length > 0 && (
-            <>
-              <div className="summary-item">
-                <span className="summary-label">Flow Rate:</span>
-                <span className="summary-value flow">
-                  {chartData[chartData.length - 1]?.totalFlow?.toFixed(1) || 0} L/min
-                </span>
-              </div>
-              <div className="summary-item">
-                <span className="summary-label">Pressure:</span>
-                <span className="summary-value pressure">
-                  {chartData[chartData.length - 1]?.totalPressure?.toFixed(1) || 0} bar
-                </span>
-              </div>
-              <div className="summary-item">
-                <span className="summary-label">Efficiency:</span>
-                <span className="summary-value efficiency">
-                  {chartData[chartData.length - 1]?.efficiency?.toFixed(1) || 0}%
-                </span>
-              </div>
-              <div className="summary-item">
-                <span className="summary-label">Tank Level:</span>
-                <span className="summary-value tank">
-                  {chartData[chartData.length - 1]?.tankLevel?.toFixed(1) || 0}%
-                </span>
-              </div>
-              <div className="summary-item">
-                <span className="summary-label">Oil Temp:</span>
-                <span className="summary-value temperature">
-                  {chartData[chartData.length - 1]?.oilTemperature?.toFixed(1) || 0}°C
-                </span>
-              </div>
-              <div className="summary-item">
-                <span className="summary-label">Active Pumps:</span>
-                <span className="summary-value pumps">
-                  {chartData[chartData.length - 1]?.activePumps || 0}
-                </span>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
 
       <style>{`
         .system-metrics-chart {
@@ -302,11 +278,20 @@ const SystemMetricsChart: React.FC<SystemMetricsChartProps> = ({
           gap: var(--spacing-md);
         }
 
+        .system-metrics-chart.chart-compact .chart-container {
+          padding: var(--spacing-sm);
+        }
+
+        .system-metrics-chart.chart-compact .chart-title {
+          font-size: 14px;
+        }
+
         .chart-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
           margin-bottom: var(--spacing-md);
+          gap: var(--spacing-md);
         }
 
         .chart-title {
@@ -321,7 +306,7 @@ const SystemMetricsChart: React.FC<SystemMetricsChartProps> = ({
 
         .chart-icon {
           font-size: 18px;
-          filter: drop-shadow(0 0 4px rgba(255, 165, 0, 0.5));
+          filter: drop-shadow(0 0 4px rgba(0, 255, 136, 0.5));
         }
 
         .chart-info {
@@ -335,6 +320,23 @@ const SystemMetricsChart: React.FC<SystemMetricsChartProps> = ({
 
         .chart-separator {
           color: var(--color-border);
+        }
+
+        .chart-action-button {
+          background: rgba(0, 153, 255, 0.15);
+          border: 1px solid rgba(0, 153, 255, 0.45);
+          color: var(--color-text-primary);
+          font-size: 12px;
+          font-family: var(--font-mono);
+          padding: 6px 12px;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .chart-action-button:hover {
+          background: rgba(0, 153, 255, 0.25);
+          border-color: rgba(0, 153, 255, 0.65);
         }
 
         .chart-container {
@@ -354,6 +356,14 @@ const SystemMetricsChart: React.FC<SystemMetricsChartProps> = ({
           border: 1px solid rgba(96, 160, 255, 0.2);
           border-radius: var(--radius-md);
           color: var(--color-text-secondary);
+        }
+
+        .system-metrics-chart.chart-compact .chart-no-data {
+          height: 240px;
+        }
+
+        .system-metrics-chart.chart-fullscreen .chart-no-data {
+          height: 520px;
         }
 
         .no-data-icon {
@@ -425,75 +435,6 @@ const SystemMetricsChart: React.FC<SystemMetricsChartProps> = ({
           font-family: var(--font-mono);
         }
 
-        .current-values-summary {
-          background: rgba(15, 20, 25, 0.4);
-          border: 1px solid rgba(96, 160, 255, 0.1);
-          border-radius: var(--radius-sm);
-          padding: var(--spacing-md);
-        }
-
-        .summary-title {
-          font-size: 12px;
-          color: var(--color-text-secondary);
-          font-weight: 600;
-          margin-bottom: var(--spacing-sm);
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .summary-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-          gap: var(--spacing-sm);
-        }
-
-        .summary-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: var(--spacing-xs);
-          background: rgba(22, 32, 38, 0.6);
-          border: 1px solid rgba(96, 160, 255, 0.1);
-          border-radius: var(--radius-sm);
-        }
-
-        .summary-label {
-          font-size: 11px;
-          color: var(--color-text-secondary);
-          font-weight: 500;
-        }
-
-        .summary-value {
-          font-size: 12px;
-          font-weight: bold;
-          font-family: var(--font-mono);
-          text-shadow: 0 0 4px currentColor;
-        }
-
-        .summary-value.flow {
-          color: #00ff88;
-        }
-
-        .summary-value.pressure {
-          color: #0099ff;
-        }
-
-        .summary-value.efficiency {
-          color: #ffa500;
-        }
-
-        .summary-value.tank {
-          color: #dda0dd;
-        }
-
-        .summary-value.temperature {
-          color: #ff6b35;
-        }
-
-        .summary-value.pumps {
-          color: #1e90ff;
-        }
-
         @media (max-width: 768px) {
           .chart-header {
             flex-direction: column;
@@ -505,15 +446,8 @@ const SystemMetricsChart: React.FC<SystemMetricsChartProps> = ({
             flex-wrap: wrap;
           }
 
-          .summary-grid {
-            grid-template-columns: 1fr 1fr;
-            gap: var(--spacing-xs);
-          }
-
-          .summary-item {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 2px;
+          .chart-action-button {
+            align-self: flex-start;
           }
         }
       `}</style>
@@ -522,7 +456,3 @@ const SystemMetricsChart: React.FC<SystemMetricsChartProps> = ({
 };
 
 export default SystemMetricsChart;
-
-
-
-
