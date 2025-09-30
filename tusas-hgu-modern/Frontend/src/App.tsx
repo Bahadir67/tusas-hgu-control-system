@@ -43,6 +43,10 @@ function App() {
   // Use store's currentPage directly
   const currentPage = storeCurrentPage as 'main' | 'motors' | 'logs' | 'alarms' | 'stats' | 'influxdb';
 
+  const pageContainerStyle: React.CSSProperties | undefined = currentPage === 'logs'
+    ? { overflow: 'hidden', display: 'flex', flexDirection: 'column' }
+    : undefined;
+
   // Set auth token when it changes
   useEffect(() => {
     if (token) {
@@ -471,7 +475,10 @@ function App() {
       </div>
 
       {/* Page Content with Transition */}
-      <div className={`page-container ${isTransitioning ? 'transitioning' : ''}`}>
+      <div
+        className={`page-container ${isTransitioning ? 'transitioning' : ''}`}
+        style={pageContainerStyle}
+      >
         {renderPageContent()}
       </div>
 

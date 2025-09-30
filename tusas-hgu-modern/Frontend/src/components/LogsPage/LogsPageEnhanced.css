@@ -1,17 +1,13 @@
 /* SCADA Log Page - Simple & Practical */
 .logs-page-enhanced {
-  position: fixed; /* SABİT KONUM */
-  top: 220px; /* 50 pixel daha aşağı (170 + 50) */
-  left: 0;
-  right: 0;
-  bottom: 0; /* Tam alta kadar */
+  height: 100%;
   background: #0a0e27;
   color: #e0e0e0;
-  display: flex;
-  flex-direction: column;
-  padding: 2px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 8px;
   box-sizing: border-box;
-  overflow: hidden; /* SAYFA SCROLL YOK */
+  overflow: hidden;
 }
 
 /* Filters - Fixed Header */
@@ -19,11 +15,54 @@
   background: #0f1428;
   border: 1px solid #1a1f3a;
   border-radius: 6px;
-  padding: 8px; /* Daha kompakt */
-  margin-bottom: 4px; /* Daha az margin */
-  flex-shrink: 0;
-  min-height: fit-content;
-  max-height: 150px; /* Daha sıkışık */
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.filters-section.collapsed {
+  gap: 0.5rem;
+  padding-bottom: 8px;
+}
+
+.filters-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.filters-title {
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.filters-toggle-btn {
+  padding: 8px 12px;
+  background: rgba(10, 14, 39, 0.8);
+  border: 1px solid #2a3f5f;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filters-toggle-btn:hover {
+  border-color: #4a90e2;
+  background: rgba(15, 20, 40, 0.9);
+}
+
+.filters-toggle-btn:active {
+  transform: scale(0.97);
 }
 
 .filter-controls {
@@ -83,7 +122,7 @@
 /* Action Controls */
 .action-controls {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
   margin-left: auto;
 }
 
@@ -132,9 +171,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  flex: 1; /* Mevcut alanı doldur */
-  min-height: 0; /* Flexbox shrinking için */
-  /* Height will be set dynamically via React style */
+  min-height: 0;
 }
 
 /* Table Body - Scrollable */
@@ -142,6 +179,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  min-height: 0;
 }
 
 .logs-table-enhanced {
@@ -278,15 +316,15 @@
   border: 1px solid #1a1f3a;
   border-radius: 6px;
   padding: 6px 8px; /* Daha kompakt */
-  margin-top: 4px; /* Daha az margin */
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
   flex-wrap: wrap;
-  gap: 8px; /* Daha az gap */
+  gap: 0.5rem; /* Daha az gap */
   min-height: 50px; /* Daha kısa */
   max-height: 65px;
+  margin-top: 8px;
 }
 
 .page-size-control {
@@ -321,7 +359,7 @@
 .page-navigation {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .page-btn {
@@ -413,7 +451,7 @@
   .filter-group {
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: 0.5rem;
   }
   
   .filter-select,

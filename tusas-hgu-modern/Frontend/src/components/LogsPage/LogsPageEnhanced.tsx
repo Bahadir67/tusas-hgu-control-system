@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import './LogsPageEnhanced.css';
 
 interface SystemLog {
@@ -92,14 +92,10 @@ export const LogsPageEnhanced: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
-  const [tableHeight, setTableHeight] = useState<number>(400);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-  
-  // Refs for measuring components
-  const filtersRef = useRef<HTMLDivElement>(null);
-  const paginationRef = useRef<HTMLDivElement>(null);
-  
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+
   // Filter states
   const [filters, setFilters] = useState<LogFilter>({
     page: 1,
@@ -111,7 +107,6 @@ export const LogsPageEnhanced: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState('ALL');
 
   // Connection-specific state
-  const [showConnectionLogs, setShowConnectionLogs] = useState(false);
   const [connectionLogsOnly, setConnectionLogsOnly] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState('ALL');
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -221,60 +216,6 @@ export const LogsPageEnhanced: React.FC = () => {
       setLoading(false);
     }
   }, [filters, selectedCategory, selectedResult, selectedUser, searchTerm, selectedTimeRange]);
-
-  // Calculate table height using viewport and fixed positioning
-  const calculateTableHeight = useCallback(() => {
-    const viewportHeight = window.innerHeight;
-    const headerHeight = 220; // 50 pixel daha aşağı (170 + 50)
-    const filtersHeight = filtersRef.current?.offsetHeight || 80;
-    const paginationHeight = paginationRef.current?.offsetHeight || 60;
-    const containerPadding = 4; // Container padding
-    const margins = 8; // Margins between sections
-    
-    // Container spans from 170px to bottom of viewport
-    const containerHeight = viewportHeight - headerHeight;
-    
-    // Available space for table (5 satır için yeterli)
-    const availableHeight = containerHeight - filtersHeight - paginationHeight - containerPadding - margins;
-    const finalHeight = Math.max(availableHeight, 200); // Min height reduced
-    
-    console.log('🎯 5-row optimized calculation:', {
-      viewportHeight,
-      headerHeight,
-      containerHeight,
-      filtersHeight,
-      paginationHeight,
-      availableHeight,
-      finalHeight
-    });
-    
-    setTableHeight(finalHeight);
-  }, []);
-
-  // Handle window resize
-  useEffect(() => {
-    const handleResize = () => {
-      calculateTableHeight();
-    };
-
-    window.addEventListener('resize', handleResize);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [calculateTableHeight]);
-
-  // Initial calculation and recalculation when components change
-  useEffect(() => {
-    // Multiple calculations to ensure accuracy as DOM loads
-    const timers = [
-      setTimeout(() => calculateTableHeight(), 50),   // Quick first pass
-      setTimeout(() => calculateTableHeight(), 200),  // After components render
-      setTimeout(() => calculateTableHeight(), 500)   // After everything settles
-    ];
-    
-    return () => timers.forEach(timer => clearTimeout(timer));
-  }, [calculateTableHeight, error, logs.length]); // Recalculate when error banner or data changes
 
   // Load categories on mount
   useEffect(() => {
@@ -389,136 +330,154 @@ export const LogsPageEnhanced: React.FC = () => {
     }
   };
 
+  const toggleFiltersCollapsed = () => {
+    setFiltersCollapsed(prev => !prev);
+  };
+
   return (
     <div className="logs-page-enhanced">
       {/* Filters */}
-      <div className="filters-section" ref={filtersRef}>
+      <div className={`filters-section ${filtersCollapsed ? 'collapsed' : ''}`}>
+        <div className="filters-header">
+          <h2 className="filters-title">Log Filters</h2>
+          <button
+            type="button"
+            className="filters-toggle-btn"
+            onClick={toggleFiltersCollapsed}
+            aria-expanded={!filtersCollapsed}
+          >
+            {filtersCollapsed ? 'Expand Filters' : 'Collapse Filters'}
+          </button>
+        </div>
+
         {error && (
           <div className="error-banner">
             <span>❌ {error}</span>
           </div>
         )}
-        
-        <div className="filter-controls">
-          <div className="filter-group">
-            <label>Time Range</label>
-            <select 
-              value={selectedTimeRange} 
-              onChange={(e) => setSelectedTimeRange(e.target.value)}
-              className="filter-select"
-            >
-              {Object.entries(TIME_RANGES).map(([key, config]) => (
-                <option key={key} value={key}>
-                  {config.label}
-                </option>
-              ))}
-            </select>
-          </div>
 
-          <div className="filter-group">
-            <label>Category</label>
-            <select 
-              value={selectedCategory} 
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="filter-select"
-              disabled={categoriesLoading}
-            >
-              <option value="ALL">
-                {categoriesLoading ? 'Loading...' : 'All Categories'}
-              </option>
-              {availableCategories.map((category) => {
-                const config = getCategoryConfig(category);
-                return (
-                  <option key={category} value={category}>
-                    {config.icon} {config.label}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <label>User</label>
-            <select 
-              value={selectedUser} 
-              onChange={(e) => setSelectedUser(e.target.value)}
-              className="filter-select"
-            >
-              <option value="ALL">All Users</option>
-              {uniqueUsers.map(user => (
-                <option key={user} value={user}>{user}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <label>Result</label>
-            <select 
-              value={selectedResult} 
-              onChange={(e) => setSelectedResult(e.target.value)}
-              className="filter-select"
-            >
-              <option value="ALL">All Results</option>
-              <option value="SUCCESS">✅ Success</option>
-              <option value="ERROR">❌ Error</option>
-              <option value="WARNING">⚠️ Warning</option>
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <label>Search</label>
-            <input
-              type="text"
-              placeholder="Search logs..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="filter-input"
-            />
-          </div>
-
-          <div className="action-controls">
-            <button onClick={clearFilters} className="action-btn">
-              🔄 Clear
-            </button>
-            <button onClick={exportToCSV} className="action-btn">
-              📥 Export
-            </button>
-            <button onClick={fetchLogs} disabled={loading} className="action-btn">
-              {loading ? '⏳' : '🔄'} Refresh
-            </button>
-
-            {/* 🔗 Connection Logs Toggle */}
-            <button
-              onClick={() => {
-                setConnectionLogsOnly(!connectionLogsOnly);
-                if (!connectionLogsOnly) {
-                  setSelectedCategory('CONNECTION');
-                } else {
-                  setSelectedCategory('ALL');
-                }
-              }}
-              className={`action-btn ${connectionLogsOnly ? 'active' : ''}`}
-              title="Show only OPC UA connection logs"
-            >
-              🔗 {connectionLogsOnly ? 'All Logs' : 'Connection Logs'}
-            </button>
-
-            {/* 🔄 Auto-refresh Toggle (only for connection logs) */}
-            {connectionLogsOnly && (
-              <button
-                onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`action-btn ${autoRefresh ? 'active' : ''}`}
-                title="Auto-refresh connection logs every 5 seconds"
+        {!filtersCollapsed && (
+          <div className="filter-controls">
+            <div className="filter-group">
+              <label>Time Range</label>
+              <select
+                value={selectedTimeRange}
+                onChange={(e) => setSelectedTimeRange(e.target.value)}
+                className="filter-select"
               >
-                🔄 {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+                {Object.entries(TIME_RANGES).map(([key, config]) => (
+                  <option key={key} value={key}>
+                    {config.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Category</label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="filter-select"
+                disabled={categoriesLoading}
+              >
+                <option value="ALL">
+                  {categoriesLoading ? 'Loading...' : 'All Categories'}
+                </option>
+                {availableCategories.map((category) => {
+                  const config = getCategoryConfig(category);
+                  return (
+                    <option key={category} value={category}>
+                      {config.icon} {config.label}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>User</label>
+              <select
+                value={selectedUser}
+                onChange={(e) => setSelectedUser(e.target.value)}
+                className="filter-select"
+              >
+                <option value="ALL">All Users</option>
+                {uniqueUsers.map(user => (
+                  <option key={user} value={user}>{user}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Result</label>
+              <select
+                value={selectedResult}
+                onChange={(e) => setSelectedResult(e.target.value)}
+                className="filter-select"
+              >
+                <option value="ALL">All Results</option>
+                <option value="SUCCESS">✅ Success</option>
+                <option value="ERROR">❌ Error</option>
+                <option value="WARNING">⚠️ Warning</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Search</label>
+              <input
+                type="text"
+                placeholder="Search logs..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="filter-input"
+              />
+            </div>
+
+            <div className="action-controls">
+              <button onClick={clearFilters} className="action-btn">
+                🔄 Clear
               </button>
-            )}
+              <button onClick={exportToCSV} className="action-btn">
+                📥 Export
+              </button>
+              <button onClick={fetchLogs} disabled={loading} className="action-btn">
+                {loading ? '⏳' : '🔄'} Refresh
+              </button>
+
+              {/* 🔗 Connection Logs Toggle */}
+              <button
+                onClick={() => {
+                  setConnectionLogsOnly(!connectionLogsOnly);
+                  if (!connectionLogsOnly) {
+                    setSelectedCategory('CONNECTION');
+                  } else {
+                    setSelectedCategory('ALL');
+                  }
+                }}
+                className={`action-btn ${connectionLogsOnly ? 'active' : ''}`}
+                title="Show only OPC UA connection logs"
+              >
+                🔗 {connectionLogsOnly ? 'All Logs' : 'Connection Logs'}
+              </button>
+
+              {/* 🔄 Auto-refresh Toggle (only for connection logs) */}
+              {connectionLogsOnly && (
+                <button
+                  onClick={() => setAutoRefresh(!autoRefresh)}
+                  className={`action-btn ${autoRefresh ? 'active' : ''}`}
+                  title="Auto-refresh connection logs every 5 seconds"
+                >
+                  🔄 {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Table */}
-      <div className="logs-table-container" style={{ height: tableHeight }}>
+      <div className="logs-table-container">
         <div className="table-body-container">
           <table className="logs-table-enhanced">
             <thead>
@@ -676,7 +635,7 @@ export const LogsPageEnhanced: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      <div className="pagination-controls" ref={paginationRef}>
+      <div className="pagination-controls">
         <div className="page-size-control">
           <label>Show</label>
           <select 
