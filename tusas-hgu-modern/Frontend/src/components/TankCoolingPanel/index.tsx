@@ -1,19 +1,251 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useOpcStore } from '../../store/opcStore';
 import CoolingSetpointsModal from '../CoolingSetpointsModal';
 import { useSystemOpcHint } from '../../hooks/useOpcHint';
 import './TankCoolingPanel.css';
 
+type CoolingSubPage = 'overview' | 'trends' | 'advanced';
+
 interface TankCoolingPanelProps {
   onClick?: () => void;
+  subPage?: CoolingSubPage | string;
+  onSubPageChange?: (subPage: CoolingSubPage) => void;
 }
 
-const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
+interface TankCoolingData {
+  tankLevel: number;
+  tankTemperature: number;
+  aquaSensor: number;
+  waterTemperature: number;
+  coolingSystemStatus: number;
+  maxOilTempSetpoint: number;
+  minOilTempSetpoint: number;
+  coolingFlowRate: number;
+  pumpStatus: boolean;
+}
+
+const COOLING_TABS: { key: CoolingSubPage; label: string }[] = [
+  { key: 'overview', label: 'Özet' },
+  { key: 'trends', label: 'Trendler' },
+  { key: 'advanced', label: 'Gelişmiş' }
+];
+
+const isCoolingSubPage = (value?: string): value is CoolingSubPage =>
+  Boolean(value && COOLING_TABS.some((tab) => tab.key === value));
+
+const OverviewContent: React.FC<{
+  data: TankCoolingData;
+  tankLevelStatus: { class: string; color: string };
+  getTemperatureColor: (temp: number, min: number, max: number) => string;
+  getAquaSensorColor: (percentage: number) => string;
+  hints: {
+    tankLevel: string | undefined;
+    oilTemperature: string | undefined;
+    aquaSensor: string | undefined;
+  };
+}> = ({ data, tankLevelStatus, getTemperatureColor, getAquaSensorColor, hints }) => (
+  <div className="tank-overview-grid">
+    <div className="tank-level-card">
+      <div className="section-header compact">
+        <span className="section-icon">🛢️</span>
+        <span className="section-title">Hidrolik Tank</span>
+      </div>
+      <div className="tank-display" title={hints.tankLevel}>
+        <div className="tank-visual">
+          <div className="tank-container">
+            <div
+              className={`tank-level ${tankLevelStatus.class}`}
+              style={{ height: `${Math.min(Math.max(data.tankLevel, 0), 100)}%`, backgroundColor: tankLevelStatus.color }}
+            />
+            <div className="tank-level-text">{data.tankLevel.toFixed(1)}%</div>
+          </div>
+          <div className="tank-scale">
+            <div className="scale-mark">100%</div>
+            <div className="scale-mark">75%</div>
+            <div className="scale-mark">50%</div>
+            <div className="scale-mark">25%</div>
+            <div className="scale-mark">0%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div className="tank-overview-metrics">
+      <div className="tank-metric-card" title={hints.oilTemperature}>
+        <div className="metric-title">Yağ Sıcaklığı</div>
+        <div
+          className="metric-value large"
+          style={{
+            color: getTemperatureColor(
+              data.tankTemperature,
+              data.minOilTempSetpoint,
+              data.maxOilTempSetpoint
+            )
+          }}
+        >
+          {data.tankTemperature.toFixed(1)}°C
+        </div>
+        <div className="metric-subtext">Aralık: {data.minOilTempSetpoint}°C - {data.maxOilTempSetpoint}°C</div>
+      </div>
+
+      <div className="tank-metric-card" title={hints.aquaSensor}>
+        <div className="metric-title">Suda Yağ</div>
+        <div
+          className="metric-value large"
+          style={{ color: getAquaSensorColor(data.aquaSensor) }}
+        >
+          {(data.aquaSensor * 100).toFixed(2)}%
+        </div>
+        <div className="metric-subtext">Sensör Durumu</div>
+      </div>
+
+      <div className="tank-metric-card pump" title="Pompa Durumu">
+        <div className="metric-title">Soğutma Pompası</div>
+        <div className={`metric-value large ${data.pumpStatus ? 'on' : 'off'}`}>
+          {data.pumpStatus ? 'ON' : 'OFF'}
+        </div>
+        <div className="metric-subtext">Akım İzleme</div>
+      </div>
+    </div>
+  </div>
+);
+
+const TrendsContent: React.FC<{
+  data: TankCoolingData;
+  getTemperatureColor: (temp: number, min: number, max: number) => string;
+  getAquaSensorColor: (percentage: number) => string;
+  hints: {
+    chillerInletTemp: string | undefined;
+    chillerWaterFlow: string | undefined;
+  };
+}> = ({ data, getTemperatureColor, getAquaSensorColor, hints }) => (
+  <div className="tank-trends-grid">
+    <div className="trend-card" title={hints.chillerInletTemp}>
+      <div className="trend-header">
+        <span className="trend-icon">🌡️</span>
+        <span className="trend-label">Su Sıcaklığı</span>
+        <span className="trend-value">{data.waterTemperature.toFixed(1)}°C</span>
+      </div>
+      <div className="progress-background">
+        <div
+          className="progress-fill water-temperature"
+          style={{
+            width: `${Math.min((data.waterTemperature / 50) * 100, 100)}%`,
+            backgroundColor: getTemperatureColor(
+              data.waterTemperature,
+              data.minOilTempSetpoint,
+              data.maxOilTempSetpoint
+            )
+          }}
+        />
+      </div>
+      <div className="trend-subtext">50°C üstü uyarı oluşturur</div>
+    </div>
+
+    <div className="trend-card" title={hints.chillerWaterFlow}>
+      <div className="trend-header">
+        <span className="trend-icon">💧</span>
+        <span className="trend-label">Debi</span>
+        <span className="trend-value">{data.coolingFlowRate.toFixed(1)} L/dk</span>
+      </div>
+      <div className="progress-background">
+        <div
+          className="progress-fill flow-rate"
+          style={{ width: `${Math.min((data.coolingFlowRate / 200) * 100, 100)}%` }}
+        />
+      </div>
+      <div className="trend-subtext">Beklenen Aralık: 120-180 L/dk</div>
+    </div>
+
+    <div className="trend-card">
+      <div className="trend-header">
+        <span className="trend-icon">🧪</span>
+        <span className="trend-label">Su Sensörü</span>
+        <span className="trend-value" style={{ color: getAquaSensorColor(data.aquaSensor) }}>
+          {(data.aquaSensor * 100).toFixed(2)}%
+        </span>
+      </div>
+      <div className="trend-subtext">Trend izleme: kritik eşikler %20 ve %50</div>
+    </div>
+  </div>
+);
+
+const AdvancedContent: React.FC<{
+  data: TankCoolingData;
+  onOpenSetpoints: () => void;
+  onOpenPanelSettings?: () => void;
+}> = ({ data, onOpenSetpoints, onOpenPanelSettings }) => (
+  <div className="tank-advanced-grid">
+    <div className="advanced-card">
+      <div className="advanced-header">
+        <span className="advanced-icon">🎯</span>
+        <span className="advanced-title">Setpoint Aralıkları</span>
+      </div>
+      <div className="advanced-values">
+        <div>
+          <span className="advanced-label">Min Yağ Sıcaklığı</span>
+          <span className="advanced-value">{data.minOilTempSetpoint.toFixed(1)}°C</span>
+        </div>
+        <div>
+          <span className="advanced-label">Maks Yağ Sıcaklığı</span>
+          <span className="advanced-value">{data.maxOilTempSetpoint.toFixed(1)}°C</span>
+        </div>
+      </div>
+      <button type="button" className="advanced-btn" onClick={onOpenSetpoints}>
+        Setpoint Ayarlarını Aç
+      </button>
+    </div>
+
+    <div className="advanced-card">
+      <div className="advanced-header">
+        <span className="advanced-icon">📈</span>
+        <span className="advanced-title">Çalışma Aralığı</span>
+      </div>
+      <div className="range-display">
+        <div className="range-bar">
+          <span className="range-min">{data.minOilTempSetpoint}°C</span>
+          <div
+            className="range-current-marker"
+            style={{
+              left: `${Math.min(
+                Math.max(
+                  ((data.tankTemperature - data.minOilTempSetpoint) /
+                    (data.maxOilTempSetpoint - data.minOilTempSetpoint || 1)) * 100,
+                  0
+                ),
+                100
+              )}%`
+            }}
+          />
+          <span className="range-max">{data.maxOilTempSetpoint}°C</span>
+        </div>
+        <div className="range-value">Anlık: {data.tankTemperature.toFixed(1)}°C</div>
+      </div>
+    </div>
+
+    <div className="advanced-card actions">
+      <div className="advanced-header">
+        <span className="advanced-icon">🛠️</span>
+        <span className="advanced-title">Panel İşlemleri</span>
+      </div>
+      <button
+        type="button"
+        className="advanced-btn secondary"
+        onClick={onOpenPanelSettings}
+        disabled={!onOpenPanelSettings}
+      >
+        Panel Ayarlarını Aç
+      </button>
+    </div>
+  </div>
+);
+
+const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick, subPage, onSubPageChange }) => {
   const system = useOpcStore((state) => state.system);
   const [showCoolingModal, setShowCoolingModal] = useState(false);
+  const [internalSubPage, setInternalSubPage] = useState<CoolingSubPage>('overview');
 
-  // OPC hints for tank and cooling data
   const tankLevelHint = useSystemOpcHint('tankLevel');
   const oilTemperatureHint = useSystemOpcHint('oilTemperature');
   const aquaSensorHint = useSystemOpcHint('aquaSensor');
@@ -21,18 +253,16 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
   const chillerWaterFlowHint = useSystemOpcHint('chillerWaterFlowStatus');
   const systemStatusHint = useSystemOpcHint('systemStatus');
 
-  // Use actual OPC data from store
-  const tankCoolingData = {
-    tankLevel: system.tankLevel || 0, // From COOLING_OIL_LEVEL_PERCENT_EXECUTION
-    tankTemperature: system.oilTemperature || 0, // From COOLING_OIL_TEMPERATURE_EXECUTION
-    aquaSensor: system.aquaSensor || 0, // From COOLING_AQUA_SENSOR_EXECUTION
-    waterTemperature: system.waterTemperature || 0, // From COOLING_WATER_TEMPERATURE_EXECUTION
-    coolingSystemStatus: system.coolingSystemStatus || 0, // From COOLING_SYSTEM_STATUS_EXECUTION
-    // Setpoints
-    maxOilTempSetpoint: system.maxOilTempSetpoint || 60.0, // From COOLING_MAX_OIL_TEMP_SETPOINT
-    minOilTempSetpoint: system.minOilTempSetpoint || 30.0, // From COOLING_MIN_OIL_TEMP_SETPOINT
-    coolingFlowRate: system.coolingFlowRate || 0, // From COOLING_FLOW_RATE_EXECUTION
-    pumpStatus: system.coolingPumpStatus || false // From COOLING_PUMP_STATUS_EXECUTION
+  const tankCoolingData: TankCoolingData = {
+    tankLevel: system.tankLevel || 0,
+    tankTemperature: system.oilTemperature || 0,
+    aquaSensor: system.aquaSensor || 0,
+    waterTemperature: system.waterTemperature || 0,
+    coolingSystemStatus: system.coolingSystemStatus || 0,
+    maxOilTempSetpoint: system.maxOilTempSetpoint || 60.0,
+    minOilTempSetpoint: system.minOilTempSetpoint || 30.0,
+    coolingFlowRate: system.coolingFlowRate || 0,
+    pumpStatus: system.coolingPumpStatus || false
   };
 
   const getCoolingStatusInfo = (status: number) => {
@@ -53,50 +283,52 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
   };
 
   const getTemperatureColor = (temp: number, min: number, max: number) => {
-    if (temp > max) return '#ef4444'; // Too hot
-    if (temp < min) return '#06b6d4'; // Too cold
-    if (temp > max * 0.9) return '#f59e0b'; // Getting hot
-    return '#22c55e'; // Normal
+    if (temp > max) return '#ef4444';
+    if (temp < min) return '#06b6d4';
+    if (temp > max * 0.9) return '#f59e0b';
+    return '#22c55e';
   };
 
   const getAquaSensorColor = (percentage: number) => {
-    if (percentage > 0.5) return '#ef4444'; // Critical water contamination
-    if (percentage > 0.2) return '#f59e0b'; // Warning level
-    return '#22c55e'; // Normal
+    if (percentage > 0.5) return '#ef4444';
+    if (percentage > 0.2) return '#f59e0b';
+    return '#22c55e';
   };
 
-  const statusInfo = getCoolingStatusInfo(tankCoolingData.coolingSystemStatus);
-  const tankLevelStatus = getTankLevelStatus(tankCoolingData.tankLevel);
+  const statusInfo = useMemo(
+    () => getCoolingStatusInfo(tankCoolingData.coolingSystemStatus),
+    [tankCoolingData.coolingSystemStatus]
+  );
 
-  const handleClick = () => {
-    // Open cooling setpoints modal instead of onClick callback
-    setShowCoolingModal(true);
-  };
+  const tankLevelStatus = useMemo(
+    () => getTankLevelStatus(tankCoolingData.tankLevel),
+    [tankCoolingData.tankLevel]
+  );
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      handleClick();
+  const activeSubPage = isCoolingSubPage(typeof subPage === 'string' ? subPage : undefined)
+    ? (subPage as CoolingSubPage)
+    : internalSubPage;
+
+  const handleSubPageChange = (next: CoolingSubPage) => {
+    if (onSubPageChange) {
+      onSubPageChange(next);
+    } else {
+      setInternalSubPage(next);
     }
   };
 
-  return (
-    <div
-      className={`tank-cooling-panel ${statusInfo.class}`}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-      role="button"
-      aria-label="Tank and cooling system details"
-      aria-pressed="false"
-    >
-      {/* Status LED Strip */}
-      <div
-        className="status-strip"
-        style={{ backgroundColor: statusInfo.color }}
-      />
+  const handleOpenSetpoints = () => {
+    setShowCoolingModal(true);
+  };
 
-      {/* Header */}
+  const handleOpenPanelSettings = () => {
+    onClick?.();
+  };
+
+  return (
+    <div className={`tank-cooling-panel ${statusInfo.class}`}>
+      <div className="status-strip" style={{ backgroundColor: statusInfo.color }} />
+
       <div className="panel-header">
         <div className="panel-title">
           <span className="panel-icon">{statusInfo.icon}</span>
@@ -104,10 +336,7 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
         </div>
         <div
           className={`status-badge ${statusInfo.class}`}
-          style={{
-            backgroundColor: `${statusInfo.color}20`,
-            borderColor: `${statusInfo.color}60`
-          }}
+          style={{ backgroundColor: `${statusInfo.color}20`, borderColor: `${statusInfo.color}60` }}
           title={systemStatusHint}
         >
           <span className="status-indicator" style={{ backgroundColor: statusInfo.color }} />
@@ -115,199 +344,57 @@ const TankCoolingPanel: React.FC<TankCoolingPanelProps> = ({ onClick }) => {
         </div>
       </div>
 
-      {/* Tank Section */}
-      <div className="tank-section">
-        <div className="section-header">
-          <span className="section-icon">🛢️</span>
-          <span className="section-title">HYDRAULIC TANK</span>
-        </div>
-
-        <div className="tank-display">
-          <div className="tank-visual">
-            <div className="tank-container">
-              <div
-                className={`tank-level ${tankLevelStatus.class}`}
-                style={{
-                  height: `${tankCoolingData.tankLevel}%`,
-                  backgroundColor: tankLevelStatus.color
-                }}
-                title={tankLevelHint}
-              />
-              <div
-                className="tank-level-text"
-                title={tankLevelHint}
-              >
-                {tankCoolingData.tankLevel.toFixed(1)}%
-              </div>
-            </div>
-            <div className="tank-scale">
-              <div className="scale-mark">100%</div>
-              <div className="scale-mark">75%</div>
-              <div className="scale-mark">50%</div>
-              <div className="scale-mark">25%</div>
-              <div className="scale-mark">0%</div>
-            </div>
-          </div>
-
-          <div className="tank-metrics">
-            <div className="tank-metric with-progress">
-              <div className="metric-label">Tank Temperature</div>
-              <div className="metric-with-progress">
-                <div className="progress-background">
-                  <div
-                    className="progress-fill temperature"
-                    style={{
-                      width: `${Math.min((tankCoolingData.tankTemperature / tankCoolingData.maxOilTempSetpoint) * 100, 100)}%`,
-                      backgroundColor: getTemperatureColor(
-                        tankCoolingData.tankTemperature,
-                        tankCoolingData.minOilTempSetpoint,
-                        tankCoolingData.maxOilTempSetpoint
-                      )
-                    }}
-                  />
-                </div>
-                <div
-                  className="metric-value overlay-text"
-                  title={oilTemperatureHint}
-                >
-                  {tankCoolingData.tankTemperature.toFixed(1)}°C
-                </div>
-              </div>
-            </div>
-
-            <div className="tank-metric with-progress">
-              <div className="metric-label">Water in Oil</div>
-              <div className="metric-with-progress">
-                <div className="progress-background">
-                  <div
-                    className="progress-fill water-contamination"
-                    style={{
-                      width: `${Math.min((tankCoolingData.aquaSensor * 100) / 1.0 * 100, 100)}%`,
-                      backgroundColor: getAquaSensorColor(tankCoolingData.aquaSensor)
-                    }}
-                  />
-                </div>
-                <div
-                  className="metric-value overlay-text"
-                  title={aquaSensorHint}
-                >
-                  {(tankCoolingData.aquaSensor * 100).toFixed(2)}%
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="tank-tabs">
+        {COOLING_TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            className={`tank-tab ${activeSubPage === key ? 'active' : ''}`}
+            onClick={() => handleSubPageChange(key)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      {/* Cooling Section */}
-      <div className="cooling-section">
-        <div className="section-header">
-          <span className="section-icon">❄️</span>
-          <span className="section-title">COOLING SYSTEM</span>
-        </div>
+      <div className="tank-panel-content">
+        {activeSubPage === 'overview' && (
+          <OverviewContent
+            data={tankCoolingData}
+            tankLevelStatus={tankLevelStatus}
+            getTemperatureColor={getTemperatureColor}
+            getAquaSensorColor={getAquaSensorColor}
+            hints={{
+              tankLevel: tankLevelHint,
+              oilTemperature: oilTemperatureHint,
+              aquaSensor: aquaSensorHint
+            }}
+          />
+        )}
 
-        <div className="cooling-metrics">
-          <div className="cooling-metric-grid">
-            <div className="cooling-metric with-progress">
-              <div className="metric-header">
-                <span className="metric-icon">🌡️</span>
-                <span className="metric-label">Water Temp</span>
-              </div>
-              <div className="metric-with-progress">
-                <div className="progress-background">
-                  <div
-                    className="progress-fill water-temperature"
-                    style={{
-                      width: `${Math.min((tankCoolingData.waterTemperature / 50) * 100, 100)}%`,
-                      backgroundColor: '#06b6d4'
-                    }}
-                  />
-                </div>
-                <div
-                  className="metric-display overlay-text"
-                  title={chillerInletTempHint}
-                >
-                  <span className="metric-value">{tankCoolingData.waterTemperature.toFixed(1)}</span>
-                  <span className="metric-unit">°C</span>
-                </div>
-              </div>
-            </div>
+        {activeSubPage === 'trends' && (
+          <TrendsContent
+            data={tankCoolingData}
+            getTemperatureColor={getTemperatureColor}
+            getAquaSensorColor={getAquaSensorColor}
+            hints={{
+              chillerInletTemp: chillerInletTempHint,
+              chillerWaterFlow: chillerWaterFlowHint
+            }}
+          />
+        )}
 
-            <div className="cooling-metric with-progress">
-              <div className="metric-header">
-                <span className="metric-icon">💧</span>
-                <span className="metric-label">Flow Rate</span>
-              </div>
-              <div className="metric-with-progress">
-                <div className="progress-background">
-                  <div
-                    className="progress-fill flow-rate"
-                    style={{
-                      width: `${Math.min((tankCoolingData.coolingFlowRate / 200) * 100, 100)}%`,
-                      backgroundColor: '#8b5cf6'
-                    }}
-                  />
-                </div>
-                <div
-                  className="metric-display overlay-text"
-                  title={chillerWaterFlowHint}
-                >
-                  <span className="metric-value">{tankCoolingData.coolingFlowRate.toFixed(1)}</span>
-                  <span className="metric-unit">L/min</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="cooling-status-row">
-            <div
-              className="pump-status"
-              title={chillerWaterFlowHint}
-            >
-              <span className="pump-icon">
-                {tankCoolingData.pumpStatus ? '🔵' : '🔴'}
-              </span>
-              <span className="pump-text">
-                Cooling Pump {tankCoolingData.pumpStatus ? 'ON' : 'OFF'}
-              </span>
-            </div>
-          </div>
-        </div>
+        {activeSubPage === 'advanced' && (
+          <AdvancedContent
+            data={tankCoolingData}
+            onOpenSetpoints={handleOpenSetpoints}
+            onOpenPanelSettings={handleOpenPanelSettings}
+          />
+        )}
       </div>
 
-      {/* Temperature Range Indicator */}
-      <div className="temp-range-indicator">
-        <div className="range-header">Operating Range</div>
-        <div className="range-display">
-          <div className="range-bar">
-            <div className="range-min">{tankCoolingData.minOilTempSetpoint}°C</div>
-            <div className="range-current-marker"
-                 style={{
-                   left: `${((tankCoolingData.tankTemperature - tankCoolingData.minOilTempSetpoint) /
-                           (tankCoolingData.maxOilTempSetpoint - tankCoolingData.minOilTempSetpoint)) * 100}%`,
-                   backgroundColor: getTemperatureColor(
-                     tankCoolingData.tankTemperature,
-                     tankCoolingData.minOilTempSetpoint,
-                     tankCoolingData.maxOilTempSetpoint
-                   )
-                 }}
-            />
-            <div className="range-max">{tankCoolingData.maxOilTempSetpoint}°C</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tap to Expand Hint */}
-      <div className="expand-hint">
-        <span>Tap for cooling settings & history</span>
-        <span className="expand-icon">🔧</span>
-      </div>
-
-      {/* Cooling Setpoints Modal - Portal to document.body */}
       {showCoolingModal && ReactDOM.createPortal(
-        <CoolingSetpointsModal
-          onClose={() => setShowCoolingModal(false)}
-        />,
+        <CoolingSetpointsModal onClose={() => setShowCoolingModal(false)} />,
         document.body
       )}
     </div>
