@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import ReactDOM from 'react-dom';
+import { ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useOpcStore } from '../../store/opcStore';
 import SystemSetpointsModal from '../SystemSetpointsModal';
 import './SystemOverviewPanel.css';
+import './SystemOverviewPanel-compact.css';
 
-type OverviewSubPage = 'summary' | 'performance' | 'settings';
+// All-in-one compact panel - no tabs needed
 
 interface StatusInfo {
   text: string;
@@ -27,18 +29,7 @@ interface SystemData {
 interface SystemOverviewPanelProps {
   alarms?: Array<{ id: number; message: string; type: string }>;
   onSystemEnableToggle?: () => void;
-  subPage?: OverviewSubPage | string;
-  onSubPageChange?: (subPage: OverviewSubPage) => void;
 }
-
-const OVERVIEW_TABS: { key: OverviewSubPage; label: string }[] = [
-  { key: 'summary', label: 'Özet' },
-  { key: 'performance', label: 'Performans' },
-  { key: 'settings', label: 'Ayarlar' }
-];
-
-const isOverviewSubPage = (value?: string): value is OverviewSubPage =>
-  Boolean(value && OVERVIEW_TABS.some((tab) => tab.key === value));
 
 const formatNumber = (value?: number, fractionDigits = 1) => {
   if (value === undefined || Number.isNaN(value)) {
@@ -73,12 +64,71 @@ const buildSystemData = (system: ReturnType<typeof useOpcStore>['system']): Syst
   systemEnable: system?.systemEnable || false
 });
 
-const SummarySection: React.FC<{
+// Compact All-in-One Section combining all data
+const CompactAllDataSection: React.FC<{
   data: SystemData;
   statusInfo: StatusInfo;
   getValueColor: (current: number, setpoint: number, tolerance?: number) => string;
   getEfficiencyColor: (efficiency: number) => string;
-}> = ({ data, statusInfo, getValueColor, getEfficiencyColor }) => {
+  onSystemEnableToggle?: () => void;
+  onOpenSetpoints: () => void;
+}> = ({ data, statusInfo, getValueColor, getEfficiencyColor, onSystemEnableToggle, onOpenSetpoints }) => {
+  const [chartData, setChartData] = React.useState<Array<{
+    time: string;
+    totalFlow: number | null;
+    totalPressure: number | null;
+  }>>([]);
+
+  // Fetch 30-minute historical data from InfluxDB using working motor-series endpoint
+  React.useEffect(() => {
+    const fetchTrendData = async () => {
+      try {
+        // Use the same endpoint as InfluxDB Monitor (motor-series) which returns SystemSeries
+        const response = await fetch('http://localhost:5000/api/influx/motor-series', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            motors: [1], // Dummy motor to trigger query
+            metrics: ['pressure'], // Dummy metric
+            range: '30m',
+            maxPoints: 180
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          // Extract SystemSeries from response (motor-series returns both motor and system data)
+          const systemSeries = result.SystemSeries || result.systemSeries || [];
+
+          if (Array.isArray(systemSeries)) {
+            const formattedData = systemSeries.map((point: any) => ({
+              time: new Date(point.timestamp).toLocaleTimeString('tr-TR', {
+                hour: '2-digit',
+                minute: '2-digit'
+              }),
+              totalFlow: point.totalFlow,
+              totalPressure: point.totalPressure
+            }));
+            setChartData(formattedData);
+          }
+        } else {
+          console.error('Failed to fetch trend data:', response.status);
+        }
+      } catch (error) {
+        console.error('Error fetching trend data:', error);
+      }
+    };
+
+    // Initial fetch
+    fetchTrendData();
+
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchTrendData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const flowColor =
     data.totalFlowExecution !== undefined && data.totalFlowSetpoint !== undefined
       ? getValueColor(data.totalFlowExecution, data.totalFlowSetpoint)
@@ -89,66 +139,195 @@ const SummarySection: React.FC<{
       ? getValueColor(data.pressureExecution, data.pressureSetpoint)
       : '#ef4444';
 
-  const efficiencyValue = formatNumber(data.efficiency);
+  const flowProgress = calculateProgress(data.totalFlowExecution, data.totalFlowSetpoint);
+  const pressureProgress = calculateProgress(data.pressureExecution, data.pressureSetpoint);
+
+  // Custom Tooltip matching InfluxDB style
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="system-chart-tooltip">
+          <div className="tooltip-header">
+            <span className="tooltip-time">{payload[0]?.payload?.time}</span>
+          </div>
+          <div className="tooltip-content">
+            {payload.map((entry: any, index: number) => (
+              <div key={index} className="tooltip-item">
+                <span className="tooltip-color" style={{ backgroundColor: entry.color }} />
+                <span className="tooltip-label">
+                  {entry.dataKey === 'totalFlow' ? 'Total Flow' : 'Total Pressure'}:
+                </span>
+                <span className="tooltip-value">
+                  {entry.value !== null && !Number.isNaN(entry.value)
+                    ? `${entry.value.toFixed(1)} ${entry.dataKey === 'totalFlow' ? 'L/min' : 'bar'}`
+                    : '--'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
-    <div className="overview-summary-grid">
-      <div className="summary-card status-card">
-        <div className="summary-card-header">
+    <>
+      {/* Top Row: Status + System Enable */}
+      <div className="compact-top-row">
+        <div className="summary-card status-card-compact">
           <span className="summary-icon">{statusInfo.icon}</span>
-          <span className="summary-label">Sistem Durumu</span>
+          <div className="status-info-compact">
+            <span className="summary-label">System</span>
+            <span className="summary-status-compact" style={{ color: statusInfo.color }}>{statusInfo.text}</span>
+          </div>
+          <div className="summary-mode-compact" style={{ backgroundColor: data.systemEnable ? '#3b82f6' : '#06b6d4' }}>
+            {data.systemEnable ? 'AUTO' : 'MANUAL'}
+          </div>
         </div>
-        <div className="summary-status" style={{ color: statusInfo.color }}>
-          {statusInfo.text}
-        </div>
-        <div className="summary-mode" style={{ backgroundColor: data.systemEnable ? '#3b82f6' : '#06b6d4' }}>
-          {data.systemEnable ? 'AUTO' : 'MANUAL'}
+
+        <div className="system-enable-compact">
+          <span className="enable-label-compact">ENABLE</span>
+          <div
+            className={`enable-toggle-compact ${data.systemEnable ? 'active' : 'inactive'}`}
+            onClick={onSystemEnableToggle}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="enable-slider-compact" />
+          </div>
         </div>
       </div>
 
-      <div className="summary-card">
-        <div className="summary-card-header">
-          <span className="summary-icon">💧</span>
-          <span className="summary-label">Toplam Debi</span>
+      {/* Middle Row: Flow + Pressure with progress */}
+      <div className="compact-metrics-row">
+        <div className="metric-card-compact">
+          <div className="metric-header-compact">
+            <span className="metric-icon">💧</span>
+            <span className="metric-label">Flow Rate</span>
+          </div>
+          <div className="metric-values-compact">
+            <span className="metric-value" style={{ color: flowColor }}>
+              {formatNumber(data.totalFlowExecution)}
+              {formatNumber(data.totalFlowExecution) !== 'ERR' && <span className="metric-unit">L/min</span>}
+            </span>
+            <span className="metric-sp">SP: {formatNumber(data.totalFlowSetpoint)}</span>
+          </div>
+          <div className="progress-bar-compact" style={{ backgroundColor: flowColor, width: flowProgress.width }} />
         </div>
-        <div className="summary-value" style={{ color: flowColor }}>
-          {formatNumber(data.totalFlowExecution)}
-          {formatNumber(data.totalFlowExecution) !== 'ERR' && <span className="summary-unit">L/dk</span>}
-        </div>
-        <div className="summary-subtext">
-          Hedef: {formatNumber(data.totalFlowSetpoint)} {formatNumber(data.totalFlowSetpoint) !== 'ERR' && 'L/dk'}
+
+        <div className="metric-card-compact">
+          <div className="metric-header-compact">
+            <span className="metric-icon">⚡</span>
+            <span className="metric-label">Pressure</span>
+          </div>
+          <div className="metric-values-compact">
+            <span className="metric-value" style={{ color: pressureColor }}>
+              {formatNumber(data.pressureExecution)}
+              {formatNumber(data.pressureExecution) !== 'ERR' && <span className="metric-unit">bar</span>}
+            </span>
+            <span className="metric-sp">SP: {formatNumber(data.pressureSetpoint)}</span>
+          </div>
+          <div className="progress-bar-compact" style={{ backgroundColor: pressureColor, width: pressureProgress.width }} />
         </div>
       </div>
 
-      <div className="summary-card">
-        <div className="summary-card-header">
-          <span className="summary-icon">⚡</span>
-          <span className="summary-label">Toplam Basınç</span>
+      {/* Bottom Row: Efficiency + Active Pumps + Setpoints Button */}
+      <div className="compact-bottom-row">
+        <div className="info-card-compact">
+          <span className="info-icon">📈</span>
+          <span className="info-label">Efficiency</span>
+          <span className="info-value" style={{ color: data.efficiency !== undefined ? getEfficiencyColor(data.efficiency) : '#ef4444' }}>
+            {formatNumber(data.efficiency)}{formatNumber(data.efficiency) !== 'ERR' && '%'}
+          </span>
         </div>
-        <div className="summary-value" style={{ color: pressureColor }}>
-          {formatNumber(data.pressureExecution)}
-          {formatNumber(data.pressureExecution) !== 'ERR' && <span className="summary-unit">bar</span>}
+
+        <div className="info-card-compact">
+          <span className="info-icon">🔧</span>
+          <span className="info-label">Active Pumps</span>
+          <span className="info-value" style={{ color: '#06b6d4' }}>
+            {data.activePumps ?? 'ERR'}/7
+          </span>
         </div>
-        <div className="summary-subtext">
-          Hedef: {formatNumber(data.pressureSetpoint)} {formatNumber(data.pressureSetpoint) !== 'ERR' && 'bar'}
-        </div>
+
+        <button className="setpoints-btn-compact" onClick={onOpenSetpoints} type="button">
+          <span className="setpoints-icon">🎯</span>
+          Setpoints
+        </button>
       </div>
 
-      <div className="summary-card">
-        <div className="summary-card-header">
-          <span className="summary-icon">📈</span>
-          <span className="summary-label">Verimlilik</span>
+      {/* Combined Trend Chart - InfluxDB style with Recharts */}
+      <div className="compact-trends-row">
+        <div className="trend-chart-combined">
+          <div className="trend-chart-header-combined">
+            <div className="trend-legend-item">
+              <span className="trend-icon">💧</span>
+              <span className="trend-label">Flow Rate</span>
+              <span className="trend-value" style={{ color: '#00ff88' }}>L/min</span>
+            </div>
+            <div className="trend-legend-item">
+              <span className="trend-icon">⚡</span>
+              <span className="trend-label">Pressure</span>
+              <span className="trend-value" style={{ color: '#0099ff' }}>bar</span>
+            </div>
+          </div>
+          <div className="trend-chart-canvas-recharts">
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(96, 160, 255, 0.1)" vertical={false} />
+                  <XAxis
+                    dataKey="time"
+                    stroke="#94a3b8"
+                    fontSize={9}
+                    tick={{ fill: '#94a3b8' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    stroke="#94a3b8"
+                    fontSize={9}
+                    tick={{ fill: '#94a3b8' }}
+                    tickLine={false}
+                    width={35}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    stroke="#94a3b8"
+                    fontSize={9}
+                    tick={{ fill: '#94a3b8' }}
+                    tickLine={false}
+                    width={35}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="totalFlow"
+                    fill="rgba(0, 255, 136, 0.2)"
+                    stroke="#00ff88"
+                    strokeWidth={2}
+                    name="Total Flow"
+                  />
+                  <Area
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="totalPressure"
+                    fill="rgba(0, 153, 255, 0.2)"
+                    stroke="#0099ff"
+                    strokeWidth={2}
+                    name="Total Pressure"
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="no-data-message">Collecting data...</div>
+            )}
+          </div>
         </div>
-        <div
-          className="summary-value"
-          style={{ color: data.efficiency !== undefined ? getEfficiencyColor(data.efficiency) : '#ef4444' }}
-        >
-          {efficiencyValue}
-          {efficiencyValue !== 'ERR' && <span className="summary-unit">%</span>}
-        </div>
-        <div className="summary-subtext">Aktif Pompalar: {data.activePumps ?? 'ERR'}</div>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -312,26 +491,23 @@ const SettingsSection: React.FC<{
 
 const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({
   alarms = [],
-  onSystemEnableToggle,
-  subPage,
-  onSubPageChange
+  onSystemEnableToggle
 }) => {
   const system = useOpcStore((state) => state.system);
   const [showSetpointsModal, setShowSetpointsModal] = useState(false);
-  const [internalSubPage, setInternalSubPage] = useState<OverviewSubPage>('summary');
 
   const systemData = useMemo(() => buildSystemData(system), [system]);
 
   const getSystemStatusInfo = (status: number): StatusInfo => {
     switch (status) {
-      case 0: return { text: 'Başlatılıyor', class: 'status-test', color: '#8b5cf6', icon: '🔄' };
-      case 1: return { text: 'Otomatik Hazır', class: 'status-ready', color: '#3b82f6', icon: '🤖' };
-      case 2: return { text: 'Çalışıyor', class: 'status-active', color: '#22c55e', icon: '▶️' };
-      case 3: return { text: 'Hata', class: 'status-error', color: '#ef4444', icon: '❌' };
-      case 4: return { text: 'Otomatik Moda Geçiş', class: 'status-warning', color: '#f59e0b', icon: '🔄' };
-      case 5: return { text: 'Manuel Moda Geçiş', class: 'status-warning', color: '#f59e0b', icon: '🔄' };
-      case 6: return { text: 'Manuel Hazır', class: 'status-ready', color: '#06b6d4', icon: '✋' };
-      default: return { text: 'Bilinmiyor', class: 'status-ready', color: '#6b7280', icon: '❓' };
+      case 0: return { text: 'Starting', class: 'status-test', color: '#8b5cf6', icon: '🔄' };
+      case 1: return { text: 'Auto Ready', class: 'status-ready', color: '#3b82f6', icon: '🤖' };
+      case 2: return { text: 'Running', class: 'status-active', color: '#22c55e', icon: '▶️' };
+      case 3: return { text: 'Error', class: 'status-error', color: '#ef4444', icon: '❌' };
+      case 4: return { text: 'Auto Switching', class: 'status-warning', color: '#f59e0b', icon: '🔄' };
+      case 5: return { text: 'Manual Switching', class: 'status-warning', color: '#f59e0b', icon: '🔄' };
+      case 6: return { text: 'Manual Ready', class: 'status-ready', color: '#06b6d4', icon: '✋' };
+      default: return { text: 'Unknown', class: 'status-ready', color: '#6b7280', icon: '❓' };
     }
   };
 
@@ -354,18 +530,6 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({
     return '#ef4444';
   };
 
-  const activeSubPage = isOverviewSubPage(typeof subPage === 'string' ? subPage : undefined)
-    ? (subPage as OverviewSubPage)
-    : internalSubPage;
-
-  const handleSubPageChange = (next: OverviewSubPage) => {
-    if (onSubPageChange) {
-      onSubPageChange(next);
-    } else {
-      setInternalSubPage(next);
-    }
-  };
-
   return (
     <div className={`system-overview-panel ${statusInfo.class}`}>
       <div className="system-status-strip" style={{ backgroundColor: statusInfo.color }} />
@@ -384,44 +548,15 @@ const SystemOverviewPanel: React.FC<SystemOverviewPanelProps> = ({
         </div>
       </div>
 
-      <div className="system-overview-tabs">
-        {OVERVIEW_TABS.map(({ key, label }) => (
-          <button
-            key={key}
-            type="button"
-            className={`overview-tab ${activeSubPage === key ? 'active' : ''}`}
-            onClick={() => handleSubPageChange(key)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
       <div className="system-overview-content">
-        {activeSubPage === 'summary' && (
-          <SummarySection
-            data={systemData}
-            statusInfo={statusInfo}
-            getValueColor={getValueColor}
-            getEfficiencyColor={getEfficiencyColor}
-          />
-        )}
-
-        {activeSubPage === 'performance' && (
-          <PerformanceSection
-            data={systemData}
-            getValueColor={getValueColor}
-            getEfficiencyColor={getEfficiencyColor}
-          />
-        )}
-
-        {activeSubPage === 'settings' && (
-          <SettingsSection
-            data={systemData}
-            onSystemEnableToggle={onSystemEnableToggle}
-            onOpenSetpoints={() => setShowSetpointsModal(true)}
-          />
-        )}
+        <CompactAllDataSection
+          data={systemData}
+          statusInfo={statusInfo}
+          getValueColor={getValueColor}
+          getEfficiencyColor={getEfficiencyColor}
+          onSystemEnableToggle={onSystemEnableToggle}
+          onOpenSetpoints={() => setShowSetpointsModal(true)}
+        />
       </div>
 
       {showSetpointsModal && ReactDOM.createPortal(

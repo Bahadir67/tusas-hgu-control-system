@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using TUSAS.HGU.Core.Services;
@@ -8,6 +9,7 @@ namespace TUSAS.HGU.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [AllowAnonymous]
     public class InfluxController : ControllerBase
     {
         private readonly InfluxDbService _influxDbService;
@@ -360,6 +362,114 @@ namespace TUSAS.HGU.API.Controllers
         }
 
         /// <summary>
+        /// System trend data - 30 dakikalık Flow ve Pressure verileri
+        /// </summary>
+        [HttpGet("system-trends")]
+        public async Task<IActionResult> GetSystemTrends([FromQuery] int minutes = 30)
+        {
+            try
+            {
+                _logger.LogInformation("InfluxDB system trends sorgusu başlatıldı - Son {Minutes} dakika", minutes);
+
+                var fluxQuery = $@"
+                    from(bucket: ""tusas_hgu"")
+                      |> range(start: -{minutes}m)
+                      |> filter(fn: (r) => r[""_measurement""] == ""hgu_sensors"")
+                      |> filter(fn: (r) => r.sensor == ""TOTAL_SYSTEM_FLOW"" or r.sensor == ""TOTAL_SYSTEM_PRESSURE"")
+                      |> aggregateWindow(every: 10s, fn: mean, createEmpty: false)
+                      |> pivot(rowKey:[""_time""], columnKey: [""sensor""], valueColumn: ""_value"")
+                      |> map(fn: (r) => ({{ r with
+                          totalFlow: r.TOTAL_SYSTEM_FLOW,
+                          totalPressure: r.TOTAL_SYSTEM_PRESSURE
+                      }}))
+                      |> keep(columns: [""_time"", ""totalFlow"", ""totalPressure""])
+                ";
+
+                var rawResult = await _influxDbService.QueryAsync(fluxQuery);
+
+                _logger.LogInformation("InfluxDB raw result length: {Length}", rawResult?.Length ?? 0);
+                if (!string.IsNullOrEmpty(rawResult))
+                {
+                    _logger.LogInformation("InfluxDB raw result first 500 chars: {Result}",
+                        rawResult.Length > 500 ? rawResult.Substring(0, 500) : rawResult);
+                }
+
+                // Parse InfluxDB CSV result
+                var trends = new List<object>();
+                if (!string.IsNullOrEmpty(rawResult))
+                {
+                    var lines = rawResult.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+                    // Find header row (contains column names)
+                    string[]? headers = null;
+                    int timeIndex = -1;
+                    int flowIndex = -1;
+                    int pressureIndex = -1;
+
+                    foreach (var line in lines)
+                    {
+                        // Skip comment lines
+                        if (line.StartsWith("#"))
+                            continue;
+
+                        // First non-comment line is the header
+                        if (headers == null)
+                        {
+                            headers = line.Split(',');
+                            for (int i = 0; i < headers.Length; i++)
+                            {
+                                var header = headers[i].Trim();
+                                if (header == "_time") timeIndex = i;
+                                else if (header == "totalFlow") flowIndex = i;
+                                else if (header == "totalPressure") pressureIndex = i;
+                            }
+                            continue;
+                        }
+
+                        // Parse data rows
+                        var parts = line.Split(',');
+                        if (timeIndex >= 0 && timeIndex < parts.Length)
+                        {
+                            try
+                            {
+                                var timestamp = parts[timeIndex].Trim();
+                                var flow = flowIndex >= 0 && flowIndex < parts.Length &&
+                                          double.TryParse(parts[flowIndex].Trim(), System.Globalization.NumberStyles.Float,
+                                          System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : (double?)null;
+                                var pressure = pressureIndex >= 0 && pressureIndex < parts.Length &&
+                                              double.TryParse(parts[pressureIndex].Trim(), System.Globalization.NumberStyles.Float,
+                                              System.Globalization.CultureInfo.InvariantCulture, out var p) ? p : (double?)null;
+
+                                trends.Add(new
+                                {
+                                    timestamp = timestamp,
+                                    totalFlow = flow,
+                                    totalPressure = pressure
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "CSV satırı parse hatası: {Line}", line);
+                            }
+                        }
+                    }
+                }
+
+                _logger.LogInformation("InfluxDB system trends tamamlandı - {Count} veri noktası", trends.Count);
+                return Ok(new {
+                    data = trends,
+                    timeRange = $"{minutes}m",
+                    dataPoints = trends.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting system trends from InfluxDB");
+                return StatusCode(500, new { Error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// InfluxDB konfigürasyon bilgileri (güvenlik için sensitive bilgiler gizli)
         /// </summary>
         [HttpGet("config")]
@@ -371,7 +481,7 @@ namespace TUSAS.HGU.API.Controllers
                 {
                     ConnectionStatus = "Available",
                     BucketName = "Configured",
-                    Organization = "Configured", 
+                    Organization = "Configured",
                     Url = "http://localhost:8086", // URL public bilgi
                     TokenStatus = "Configured",
                     LastConfigCheck = DateTime.Now,

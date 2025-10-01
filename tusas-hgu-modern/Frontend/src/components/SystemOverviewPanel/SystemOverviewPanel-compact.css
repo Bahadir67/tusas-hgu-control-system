@@ -1,0 +1,355 @@
+/* Compact All-in-One Layout Styles */
+
+.compact-top-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.status-card-compact {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(17, 24, 39, 0.55);
+  border: 1px solid rgba(96, 160, 255, 0.1);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.status-info-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.summary-status-compact {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.summary-mode-compact {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.system-enable-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(17, 24, 39, 0.55);
+  border: 1px solid rgba(96, 160, 255, 0.1);
+  border-radius: 6px;
+}
+
+.enable-label-compact {
+  font-size: 9px;
+  font-weight: 700;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.enable-toggle-compact {
+  width: 44px;
+  height: 22px;
+  background: #1e293b;
+  border-radius: 11px;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border: 2px solid #334155;
+}
+
+.enable-toggle-compact.active {
+  background: #22c55e;
+  border-color: #16a34a;
+}
+
+.enable-toggle-compact.inactive {
+  background: #ef4444;
+  border-color: #dc2626;
+}
+
+.enable-slider-compact {
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  transition: transform 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.enable-toggle-compact.active .enable-slider-compact {
+  transform: translateX(22px);
+}
+
+/* Middle Row: Metrics */
+.compact-metrics-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.metric-card-compact {
+  background: rgba(17, 24, 39, 0.55);
+  border: 1px solid rgba(96, 160, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-header-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.metric-icon {
+  font-size: 12px;
+}
+
+.metric-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-values-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.metric-value {
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.metric-unit {
+  font-size: 9px;
+  color: #94a3b8;
+}
+
+.metric-sp {
+  font-size: 9px;
+  color: #94a3b8;
+}
+
+.progress-bar-compact {
+  height: 3px;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+/* Bottom Row: Info Cards */
+.compact-bottom-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.info-card-compact {
+  background: rgba(17, 24, 39, 0.55);
+  border: 1px solid rgba(96, 160, 255, 0.1);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.info-icon {
+  font-size: 12px;
+}
+
+.info-label {
+  font-size: 9px;
+  color: #94a3b8;
+  flex: 1;
+}
+
+.info-value {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.setpoints-btn-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.setpoints-btn-compact:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
+}
+
+.setpoints-btn-compact:active {
+  transform: translateY(0);
+}
+
+.setpoints-icon {
+  font-size: 12px;
+}
+
+/* Combined Trend Chart - InfluxDB Style */
+.compact-trends-row {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.trend-chart-combined {
+  flex: 1;
+  background: rgba(17, 24, 39, 0.55);
+  border: 1px solid rgba(96, 160, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.trend-chart-header-combined {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.trend-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+}
+
+.trend-icon {
+  font-size: 11px;
+}
+
+.trend-label {
+  font-weight: 600;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.trend-value {
+  font-size: 8px;
+  font-weight: 500;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+.trend-chart-canvas-recharts {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: rgba(15, 20, 25, 0.6);
+  border: 1px solid rgba(96, 160, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.no-data-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 9px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Recharts Tooltip - InfluxDB Style */
+.system-chart-tooltip {
+  background: rgba(22, 32, 38, 0.95);
+  border: 1px solid rgba(96, 160, 255, 0.3);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+.tooltip-header {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(96, 160, 255, 0.2);
+}
+
+.tooltip-time {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e8f0;
+  font-family: 'Courier New', monospace;
+}
+
+.tooltip-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tooltip-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+}
+
+.tooltip-color {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tooltip-label {
+  color: #94a3b8;
+  min-width: 80px;
+}
+
+.tooltip-value {
+  color: #e2e8f0;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  margin-left: auto;
+}
