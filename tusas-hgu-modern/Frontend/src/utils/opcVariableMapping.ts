@@ -70,21 +70,21 @@ export const MOTOR_VARIABLES: OpcVariableDefinition[] = [
     frontendKey: 'lineFilter',
     displayName: 'Hat filtresi',
     opcVariableName: 'PUMP_X_LINE_FILTER_STATUS',
-    dataType: 'BOOL',
+    dataType: 'USINT',
     isMotorSpecific: true
   },
   {
     frontendKey: 'suctionFilter',
     displayName: 'Emme filtresi',
     opcVariableName: 'PUMP_X_SUCTION_FILTER_STATUS',
-    dataType: 'BOOL',
+    dataType: 'USINT',
     isMotorSpecific: true
   },
   {
     frontendKey: 'manualValve',
     displayName: 'Manuel vana durumu',
     opcVariableName: 'PUMP_X_MANUAL_VALVE_STATUS',
-    dataType: 'BOOL',
+    dataType: 'USINT',
     isMotorSpecific: true
   },
   {
@@ -473,9 +473,15 @@ export const PAGE_VARIABLE_SETS = {
   },
   
   stats: {
-    name: 'Statistics', 
+    name: 'Statistics',
     systemVariables: ['totalFlow', 'totalPressure', 'oilTemperature'],
-    motorVariables: ['rpm', 'current', 'pressure', 'flow', 'temperature', 'status'], // Performance metrics
+    motorVariables: [
+      'rpm', 'current', 'pressure', 'flow', 'temperature', 'status',
+      'targetRpm', 'pressureSetpoint', 'flowSetpoint', 'enabled',
+      'lineFilter', 'suctionFilter', 'manualValve', // Filter/Valve status indicators
+      'startCmd', 'stopCmd', 'resetCmd', // Motor commands
+      'startAck', 'stopAck', 'resetAck' // Motor command acknowledgements
+    ],
     motors: [1, 2, 3, 4, 5, 6, 7]
   }
 } as const;

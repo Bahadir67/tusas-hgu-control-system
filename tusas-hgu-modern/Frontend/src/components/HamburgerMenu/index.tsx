@@ -66,10 +66,9 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose
       icon: '🧭',
       items: [
         { id: 'main', label: 'Main Dashboard', icon: '🏠', action: () => onNavigate?.('main') },
-        { id: 'motors', label: 'Motor Controls', icon: '⚙️', action: () => onNavigate?.('motors') },
         { id: 'alarms', label: 'Alarms', icon: '🚨', action: () => onNavigate?.('alarms') },
         { id: 'logs', label: 'System Logs', icon: '📋', action: () => onNavigate?.('logs') },
-        { id: 'stats', label: 'Statistics', icon: '📊', action: () => onNavigate?.('stats') }
+        { id: 'stats', label: 'Motors Detail', icon: '🎛️', action: () => onNavigate?.('stats') }
       ]
     },
     {
@@ -134,18 +133,23 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose
     }
   ];
 
-  // Close menu on outside click
+  // Close menu on outside click (but not when clicking modals)
   useEffect(() => {
     if (isOpen) {
       const handleClickOutside = (event: MouseEvent) => {
         const target = event.target as Element;
-        if (!target.closest('.hamburger-menu') && !target.closest('.hamburger-button')) {
+        // Don't close if clicking on modal or menu or hamburger button
+        if (!target.closest('.hamburger-menu') &&
+            !target.closest('.hamburger-button') &&
+            !target.closest('.modal-overlay') &&
+            !target.closest('.modal-content')) {
           onClose();
         }
       };
 
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
+      // Use capture phase to handle clicks before they bubble
+      document.addEventListener('click', handleClickOutside, true);
+      return () => document.removeEventListener('click', handleClickOutside, true);
     }
   }, [isOpen, onClose]);
 
@@ -173,7 +177,12 @@ const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ isOpen, onToggle, onClose
   const handleSubmenuItemClick = (item: MenuItem) => {
     if (item.action) {
       item.action();
-      onClose();
+      // Only close menu for navigation items
+      if (item.id === 'main' || item.id === 'alarms' ||
+          item.id === 'logs' || item.id === 'stats' || item.id === 'influxdb') {
+        onClose();
+      }
+      // For other items (modals, settings), keep menu open
     }
   };
 

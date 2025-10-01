@@ -1,0 +1,731 @@
+/* Motors Page - SCADA Dark Theme - Compact Layout */
+.motors-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: #0a0a0a;
+  color: #e0e0e0;
+  font-family: 'Courier New', 'Consolas', monospace;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.motors-page-header h2 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #60a0ff;
+}
+
+/* Motor Cards Grid - Compact */
+.motor-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  max-width: 100%;
+}
+
+.motor-card {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.motor-card:hover {
+  border-color: #60a0ff;
+  background: #222;
+}
+
+.motor-card.selected {
+  border-color: #60a0ff;
+  border-width: 2px;
+  background: #252525;
+  box-shadow: 0 0 10px rgba(96, 160, 255, 0.3);
+}
+
+.motor-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.motor-id {
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.status-icon {
+  font-size: 16px;
+}
+
+.motor-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.motor-card .metric {
+  display: flex;
+  flex-direction: column;
+}
+
+.motor-card .value {
+  font-size: 11px;
+  color: #fff;
+  font-weight: 500;
+}
+
+.motor-card.status-active {
+  border-left: 3px solid #00ff00;
+}
+
+.motor-card.status-stopped {
+  border-left: 3px solid #ff0000;
+}
+
+.motor-card.status-warning {
+  border-left: 3px solid #ffaa00;
+}
+
+/* Motor Detail View - Compact */
+.motor-detail-view {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #333;
+}
+
+.detail-header h3 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #60a0ff;
+}
+
+.nav-arrow {
+  background: #333;
+  border: 1px solid #555;
+  color: #e0e0e0;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.nav-arrow:hover:not(:disabled) {
+  background: #444;
+  border-color: #60a0ff;
+  color: #60a0ff;
+}
+
+.nav-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Swipeable Container */
+.swipeable-container {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Panel Common Styles */
+.pump-data-panel,
+.motor-data-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.panel-header h4 {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #999;
+  border-bottom: 1px solid #333;
+  padding-bottom: 6px;
+}
+
+/* Metrics Display - Compact 2-Column Layout (Legacy) */
+.metrics-display-compact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 8px;
+  background: #151515;
+  border-radius: 4px;
+}
+
+/* Metrics Display - 3-Column Layout with Animation */
+.metrics-display-3col {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 12px;
+  padding: 8px;
+  background: #151515;
+  border-radius: 4px;
+}
+
+.metrics-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.enable-column,
+.control-column {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+  border-radius: 6px;
+  border: 1px solid #333;
+  transition: all 0.3s ease;
+}
+
+.enable-column:hover,
+.control-column:hover {
+  border-color: #60a0ff;
+  box-shadow: 0 0 15px rgba(96, 160, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Motor Enable Active State Animation */
+.enable-column.motor-active,
+.control-column.motor-active {
+  animation: pulse-glow 2s infinite;
+  border-color: #22c55e;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
+  }
+}
+
+.controls-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.metric-row-compact {
+  display: grid;
+  grid-template-columns: 70px 1fr 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+/* Legacy metric-row for backward compatibility */
+.metric-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+.metric-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+}
+
+.metric-value {
+  font-size: 16px;
+  font-weight: bold;
+  color: #00ff00;
+}
+
+.metric-setpoint {
+  font-size: 11px;
+  color: #60a0ff;
+}
+
+.edit-icon {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.edit-icon:hover {
+  opacity: 1;
+}
+
+/* LED Indicators */
+.filters-row {
+  display: flex;
+  gap: 12px;
+}
+
+.filters-row-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.valve-row-compact {
+  margin-top: 4px;
+}
+
+.filter-led,
+.valve-led {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+.led-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.led-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+}
+
+.led-status {
+  font-size: 11px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.led-info {
+  font-size: 9px;
+  color: #666;
+  font-style: italic;
+}
+
+/* Motor Enable Control */
+.motor-enable-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+.control-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+}
+
+.button-group {
+  display: flex;
+  gap: 6px;
+}
+
+.enable-button {
+  padding: 6px 16px;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  border: 1px solid #555;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #333;
+  color: #e0e0e0;
+}
+
+.on-button.active {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #000;
+}
+
+.off-button.active {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #fff;
+}
+
+.enable-button:hover:not(:disabled) {
+  background: #444;
+  border-color: #60a0ff;
+}
+
+.enable-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.status-label {
+  font-size: 10px;
+  color: #999;
+}
+
+.status-on {
+  color: #22c55e;
+  font-weight: bold;
+}
+
+.status-off {
+  color: #ef4444;
+  font-weight: bold;
+}
+
+/* Leak Test */
+.leak-test-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+.leak-test-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+.leak-button {
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  border: 1px solid #555;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #333;
+  color: #e0e0e0;
+}
+
+.start-button:hover:not(:disabled) {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #000;
+}
+
+.stop-button:hover:not(:disabled) {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #fff;
+}
+
+.leak-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.leak-status {
+  font-size: 11px;
+  color: #999;
+}
+
+.leak-status.status-ok {
+  color: #22c55e;
+  font-weight: bold;
+}
+
+/* Chart Section */
+.chart-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  background: #151515;
+  border-radius: 4px;
+}
+
+.chart-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+}
+
+.metric-toggles {
+  display: flex;
+  gap: 12px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  color: #999;
+  text-transform: uppercase;
+}
+
+.toggle-label input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #60a0ff;
+}
+
+/* Custom Tooltip */
+.custom-tooltip {
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 11px;
+}
+
+.tooltip-time {
+  margin: 0 0 6px 0;
+  font-weight: bold;
+  color: #60a0ff;
+  border-bottom: 1px solid #333;
+  padding-bottom: 4px;
+}
+
+.tooltip-pressure,
+.tooltip-flow,
+.tooltip-current,
+.tooltip-rpm,
+.tooltip-temperature {
+  margin: 2px 0;
+  color: #e0e0e0;
+}
+
+/* Swipe Indicator */
+.swipe-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #555;
+  transition: all 0.2s ease;
+}
+
+.dot.active {
+  background: #60a0ff;
+  box-shadow: 0 0 8px #60a0ff;
+  width: 10px;
+  height: 10px;
+}
+
+/* Setpoint Edit Popup */
+.setpoint-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.setpoint-popup {
+  background: #1a1a1a;
+  border: 2px solid #60a0ff;
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 300px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #333;
+}
+
+.popup-label {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #60a0ff;
+  font-weight: bold;
+}
+
+.popup-close {
+  background: transparent;
+  border: none;
+  color: #999;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.popup-close:hover {
+  color: #fff;
+}
+
+.popup-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.popup-content input {
+  flex: 1;
+  background: #0a0a0a;
+  border: 1px solid #555;
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 16px;
+  border-radius: 4px;
+  font-family: 'Courier New', 'Consolas', monospace;
+  font-weight: bold;
+}
+
+.popup-content input:focus {
+  outline: none;
+  border-color: #60a0ff;
+  box-shadow: 0 0 8px rgba(96, 160, 255, 0.3);
+}
+
+.popup-unit {
+  font-size: 14px;
+  color: #999;
+  min-width: 40px;
+}
+
+.popup-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.popup-button {
+  padding: 8px 20px;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  border: 1px solid #555;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.popup-button.apply {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #000;
+}
+
+.popup-button.apply:hover:not(:disabled) {
+  background: #16a34a;
+  border-color: #16a34a;
+}
+
+.popup-button.cancel {
+  background: #333;
+  border-color: #555;
+  color: #e0e0e0;
+}
+
+.popup-button.cancel:hover:not(:disabled) {
+  background: #444;
+  border-color: #60a0ff;
+}
+
+.popup-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .motors-page {
+    padding: 12px;
+  }
+
+  .motor-cards-grid {
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 6px;
+  }
+
+  .motor-detail-view {
+    padding: 12px;
+  }
+
+  .metric-row {
+    grid-template-columns: 80px 1fr auto;
+    gap: 6px;
+  }
+
+  .metric-setpoint {
+    display: none;
+  }
+}

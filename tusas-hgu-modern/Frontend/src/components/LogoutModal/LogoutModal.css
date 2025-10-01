@@ -1,478 +1,131 @@
-/* TUSAŞ HGU Logout Modal - Industrial SCADA Interface */
+/* TUSAŞ HGU Logout Modal - ULTRA COMPACT v3 */
 
-/* ========================================
-   SCADA INDUSTRIAL DESIGN SYSTEM
-   ======================================== */
-:root {
-  /* SCADA Colors - Industrial Standard */
-  --scada-bg-dark: #1a1a1a;
-  --scada-bg-medium: #2a2a2a;
-  --scada-bg-light: #3a3a3a;
-  --scada-bg-modal: #242424;
-
-  /* Status Colors - Industry Standard */
-  --scada-blue: #4a90e2;      /* Ready/Information */
-  --scada-green: #7ed321;     /* Running/OK */
-  --scada-yellow: #f5a623;    /* Warning */
-  --scada-red: #d0021b;       /* Error/Alarm */
-  --scada-gray: #9b9b9b;      /* Inactive/Disabled */
-
-  /* Text Colors - High Contrast */
-  --scada-text-primary: #ffffff;
-  --scada-text-secondary: #cccccc;
-  --scada-text-muted: #999999;
-
-  /* Borders and Outlines */
-  --scada-border: #555555;
-  --scada-border-light: #666666;
-
-  /* Functional Properties */
-  --scada-radius: 4px;
-  --scada-transition: 200ms ease;
-  --scada-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-/* ========================================
-   MODAL OVERLAY - INDUSTRIAL STANDARD
-   ======================================== */
 .logout-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
 }
 
-/* ========================================
-   MODAL CONTAINER - COMPACT SCADA STYLE
-   ======================================== */
 .logout-modal {
-  width: 480px;
+  width: 340px;
   max-width: 90vw;
-  background: var(--scada-bg-modal);
-  border: 2px solid var(--scada-border);
-  border-radius: var(--scada-radius);
-  box-shadow: var(--scada-shadow);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #1f1f1f;
+  border: 2px solid #555;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
-/* ========================================
-   MODAL CONTENT - CLEAN INDUSTRIAL LAYOUT
-   ======================================== */
-.modal-content {
-  padding: 20px;
+.logout-modal-content {
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
-/* ========================================
-   MODAL HEADER - SCADA STANDARD
-   ======================================== */
-.modal-header {
+.logout-modal-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
-  background: var(--scada-bg-light);
-  border: 1px solid var(--scada-border);
-  border-radius: var(--scada-radius);
-  margin-bottom: 4px;
+  padding: 12px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
 }
 
-.header-icon {
+.logout-icon {
+  font-size: 28px;
   flex-shrink: 0;
 }
 
-.icon-container {
-  width: 32px;
-  height: 32px;
-  background: var(--scada-red);
-  border-radius: var(--scada-radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.icon {
-  font-size: 18px;
-  color: white;
-}
-
-.header-text {
+.logout-header-text {
   flex: 1;
 }
 
-.modal-title {
-  font-size: 18px;
+.logout-title {
+  font-size: 16px;
   font-weight: 600;
-  color: var(--scada-text-primary);
+  color: #ffffff;
   margin: 0 0 2px 0;
 }
 
-.modal-subtitle {
-  font-size: 12px;
-  color: var(--scada-text-muted);
+.logout-subtitle {
+  font-size: 11px;
+  color: #999;
   margin: 0;
-  font-weight: normal;
 }
 
-/* ========================================
-   WARNING SECTION - INDUSTRIAL STANDARD
-   ======================================== */
-.warning-section {
-  display: block;
+.logout-warning {
+  padding: 10px 12px;
+  background: rgba(208, 2, 27, 0.1);
+  border: 1px solid #d0021b;
+  border-radius: 4px;
 }
 
-.warning-card {
-  background: var(--scada-bg-dark);
-  border: 1px solid var(--scada-red);
-  border-radius: var(--scada-radius);
-  padding: 12px;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.warning-icon {
-  font-size: 16px;
-  color: var(--scada-red);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.warning-content {
-  flex: 1;
-}
-
-.warning-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--scada-text-primary);
-  margin: 0 0 4px 0;
-}
-
-.warning-text {
+.logout-warning p {
   font-size: 12px;
-  color: var(--scada-text-secondary);
+  color: #ccc;
   margin: 0;
   line-height: 1.4;
-}
-
-/* ========================================
-   STATUS SECTION - SCADA TABLE FORMAT
-   ======================================== */
-.status-section {
-  display: block;
-}
-
-.section-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--scada-text-primary);
-  margin: 0 0 8px 0;
-  padding: 8px 12px;
-  background: var(--scada-bg-light);
-  border: 1px solid var(--scada-border);
-  border-radius: var(--scada-radius);
-}
-
-.status-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.status-item {
-  background: var(--scada-bg-dark);
-  border: 1px solid var(--scada-border);
-  border-radius: var(--scada-radius);
-  padding: 8px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background-color var(--scada-transition);
-}
-
-.status-item:hover {
-  background: var(--scada-bg-medium);
-}
-
-.status-icon {
-  width: 16px;
-  height: 16px;
-  border-radius: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  flex-shrink: 0;
-  background: var(--scada-gray);
-  color: white;
-}
-
-.status-icon.active {
-  background: var(--scada-green);
-}
-
-.status-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.status-label {
-  font-size: 11px;
-  color: var(--scada-text-muted);
-  font-weight: normal;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.status-value {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--scada-text-secondary);
-  margin: 2px 0 0 0;
-}
-
-.status-value.active {
-  color: var(--scada-green);
-}
-
-/* ========================================
-   SEQUENCE SECTION - SIMPLIFIED INDUSTRIAL
-   ======================================== */
-.sequence-section {
-  display: block;
-}
-
-.sequence-timeline {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.sequence-step {
-  flex: 1;
-  background: var(--scada-bg-dark);
-  border: 1px solid var(--scada-border);
-  border-radius: var(--scada-radius);
-  padding: 8px;
   text-align: center;
-  font-size: 11px;
-  color: var(--scada-text-secondary);
 }
 
-.step-number {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  background: var(--scada-blue);
-  border-radius: 2px;
-  font-size: 10px;
-  font-weight: 600;
-  color: white;
-  line-height: 16px;
-  margin-bottom: 4px;
-}
-
-.step-title {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--scada-text-primary);
-  margin: 0;
-}
-
-.step-description {
-  font-size: 9px;
-  color: var(--scada-text-muted);
-  margin: 2px 0 0 0;
-}
-
-.sequence-arrow {
-  font-size: 12px;
-  color: var(--scada-border-light);
-  margin: 0 2px;
-}
-
-/* ========================================
-   PROGRESS SECTION - CLEAN INDUSTRIAL
-   ======================================== */
-.progress-section {
-  display: block;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 6px;
-  background: var(--scada-bg-dark);
-  border: 1px solid var(--scada-border);
-  border-radius: var(--scada-radius);
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: var(--scada-blue);
-  transition: width 0.3s ease;
-}
-
-.progress-text {
-  font-size: 11px;
-  color: var(--scada-text-muted);
-  text-align: center;
-  margin-top: 6px;
-}
-
-/* ========================================
-   ACTION BUTTONS - INDUSTRIAL STANDARD
-   ======================================== */
-.modal-actions {
+.logout-actions {
   display: flex;
-  gap: 12px;
-  margin-top: 8px;
+  gap: 10px;
+  margin-top: 4px;
 }
 
-.btn-cancel,
-.btn-confirm {
+.logout-btn-cancel,
+.logout-btn-confirm {
   flex: 1;
-  padding: 12px 16px;
-  border: 1px solid var(--scada-border);
-  border-radius: var(--scada-radius);
-  font-size: 14px;
+  padding: 10px;
+  border: 1px solid #555;
+  border-radius: 4px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  transition: all var(--scada-transition);
-  font-family: inherit;
+  transition: all 0.2s;
 }
 
-.btn-cancel {
-  background: var(--scada-bg-medium);
-  color: var(--scada-text-primary);
+.logout-btn-cancel {
+  background: #2a2a2a;
+  color: #ffffff;
 }
 
-.btn-cancel:hover {
-  background: var(--scada-bg-light);
-  border-color: var(--scada-border-light);
+.logout-btn-cancel:hover {
+  background: #3a3a3a;
+  border-color: #666;
 }
 
-.btn-confirm {
-  background: var(--scada-red);
-  color: white;
-  border-color: var(--scada-red);
+.logout-btn-confirm {
+  background: #d0021b;
+  color: #ffffff;
+  border-color: #d0021b;
 }
 
-.btn-confirm:hover {
+.logout-btn-confirm:hover {
   background: #b8001a;
   border-color: #b8001a;
 }
 
-.btn-icon {
-  font-size: 14px;
-}
-
-/* ========================================
-   RESPONSIVE DESIGN - MOBILE FIRST
-   ======================================== */
-@media (max-width: 768px) {
-  .logout-modal {
-    width: 95vw;
-    margin: 16px;
-  }
-
-  .modal-content {
-    padding: 16px;
-  }
-
-  .status-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .sequence-timeline {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .sequence-arrow {
-    display: none;
-  }
-
-  .modal-actions {
-    flex-direction: column;
-  }
-}
-
+/* Mobile */
 @media (max-width: 480px) {
   .logout-modal {
-    width: 98vw;
-    margin: 8px;
+    width: 95vw;
   }
 
-  .modal-content {
+  .logout-modal-content {
     padding: 12px;
-    gap: 12px;
   }
 
-  .modal-title {
-    font-size: 16px;
-  }
-}
-
-/* ========================================
-   ACCESSIBILITY & FOCUS MANAGEMENT
-   ======================================== */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-.btn-cancel:focus-visible,
-.btn-confirm:focus-visible {
-  outline: 2px solid var(--scada-blue);
-  outline-offset: 2px;
-}
-
-.btn-cancel:focus,
-.btn-confirm:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--scada-blue);
-}
-
-/* ========================================
-   HIGH CONTRAST MODE SUPPORT
-   ======================================== */
-@media (prefers-contrast: high) {
-  :root {
-    --scada-bg-dark: #000000;
-    --scada-bg-medium: #1a1a1a;
-    --scada-bg-light: #333333;
-    --scada-text-primary: #ffffff;
-    --scada-text-secondary: #ffffff;
-    --scada-border: #ffffff;
-  }
-
-  .logout-modal {
-    border-width: 3px;
-  }
-
-  .warning-card {
-    border-width: 2px;
-  }
-
-  .status-item {
-    border-width: 2px;
+  .logout-actions {
+    flex-direction: column;
   }
 }

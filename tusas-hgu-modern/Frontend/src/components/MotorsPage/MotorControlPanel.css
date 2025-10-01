@@ -1,0 +1,334 @@
+.motor-control-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.control-section {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  height: 100%;
+}
+
+/* Left Section - Enable/Disable */
+.left-section {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-right: 1px solid #333;
+}
+
+/* Right Section - Command Buttons */
+.right-section {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  padding: 8px;
+}
+
+/* Enable Slide Switch */
+.enable-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.enable-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #00ff9d;
+  min-width: 28px;
+  text-align: center;
+}
+
+.enable-switch {
+  position: relative;
+  width: 80px;
+  height: 32px;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  outline: none;
+}
+
+.enable-switch:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 255, 157, 0.2);
+}
+
+.enable-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.enable-switch.enabled {
+  background: linear-gradient(135deg, #00ff9d 0%, #00cc7d 100%);
+}
+
+.enable-switch.enabled .switch-slider {
+  justify-content: flex-end;
+}
+
+.enable-switch.disabled .switch-slider {
+  justify-content: flex-start;
+}
+
+.enable-switch.loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.switch-slider {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  transition: all 0.3s ease;
+}
+
+.slider-knob {
+  width: 24px;
+  height: 24px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.switch-label {
+  position: absolute;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+.enable-switch.enabled .switch-label {
+  left: 10px;
+  color: white;
+}
+
+.enable-switch.disabled .switch-label {
+  right: 10px;
+  color: #666;
+}
+
+/* Command Buttons */
+.command-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+}
+
+.start-stop-group {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+}
+
+.command-button {
+  flex: 1;
+  min-height: 40px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  outline: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.command-button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.command-button:active::before {
+  width: 200px;
+  height: 200px;
+}
+
+.command-button .button-icon {
+  font-size: 16px;
+}
+
+.command-button .button-label {
+  position: relative;
+  z-index: 1;
+}
+
+/* START Button */
+.command-button.start {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  color: #00ff9d;
+  border-color: #00ff9d;
+}
+
+.command-button.start:hover:not(:disabled):not(.pressed):not(.inactive) {
+  background: linear-gradient(135deg, #00ff9d 0%, #00cc7d 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 255, 157, 0.4);
+  transform: translateY(-2px);
+}
+
+.command-button.start.pressed {
+  background: linear-gradient(135deg, #00ff9d 0%, #00cc7d 100%);
+  color: white;
+  border-color: #00ff9d;
+  box-shadow: 0 0 20px rgba(0, 255, 157, 0.6), inset 0 2px 8px rgba(0, 0, 0, 0.3);
+  transform: translateY(0);
+}
+
+.command-button.start.inactive {
+  opacity: 0.5;
+}
+
+/* STOP Button */
+.command-button.stop {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  color: #ff3366;
+  border-color: #ff3366;
+}
+
+.command-button.stop:hover:not(:disabled):not(.pressed):not(.inactive) {
+  background: linear-gradient(135deg, #ff3366 0%, #cc2952 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(255, 51, 102, 0.4);
+  transform: translateY(-2px);
+}
+
+.command-button.stop.pressed {
+  background: linear-gradient(135deg, #ff3366 0%, #cc2952 100%);
+  color: white;
+  border-color: #ff3366;
+  box-shadow: 0 0 20px rgba(255, 51, 102, 0.6), inset 0 2px 8px rgba(0, 0, 0, 0.3);
+  transform: translateY(0);
+}
+
+.command-button.stop.inactive {
+  opacity: 0.5;
+}
+
+/* RESET Button */
+.command-button.reset {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  color: #ffaa00;
+  border-color: #ffaa00;
+  flex: 1;
+}
+
+.command-button.reset:hover:not(:disabled):not(.pressed) {
+  background: linear-gradient(135deg, #ffaa00 0%, #cc8800 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(255, 170, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+.command-button.reset.pressed {
+  background: linear-gradient(135deg, #ffaa00 0%, #cc8800 100%);
+  color: white;
+  border-color: #ffaa00;
+  box-shadow: 0 0 20px rgba(255, 170, 0, 0.6), inset 0 2px 8px rgba(0, 0, 0, 0.3);
+  transform: scale(0.95);
+  animation: resetPulse 0.5s ease;
+}
+
+@keyframes resetPulse {
+  0%, 100% {
+    transform: scale(0.95);
+  }
+  50% {
+    transform: scale(0.98);
+  }
+}
+
+/* Disabled State */
+.command-button.disabled,
+.command-button:disabled {
+  background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+  color: #444;
+  border-color: #333;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.command-button.disabled:hover,
+.command-button:disabled:hover {
+  transform: none;
+}
+
+/* Toast Notifications */
+.motor-control-toast {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  z-index: 10000;
+  opacity: 0;
+  transform: translateX(400px);
+  transition: all 0.3s ease;
+  max-width: 320px;
+  pointer-events: none;
+}
+
+.motor-control-toast.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.motor-control-toast.toast-error {
+  background: linear-gradient(135deg, #ff3366 0%, #cc2952 100%);
+  color: white;
+  border: 1px solid rgba(255, 51, 102, 0.5);
+}
+
+.motor-control-toast.toast-success {
+  background: linear-gradient(135deg, #00ff9d 0%, #00cc7d 100%);
+  color: white;
+  border: 1px solid rgba(0, 255, 157, 0.5);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .start-stop-group {
+    flex-direction: column;
+  }
+
+  .command-button {
+    width: 100%;
+  }
+}

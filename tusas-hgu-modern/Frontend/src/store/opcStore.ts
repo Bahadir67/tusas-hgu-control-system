@@ -20,9 +20,9 @@ interface MotorData {
   pressureSetpoint: number;       // PUMP_X_PRESSURE_SETPOINT
   
   // Status indicators
-  lineFilter: boolean;            // PUMP_X_LINE_FILTER_STATUS
-  suctionFilter: boolean;         // PUMP_X_SUCTION_FILTER_STATUS
-  manualValve: boolean;           // PUMP_X_MANUAL_VALVE_STATUS
+  lineFilter: number;             // PUMP_X_LINE_FILTER_STATUS (0=Undefined, 1=Normal, 2=Warning, 3=Error)
+  suctionFilter: number;          // PUMP_X_SUCTION_FILTER_STATUS (0=Undefined, 1=Normal, 2=Warning, 3=Error)
+  manualValve: number;            // PUMP_X_MANUAL_VALVE_STATUS (0=Undefined, 1=ON, 2=OFF)
   errorCode: number;              // MOTOR_X_ERROR_CODE
   
   // Command/Acknowledgment
@@ -195,7 +195,7 @@ class MotorDataMapper {
       pressureSetpoint: data[variables.pressureSetpoint(motorId)]?.value ?? currentMotor.pressureSetpoint,
       lineFilter: data[variables.lineFilter(motorId)]?.value ?? currentMotor.lineFilter,
       suctionFilter: data[variables.suctionFilter(motorId)]?.value ?? currentMotor.suctionFilter,
-      manualValve: data[variables.manualValve(motorId)]?.value === true || false,
+      manualValve: data[variables.manualValve(motorId)]?.value ?? currentMotor.manualValve,
 
       // Command/Acknowledgment variables
       startCmd: data[variables.startCmd(motorId)]?.value ?? currentMotor.startCmd,
@@ -393,9 +393,9 @@ const createEmptyMotor = (motorId?: number): MotorData => ({
   pressureSetpoint: getDefaultPressureSetpoint(motorId), // Motor-specific pressure setpoints
   
   // Status indicators
-  lineFilter: false,
-  suctionFilter: false,
-  manualValve: false,
+  lineFilter: 0,              // 0=Undefined, 1=Normal, 2=Warning, 3=Error
+  suctionFilter: 0,           // 0=Undefined, 1=Normal, 2=Warning, 3=Error
+  manualValve: 0,             // 0=Undefined, 1=ON, 2=OFF
   errorCode: 0,
   
   // Command/Acknowledgment

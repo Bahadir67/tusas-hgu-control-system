@@ -4,38 +4,15 @@ import { useAuth } from './contexts/AuthContext';
 import { opcApiService } from './services/opcApiService';
 import { useSystemModeTransition } from './hooks/useSystemModeTransition';
 import HamburgerMenu from './components/HamburgerMenu';
-import MotorGroupView from './components/CompactMotorPanel/MotorGroupView';
-import MotorDetailModal from './components/MotorDetailModal';
 import SystemOverviewPanel from './components/SystemOverviewPanel';
 import TankCoolingPanel from './components/TankCoolingPanel';
 import { LogsPage } from './components/LogsPage';
 import AlarmsPage from './components/AlarmsPage';
 import InfluxDBMonitor, { InfluxMonitorTab } from './components/InfluxDBMonitor';
+import MotorsPage from './components/MotorsPage';
 import './styles/industrial-theme.css';
 import './styles/modern-layout.css';
 
-const MOTOR_GROUPS = [
-  {
-    id: 'main',
-    label: 'Ana Pompalar',
-    description: 'Ana hat debi kontrolü',
-    motorIds: [1, 2, 3, 4]
-  },
-  {
-    id: 'support',
-    label: 'Destek Pompaları',
-    description: 'Hazırlık ve bakım desteği',
-    motorIds: [5, 6]
-  },
-  {
-    id: 'pressure',
-    label: 'Yüksek Basınç',
-    description: 'Sızdırmazlık devresi',
-    motorIds: [7]
-  }
-] as const;
-
-type MotorGroupId = typeof MOTOR_GROUPS[number]['id'];
 
 function App() {
   const { token } = useAuth();
@@ -54,11 +31,9 @@ function App() {
     triggerOpcRefresh
   } = useOpcStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [selectedMotorId, setSelectedMotorId] = useState<number | null>(null);
   const [selectedSystemPanel, setSelectedSystemPanel] = useState<string | null>(null);
   const [alarms, setAlarms] = useState<Array<{ id: number; message: string; type: string }>>([]);
   const [influxSubPage, setInfluxSubPage] = useState<InfluxMonitorTab>('summary');
-  const [motorSubPage, setMotorSubPage] = useState<MotorGroupId>(MOTOR_GROUPS[0].id);
   
   // Use system mode transition hook
   const transitionState = useSystemModeTransition();
@@ -67,53 +42,11 @@ function App() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   
   // Use store's currentPage directly
-  const currentPage = storeCurrentPage as 'main' | 'motors' | 'logs' | 'alarms' | 'stats' | 'influxdb';
+  const currentPage = storeCurrentPage as 'main' | 'logs' | 'alarms' | 'stats' | 'influxdb';
 
   const pageContainerStyle: React.CSSProperties | undefined = currentPage === 'logs'
     ? { overflow: 'hidden', display: 'flex', flexDirection: 'column' }
     : undefined;
-
-  const activeMotorGroup = useMemo(() => {
-    return MOTOR_GROUPS.find(group => group.id === motorSubPage) ?? MOTOR_GROUPS[0];
-  }, [motorSubPage]);
-
-  const selectedGroupMotors = useMemo(() => {
-    return activeMotorGroup.motorIds.map(id => motors[id]);
-  }, [activeMotorGroup, motors]);
-
-  const groupActiveCount = useMemo(() => {
-    return selectedGroupMotors.reduce((count, motor) => count + (motor.status === 1 ? 1 : 0), 0);
-  }, [selectedGroupMotors]);
-
-  const groupAveragePressure = useMemo(() => {
-    if (!selectedGroupMotors.length) return null;
-    const total = selectedGroupMotors.reduce((sum, motor) => sum + (Number.isFinite(motor.pressure) ? motor.pressure : 0), 0);
-    return selectedGroupMotors.length ? total / selectedGroupMotors.length : null;
-  }, [selectedGroupMotors]);
-
-  const groupAverageFlow = useMemo(() => {
-    if (!selectedGroupMotors.length) return null;
-    const total = selectedGroupMotors.reduce((sum, motor) => sum + (Number.isFinite(motor.flow) ? motor.flow : 0), 0);
-    return selectedGroupMotors.length ? total / selectedGroupMotors.length : null;
-  }, [selectedGroupMotors]);
-
-  const systemFlowMetrics = useMemo(() => ([
-    {
-      key: 'totalFlow',
-      label: 'Toplam Debi',
-      value: system?.totalFlow ? `${system.totalFlow.toFixed(1)} L/dk` : 'ERR'
-    },
-    {
-      key: 'totalPressure',
-      label: 'Toplam Basınç',
-      value: system?.totalPressure ? `${system.totalPressure.toFixed(1)} bar` : 'ERR'
-    },
-    {
-      key: 'activePumps',
-      label: 'Aktif Motor',
-      value: system?.activePumps !== undefined ? system.activePumps : 'ERR'
-    }
-  ]), [system.totalFlow, system.totalPressure, system.activePumps]);
 
   // Set auth token when it changes
   useEffect(() => {
@@ -224,7 +157,7 @@ function App() {
   }, [currentPage, fetchPageData, setConnection, clearErrors, token]);  // Re-fetch when page changes or token updates
 
   // Navigation functions with data fetching
-  const navigateToPage = (page: 'main' | 'motors' | 'logs' | 'alarms' | 'stats' | 'influxdb') => {
+  const navigateToPage = (page: 'main' | 'logs' | 'alarms' | 'stats' | 'influxdb') => {
     if (page === currentPage || isTransitioning) return;
 
     setIsTransitioning(true);
@@ -236,7 +169,7 @@ function App() {
     setStoreCurrentPage(page as any);
 
     // Fetch data for new page immediately (skip InfluxDB - uses own API)
-    if (['main', 'motors', 'logs', 'alarms', 'stats'].includes(page)) {
+    if (['main', 'logs', 'alarms', 'stats'].includes(page)) {
       fetchPageData(page as any).catch(error => {
         console.error(`Failed to fetch data for page ${page}:`, error);
       });
@@ -247,16 +180,11 @@ function App() {
     }, 150);
   };
 
-  const handleMotorClick = (motorId: number) => {
-    setSelectedMotorId(motorId);
-  };
-
   const handleSystemPanelClick = (panelType: string) => {
     setSelectedSystemPanel(panelType);
   };
 
   const closeModal = () => {
-    setSelectedMotorId(null);
     setSelectedSystemPanel(null);
   };
 
@@ -280,11 +208,11 @@ function App() {
         }
         
       } else {
-        alert('Sistem durumu değiştirilemedi!');
+        alert('System state update failed!');
       }
     } catch (error) {
       console.error('Failed to toggle system enable:', error);
-      alert('Sistem durumu değiştirilirken hata oluştu!');
+      alert('Error occurred while changing system state!');
     }
   };
 
@@ -300,15 +228,13 @@ function App() {
       if (Math.abs(deltaX) > 100) {
         if (deltaX > 0 && currentPage !== 'main') {
           // Swipe right - go to previous page
-          if (currentPage === 'motors') navigateToPage('main');
-          if (currentPage === 'logs') navigateToPage('motors');
+          if (currentPage === 'logs') navigateToPage('main');
           if (currentPage === 'alarms') navigateToPage('logs');
           if (currentPage === 'stats') navigateToPage('alarms');
           if (currentPage === 'influxdb') navigateToPage('stats');
         } else if (deltaX < 0 && currentPage !== 'influxdb') {
           // Swipe left - go to next page
-          if (currentPage === 'main') navigateToPage('motors');
-          if (currentPage === 'motors') navigateToPage('logs');
+          if (currentPage === 'main') navigateToPage('logs');
           if (currentPage === 'logs') navigateToPage('alarms');
           if (currentPage === 'alarms') navigateToPage('stats');
           if (currentPage === 'stats') navigateToPage('influxdb');
@@ -344,71 +270,7 @@ function App() {
             </div>
           </div>
         );
-        
-      case 'motors':
-        return (
-          <div className="motors-page-content">
-            <div className="motor-page-shell">
-              <section className="motor-groups-section">
-                <div className="motor-group-tabs" role="tablist" aria-label="Motor Grupları">
-                  {MOTOR_GROUPS.map(group => {
-                    const isActive = group.id === motorSubPage;
-                    return (
-                      <button
-                        key={group.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={isActive}
-                        className={`motor-group-tab ${isActive ? 'active' : ''}`}
-                        onClick={() => setMotorSubPage(group.id)}
-                      >
-                        <span className="motor-group-label">{group.label}</span>
-                        <span className="motor-count-badge">{group.motorIds.length}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="motor-group-description">{activeMotorGroup.description}</p>
-                <MotorGroupView
-                  key={activeMotorGroup.id}
-                  motorIds={activeMotorGroup.motorIds}
-                  onMotorSelect={handleMotorClick}
-                />
-              </section>
-              <aside className="motor-summary-card">
-                <div className="motor-summary-header">
-                  <span className="motor-summary-title">Grup Özeti</span>
-                  <h2 className="motor-summary-group">{activeMotorGroup.label}</h2>
-                  <span className="motor-summary-subtitle">{activeMotorGroup.description}</span>
-                </div>
-                <div className="motor-summary-metrics">
-                  <div className="motor-summary-metric">
-                    <span className="motor-summary-label">Aktif Motor</span>
-                    <span className="motor-summary-value">{groupActiveCount} / {activeMotorGroup.motorIds.length}</span>
-                  </div>
-                  <div className="motor-summary-metric">
-                    <span className="motor-summary-label">Ortalama Basınç</span>
-                    <span className="motor-summary-value">{groupAveragePressure !== null ? `${groupAveragePressure.toFixed(1)} bar` : '---'}</span>
-                  </div>
-                  <div className="motor-summary-metric">
-                    <span className="motor-summary-label">Ortalama Debi</span>
-                    <span className="motor-summary-value">{groupAverageFlow !== null ? `${groupAverageFlow.toFixed(1)} L/dk` : '---'}</span>
-                  </div>
-                </div>
-                <div className="system-flow-summary">
-                  {systemFlowMetrics.map(metric => (
-                    <div key={metric.key} className="flow-metric">
-                      <span className="flow-label">{metric.label}</span>
-                      <span className="flow-value">{metric.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </aside>
-            </div>
-          </div>
-        );
-        
-        
+
       case 'logs':
         return <LogsPage />;
         
@@ -416,33 +278,7 @@ function App() {
         return <AlarmsPage />;
         
       case 'stats':
-        return (
-          <div className="stats-page-content">
-            <div className="stats-page-header">
-              <div className="stats-title">
-                <span className="stats-icon">📊</span>
-                <span className="stats-text">SYSTEM STATISTICS</span>
-              </div>
-            </div>
-
-            <div className="stats-content">
-              <div className="stats-placeholder">
-                <div className="stats-item">
-                  <h3>System Trends</h3>
-                  <p>Real-time performance graphs will be displayed here</p>
-                </div>
-                <div className="stats-item">
-                  <h3>Efficiency Analysis</h3>
-                  <p>Motor efficiency comparison charts</p>
-                </div>
-                <div className="stats-item">
-                  <h3>Power Consumption</h3>
-                  <p>Energy usage statistics and trends</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
+        return <MotorsPage />;
 
       case 'influxdb':
         return (
@@ -460,17 +296,6 @@ function App() {
 
   return (
     <div className="modern-dashboard" onTouchStart={handleTouchStart}>
-      {/* Hamburger Navigation */}
-      <HamburgerMenu 
-        isOpen={isMenuOpen}
-        onToggle={() => setIsMenuOpen(!isMenuOpen)}
-        onClose={() => setIsMenuOpen(false)}
-        onNavigate={(page) => {
-          navigateToPage(page as 'main' | 'motors' | 'logs' | 'alarms' | 'stats' | 'influxdb');
-          setIsMenuOpen(false);
-        }}
-      />
-
       {/* System Mode Transition Notification */}
       {transitionState.message && (
         <div 
@@ -500,16 +325,26 @@ function App() {
         </div>
       )}
 
+      {/* Hamburger Menu Overlay - Outside header */}
+      <HamburgerMenu
+        isOpen={isMenuOpen}
+        onToggle={() => setIsMenuOpen(!isMenuOpen)}
+        onClose={() => setIsMenuOpen(false)}
+        onNavigate={(page) => {
+          navigateToPage(page as 'main' | 'logs' | 'alarms' | 'stats' | 'influxdb');
+          setIsMenuOpen(false);
+        }}
+      />
+
       {/* Enhanced Header */}
       <div className="dashboard-header-modern">
         <div className="header-title-section">
           <div className="title-content-modern">
             <h1 className="main-title-modern">
               {currentPage === 'main' && 'TUSAŞ HGU Control'}
-              {currentPage === 'motors' && 'TUSAŞ HGU Motors'}
               {currentPage === 'logs' && 'TUSAŞ HGU Logs'}
               {currentPage === 'alarms' && 'TUSAŞ HGU Alarms'}
-              {currentPage === 'stats' && 'TUSAŞ HGU Stats'}
+              {currentPage === 'stats' && 'TUSAŞ HGU Motors Detail'}
               {currentPage === 'influxdb' && 'TUSAŞ HGU Database'}
             </h1>
             <div className="subtitle-modern">Hydraulic Ground Equipment - Real-time SCADA</div>
@@ -521,10 +356,6 @@ function App() {
           <div
             className={`page-dot ${currentPage === 'main' ? 'active' : ''}`}
             onClick={() => navigateToPage('main')}
-          />
-          <div
-            className={`page-dot ${currentPage === 'motors' ? 'active' : ''}`}
-            onClick={() => navigateToPage('motors')}
           />
           <div
             className={`page-dot ${currentPage === 'logs' ? 'active' : ''}`}
@@ -574,30 +405,6 @@ function App() {
         {renderPageContent()}
       </div>
 
-      {/* Motor Detail Modal */}
-      {selectedMotorId && (
-        <MotorDetailModal
-          motorId={selectedMotorId}
-          isOpen={true}
-          onClose={closeModal}
-        />
-      )}
-
-
-      {/* System Settings Modal */}
-      {selectedSystemPanel && selectedMotorId === null && (
-        <div className="system-settings-modal-overlay" onClick={closeModal}>
-          <div className="system-settings-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{selectedSystemPanel === 'system-overview' ? 'System Overview Settings' : 'Tank & Cooling Settings'}</h2>
-              <button className="modal-close-btn" onClick={closeModal}>×</button>
-            </div>
-            <div className="modal-content">
-              <p>Settings panel for {selectedSystemPanel} will be implemented here</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
