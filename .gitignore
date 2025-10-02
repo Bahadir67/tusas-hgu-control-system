@@ -26,29 +26,21 @@ x86/
 
 # NuGet
 *.nupkg
-# The packages folder can be ignored because of Package Restore
 **/[Pp]ackages/*
-# except build/, which is used as an MSBuild target.
 !**/[Pp]ackages/build/
-# Uncomment if necessary however generally it will be regenerated when needed
-#!**/[Pp]ackages/repositories.config
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 
-# Environment files with sensitive data
-.env
-*.env.local
-*.env.development.local
-*.env.test.local
-*.env.production.local
+# Dependencies
+node_modules/
+**/node_modules/
 
-# Logs
-logs/
-*.log.*
-api_logs.txt
-api_output.txt
-output.txt
+# Build outputs
+dist/
+target/
+**/dist/
+**/target/
 
 # IDE
 .vscode/
@@ -60,18 +52,33 @@ output.txt
 .DS_Store
 Thumbs.db
 
-# Serena folder (local configuration)
-# .claude/ - SuperClaude agent configurations (track for team sharing)
+# Environment files with sensitive data
+.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+
+# Logs
+logs/
+*.log
+*.log.*
+npm-debug.log*
+api_logs.txt
+api_output.txt
+output.txt
 
 # Temporary files
 tmp/
 temp/
 *.tmp
+*.temp
 *.bak
 *.backup
 nul
+_nul
 
-# Debug test files (if any get created)
+# Debug test files
 debug_*.cs
 test_*.cs
 debug_*.csproj
@@ -115,7 +122,21 @@ rustup-init.exe
 *.msi
 *.exe.config
 
-# Claude Flow generated files
+# Archives
+*.rar
+*.zip
+*.tar.gz
+
+# Database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+
+# Claude settings
 .claude/settings.local.json
 .mcp.json
 claude-flow.config.json
@@ -129,14 +150,21 @@ memory/agents/*
 coordination/memory_bank/*
 coordination/subtasks/*
 coordination/orchestration/*
-*.db
-*.db-journal
-*.db-wal
-*.sqlite
-*.sqlite-journal
-*.sqlite-wal
 claude-flow
 claude-flow.bat
 claude-flow.ps1
 hive-mind-prompt-*.txt
+
+# InfluxDB binaries (too large for GitHub)
+InfluxDB/influxd.exe
+InfluxDB/*.exe
+
+# Duplicate folders
+**/Frontend/Frontend/
+**/tusas-hgu-modern/tusas-hgu-modern/
+
+# NSSM service manager (large binary)
+nssm-*/
+
+# Deployment packages
 deployment/TUSAS_HGU_WinRAR.zip

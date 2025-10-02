@@ -72,6 +72,22 @@ function App() {
     }
   }, []);
 
+  // Prevent document drag behavior only
+  useEffect(() => {
+    const preventDrag = (e: DragEvent) => {
+      e.preventDefault();
+      return false;
+    };
+
+    document.addEventListener('dragstart', preventDrag);
+    document.addEventListener('drag', preventDrag);
+
+    return () => {
+      document.removeEventListener('dragstart', preventDrag);
+      document.removeEventListener('drag', preventDrag);
+    };
+  }, []);
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

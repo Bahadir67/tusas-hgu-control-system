@@ -169,6 +169,12 @@
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+<<<<<<< HEAD
+=======
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+>>>>>>> 5add2d6 (Fix: Tauri window border issue and touch scrolling improvements)
 }
 
 .logs-table-enhanced {
