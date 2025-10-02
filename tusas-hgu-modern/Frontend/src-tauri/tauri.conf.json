@@ -21,10 +21,13 @@
         "maxHeight": 768,
         "fullscreen": false,
         "decorations": false,
+        "transparent": false,
         "alwaysOnTop": false,
         "skipTaskbar": false,
         "resizable": false,
-        "center": true
+        "center": true,
+        "shadow": false,
+        "visible": true
       }
     ],
     "security": {
