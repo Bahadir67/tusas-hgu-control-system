@@ -126,24 +126,30 @@ namespace TUSAS.HGU.Core.Services
                 var user = await GetUserByUsernameAsync(request.Username);
                 if (user == null || !user.IsActive)
                 {
+                    _logger.LogWarning("🔐 User not found or inactive: {Username}", request.Username);
                     await LogAuthEventAsync(null, request.Username, "LOGIN_FAILED", ipAddress, userAgent, "User not found or inactive");
-                    return new LoginResponse 
-                    { 
-                        Success = false, 
-                        Message = "Invalid username or password" 
+                    return new LoginResponse
+                    {
+                        Success = false,
+                        Message = "Invalid username or password"
                     };
                 }
+
+                _logger.LogInformation("🔐 User found: {Username}, Hash: {Hash}", user.Username, user.PasswordHash?.Substring(0, Math.Min(20, user.PasswordHash?.Length ?? 0)));
 
                 // Verify password
                 if (!VerifyPassword(request.Password, user.PasswordHash, user.Salt))
                 {
+                    _logger.LogWarning("🔐 Password verification failed for user: {Username}", request.Username);
                     await LogAuthEventAsync(user.Id, request.Username, "LOGIN_FAILED", ipAddress, userAgent, "Invalid password");
-                    return new LoginResponse 
-                    { 
-                        Success = false, 
-                        Message = "Invalid username or password" 
+                    return new LoginResponse
+                    {
+                        Success = false,
+                        Message = "Invalid username or password"
                     };
                 }
+
+                _logger.LogInformation("🔐 Password verified successfully for user: {Username}", request.Username);
 
                 // Generate tokens
                 var tokenId = Guid.NewGuid().ToString();
@@ -401,10 +407,14 @@ namespace TUSAS.HGU.Core.Services
         {
             try
             {
-                return BCrypt.Net.BCrypt.Verify(password, hash);
+                _logger.LogInformation("🔐 Verifying password - Hash starts with: {HashPrefix}", hash?.Substring(0, Math.Min(10, hash?.Length ?? 0)));
+                var result = BCrypt.Net.BCrypt.Verify(password, hash);
+                _logger.LogInformation("🔐 BCrypt.Verify result: {Result}", result);
+                return result;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "🔐 BCrypt verification error");
                 return false;
             }
         }

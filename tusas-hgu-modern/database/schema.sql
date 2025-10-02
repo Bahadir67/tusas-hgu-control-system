@@ -46,8 +46,9 @@ CREATE TABLE IF NOT EXISTS AuthAuditLog (
 );
 
 -- Default users: admin and developer (same permissions)
--- Password: admin123 and dev123 (will be hashed in application)
-INSERT OR REPLACE INTO Users (Id, Username, PasswordHash, Salt, Role, FullName, Email, IsActive) VALUES 
+-- Password for both: password (BCrypt hashed with cost 10)
+-- Hash: $2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi
+INSERT OR REPLACE INTO Users (Id, Username, PasswordHash, Salt, Role, FullName, Email, IsActive) VALUES
 (1, 'admin', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '', 'admin', 'System Administrator', 'admin@tusas.com', 1),
 (2, 'developer', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '', 'admin', 'System Developer', 'developer@tusas.com', 1);
 
