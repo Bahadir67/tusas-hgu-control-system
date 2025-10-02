@@ -146,10 +146,13 @@
   cursor: not-allowed;
 }
 
-/* Swipeable Container */
+/* Swipeable Container - No animation for instant transitions */
 .swipeable-container {
   flex: 1;
   overflow: hidden;
+  touch-action: pan-y; /* Only allow vertical scrolling */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Panel Common Styles */

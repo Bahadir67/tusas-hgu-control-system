@@ -20,7 +20,7 @@
         "maxWidth": 1366,
         "maxHeight": 768,
         "fullscreen": false,
-        "decorations": true,
+        "decorations": false,
         "alwaysOnTop": false,
         "skipTaskbar": false,
         "resizable": false,

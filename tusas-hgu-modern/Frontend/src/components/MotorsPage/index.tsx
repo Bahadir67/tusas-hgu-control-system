@@ -14,6 +14,7 @@ const MotorsPage: React.FC<MotorsPageProps> = () => {
   const [selectedMotorId, setSelectedMotorId] = useState(1);
   const [currentPanel, setCurrentPanel] = useState<'pump' | 'motor'>('pump');
   const motors = useOpcStore((state) => state.motors);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
 
   const getMotorStatus = (motorId: number): 'active' | 'stopped' | 'warning' => {
     const motor = motors[motorId];
@@ -29,6 +30,31 @@ const MotorsPage: React.FC<MotorsPageProps> = () => {
     } else if (direction === 'right' && currentPanel === 'motor') {
       setCurrentPanel('pump');
     }
+  };
+
+  // Touch handling for swipe - instant transition, no animation
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStart === null) return;
+
+    const touchEnd = e.changedTouches[0].clientX;
+    const diff = touchStart - touchEnd;
+
+    // Minimum swipe distance: 50px
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) {
+        // Swipe left
+        handleSwipe('left');
+      } else {
+        // Swipe right
+        handleSwipe('right');
+      }
+    }
+
+    setTouchStart(null);
   };
 
   // Keyboard navigation
@@ -87,7 +113,11 @@ const MotorsPage: React.FC<MotorsPageProps> = () => {
           </button>
         </div>
 
-        <div className="swipeable-container">
+        <div
+          className="swipeable-container"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           {currentPanel === 'pump' ? (
             <PumpDataPanel motorId={selectedMotorId} />
           ) : (
